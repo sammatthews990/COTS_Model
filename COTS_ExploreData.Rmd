@@ -1,0 +1,157 @@
+---
+title: "COTS Population Model: explore data"
+author: "Sam Matthew, Camille Mellin, Damien Fordham, Kevin Shoemaker, ..."
+date: "April 7, 2016"
+output: html_document
+---
+
+This RMarkdown document is intended to explore relevant data and showcase the operations used in preparing data for entry into the COTS modeling framework. Note that the most recent versions of the project R scripts are stored in .R files in GIThub (the code in this document may not represent the most recently updated version)
+
+# NOTE: you must first prepare the R workspace (COTSModel_PrepareWorkspace.R) before running this RMarkdown script  
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)    # set up knitr
+```
+
+```{r echo=FALSE}
+cat(sprintf("The current user is %s",USER))
+```
+
+
+# COTS Population Model: objectives
+
+This population model is constructed in R, using the [RStudio](www.rstudio.com) development environment. 
+Yadda yadda **yadda** *yadda* ~~yadda~~ [yadda](www.rstudio.com)
+
+
+#  TODO LIST
+
+* how to initialize the COTS population??? [KTS developed a crude method using reef-level densities...]
+* determine how exactly the coral/cots interaction will work? 
+    + Can we get a maximal live coral cover for each grid cell? What determines this maximum
+    + We have cover for two species of coral- how does this enter and influence the model?
+    + Is the SDM just used to specify initial live coral cover? Or, does this SDM affect the
+  model in a more long-lasting way?
+
+
+# DATA DESCRIPTION
+The population model uses data of three major types: 
+
+1. GIS Rasters: 0.01 degrees (ca. 1 km) resolution. Approx 1.3 million pixels. We chose to use a 1 km resolution to represent geographic variation within the Great Barrier Reef.
+We chose this resolution because it was the coarsest resolution that could successfully capture
+the vast majority of the small reefs in the landscape.  
+2. Population-level data: XYZ dataframe containing unique information (Z1, Z2, ...) about
+each 1 km^2^ reef segment, or "population" (ca. 17k populations).  
+3. Reef-level data: XYZ dataframe containing unique information (z1, Z2, ...) about 
+each reef (variable sizes) (ca. 2k reefs)
+
+## Read in master population-level data
+
+```{r echo=FALSE}
+###############################
+# READ IN ENVIRONMENTAL COVARIATES
+###############################
+
+setwd(ENVDATA_DIRECTORY)
+envData <- read.table("ENV_dataGBR.txt",header=T,sep="\t")
+NPOPS <- nrow(envData)
+    # generate a template grid
+head(envData)
+
+```
+
+## Extract study region extent
+
+```{r}
+minx <- min(envData$x)-0.005  # farthest west
+miny <- min(envData$y)-0.005  # farthest south
+maxx <- max(envData$x)+0.005  # farthest east
+maxy <- max(envData$y)+0.005  # farthest north
+studyRegion <- extent(minx,maxx,miny,maxy)
+cat(sprintf("Western margin is %s degrees, southern margin is %s degrees, eastern margin is %s degrees, and northern margin is %s degrees",minx,miny,maxx,maxy))
+
+plot(studyRegion, main="Study Region (blank)")  
+
+```
+
+## Make template raster (to use as a template for further raster creation etc...)
+
+```{r}
+template <- raster(ext=studyRegion,resolution=0.01,vals=0)   # create empty raster
+#plot(template)
+setwd(SPATIALDATA_DIRECTORY)
+writeRaster(template,filename="templateRaster.asc",format="ascii",overwrite=T)   # write to file
+totalCells <- length(template@data@values)    # 1,335,372 cells
+
+cat(sprintf("total cells in study region raster is %s",totalCells))
+```
+
+## Make reef ID raster
+This GIS layer will be used in several downstream operations 
+
+```{r}
+   ## rasterize an environmental variable.
+reefID <- as.numeric(envData$REEF_ID)
+ndx <- !is.na(reefID)
+reefIDraster <- rasterize(envData[,c('x','y')][ndx,], template, field=reefID[ndx])   # memory limitations
+
+plot(reefIDraster)
+```
+
+
+## Visualize the reef polygon layer
+This uses the "readShapefile" GIS utility function (in "COTSModel_GISFunctions.R")
+
+```{r}
+GBR_polygons <- readShapefile("GBR_reefs",plot=T)
+```
+
+## Compute the percent reef for each 1km raster cell
+Camille generated a raster at 100m resolution from the GBR reef polygon layer. Here we use this new layer to compute the percent of each 1km raster cell that comprises actual reef. 
+
+```{r}
+reefraster <- ReadRaster("reefraster2.asc",projection=projection,plot=F)
+#plot(reefraster)
+reefraster <- reclassify(reefraster,rcl=c(NA,NA,0, -Inf,0.5,0, 0.6,Inf,1))  # temporary layer: reclassify to binary
+compute_percentReef <- function(t,na.rm=TRUE) sum(t,na.rm)  ## aggregation function
+reefpercent <- aggregate(reefraster, fact=10, fun=compute_percentReef, expand=TRUE, na.rm=TRUE) 
+reefpercent <- reefpercent-1
+plot(reefpercent)
+setwd(SPATIALDATA_DIRECTORY)
+writeRaster(reefpercent,filename="reefPercentRaster.asc",format="ascii",overwrite=T)   # write to file
+
+#### determine reef percent for each cell of interest in the 1km grid
+  # <- crop(x=reefpercent, y=template)
+#reefpercent <- raster::resample(x=reefpercent, y=template, method="bilinear")        # first resample to make sure the grids line up properly (NOTE: need to specify from resample package, not popbio package!)
+?extract
+envData[,'PercentReef'] <- extract(reefpercent,envData[,c('x','y')])   # add a new column to the envData (XYZ format)
+
+
+```
+
+### Initial coral cover (GIS, population-level)
+This layer is derived from several sources: XXX, XXX, XXX 
+
+
+
+
+# RMARKDOWN EXAMPLES- FOR REFERENCE
+inline equation: $A = \pi*r^{2}$
+
+Here is an example of embedded R code:
+
+```{r}
+a<-2+2
+a
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
