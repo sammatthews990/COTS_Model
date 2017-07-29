@@ -51,6 +51,17 @@ loadPackages <- function(){
   loadPackage("emdbook")        # support for ecological models with data book
   loadPackage("SpatialTools")   # compute pairwise distances
   loadPackage("Matrix")         # Sparse matrices
+  loadPackage("maptools")
+  loadPackage("PBSmapping")
+  loadPackage("RColorBrewer")
+  loadPackage("sampling")
+  loadPackage("psych")
+  loadPackage("mbcv")
+  loadPackage("gbm")
+  loadPackage("MASS")
+  loadPackage("nlme")
+  loadPackage("lme4")
+  
 }
 
 

@@ -24,7 +24,7 @@ PopData <- read.csv("Reefs.csv", header = TRUE)[1:1000,] # we will just use a su
 COTS.data <- read.csv("Disturbance/CoTS_data.csv", header = TRUE)[1:1000,]
 
 ####################!
-# 2 SET MODEL PARAMS ----
+# SET MODEL PARAMS ----
 ####################!
 
 npops = length(PopData[,1])
@@ -54,7 +54,8 @@ VBG.Params = VBG.Models[[2]]
 # Pdist.Sp <- Matrix::Matrix(Pdist, sparse=T)
 
 ###################!
-#  2 BASIC VITAL RATE AND GROWTH FUNCTIONS ----
+
+# BASIC VITAL RATE AND GROWTH FUNCTIONS ----
 ###################!
 
 # converts diameter (in mm) to mass (in grams)
@@ -72,6 +73,8 @@ COTS_FecFromMass <- function(Mass){
 }
 
 COTS_StableStage <- c(0.9803, 0.0171, 0.0026)   # very approximate stable stage distribution (J1, J2, Adult: see below for back-of-the-envelope calculation)
+
+###################!
 
 ###################!
 # initializeCOTSabund ----
@@ -173,7 +176,7 @@ COTS_StageTransition <- function(COTSabund, COTSmort, COTSremain) {
 
 COTSabund <- COTS_StageTransition(COTSabund = initCOTS, COTSmort = COTSmort, COTSremain = COTSremain)
 
-head(initCOTS)
+
 
 
 ####################!
@@ -572,6 +575,43 @@ doCOTSDemography = function(season, COTSabund){
 test.summer = doCOTSDemography("summer", initCOTS)
 test.winter = doCOTSDemography("winter", initCOTS)
 
+
+
+
+
+####################!
+# doCoralConsumption ----
+####################!
+# OBJECTIVE:
+#    - Determine the percentage Coral Cover consumed 
+# PARAMS:
+#    - season: "su,,er, or "winter" to determine the leve of coral consumption
+#    - COTSabund: spatially-structured and stage-structured COTS abundance
+#    - CoralCover: Spatially structured coral cover
+# RETURNS:
+#    - CoralCover: Spatially structured coral cover
+###################!
+
+doCoralConsumption = function(season, COTSabund, CoralCover) {
+  if (season =="summer") {
+    ConsRate = 250 # coral consumption rate
+    CAvailable = (CoralCover*data.grid$PercentReef/100)*1e6*1e4 # in cm2
+    CConsumed = ConsRate*COTSabund[,"A"]*182
+    CRemaining=((CAvailable-CConsumed)/1e10)*(100/data.grid$PercentReef)
+    CoralCover=CRemaining
+  }
+  return(CoralCover)
+  if (season =="winter") {
+    ConsRate = 150 # coral consumption rate
+    CAvailable = (CoralCover*data.grid$PercentReef/100)*1e6*1e4 # in cm2
+    CConsumed = ConsRate*COTSabund[,"A"]*182
+    CRemaining=((CAvailable-CConsumed)/1e10)*(100/data.grid$PercentReef)
+    CoralCover=CRemaining
+  }
+  return(CoralCover)
+}
+
+CoralCover = doCoralConsumption("winter", COTSabund = COTSabund, CoralCover = CoralCover[1:1000])
 
 ####################
 ### COTS SANDBOX: for testing, etc.
