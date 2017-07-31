@@ -628,6 +628,46 @@ doCoralConsumption = function(year, season, COTSabund, CoralCover) {
 
 CoralCover = doCoralConsumption("winter", COTSabund = COTSabund, CoralCover = CoralCover[1:1000])
 
+
+####################!
+# doPredPreyDynamics ----
+####################!
+# OBJECTIVE:
+#    - Restrict adult survival using Lotka Volterra Dynamics 
+# PARAMS:
+#    - season: "summer, or "winter" to determine the leve of coral consumption
+#    - COTSabund: spatially-structured and stage-structured COTS abundance
+#    - CoralCover: Spatially structured coral cover
+# RETURNS:
+#    - CoTS abund: spatially-structured and stage-structured COTS abundance
+###################!
+
+doPredPreyDynamics = function(season, COTSabund, CoralCover)
+  # after 1 year at low levels COTS densities get brought down to levels supported by growth
+  # work out the %CC growth from 0.5% and set that as the number of COTS
+  CC=rep(0.5,npops)
+  doCoralGrowth(CC, B0, WQ)
+  
+library(deSolve)
+library(lattice)
+
+predpreyLV = function(t,y,p) {
+  N=y[1]
+  P=y[2]
+  with(as.list(p),{
+    dNdt = r*N-a*P*N
+    dPdt = -b*P+f*P*N
+    return(list(c(dNdt, dPdt)))
+  })
+}
+
+r=0.5;a=0.01;f=0.01;b=0.2
+p=c(r=r,a=a,b=b,f=f)
+y0=c(N=25,P=5)
+times=seq(0,200,0.1)
+LV.out = ode(y=y0,times,predpreyLV,p)
+matplot(LV.out[,1], (LV.out[,2:3]), type="l", ylab="population size")
+
 ####################
 ### COTS SANDBOX: for testing, etc.
 ####################
