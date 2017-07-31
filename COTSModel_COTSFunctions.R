@@ -61,14 +61,15 @@ VBG.Params = VBG.Models[[2]]
 # converts diameter (in mm) to mass (in grams)
 
 COTS_MassFromDiam <- function(Diam){
-  Mass <- 6.29*10^-5*Diam^2.929
+  Mass <- signif(6.29*10^-5*Diam^2.929,3)
   return(Mass)
 }
+
 
 # converts female mass to total larval fecundity 
 
 COTS_FecFromMass <- function(Mass){
-  Fec <- 558*Mass^1.439
+  Fec <- signif(558*Mass^1.439,4)
   return(Fec)
 }
 
@@ -212,10 +213,23 @@ COTS_Fecundity <- function(COTSabund, mean, sd, npops, SR) {
     }
     return(COTS_Eggs)
 }
+COTSabund[,3] = seq(1,100000, length.out = 10)
+nEggs <- COTS_Fecundity(COTSabund, 350, 100, SR = 5, npops=10)
+avgPCF = mean(nEggs[-1]/COTSabund[,'A'][-1])
+sdPCF = sd(nEggs[-1]/COTSabund[,'A'][-1])
+COTS_FecFromMass(COTS_MassFromDiam(450))
+rpois(1,PCF)
 
-nEggs <- COTS_Fecundity(COTSabund, 35, 10, SR = 5, npops=length(PopData[,1]))
-summary(nEggs)
+COTS_Fecundity.PCF = function(COTSabund, avgPCF, sdPCF) {
+  nEggs = COTSabund[,'A']*rnorm(1, avgPCF, sdPCF)
+  #nEggs.Pois = vector("numeric", length = npops)
+  #for (i in 1:length(nEggs)){
+   # nEggs.Pois[2] = rpois(1,1e10)
+  #}
+  return(nEggs)
+}
 
+COTS_Fecundity.PCF(COTSabund, PCF, PCF.sd)
 
 ###################!
 # CoTS_Fertilisation ----
@@ -548,10 +562,10 @@ COTSabund.t1 = CoTS_Dispersal(ConnMat = Pdist.test, COTSabund = COTSabund,
 doCOTSDispersal = function(season, COTSabund, SR, ConnMat){
   COTSabund.t1 = COTSabund
   if (season=="summer"){
-    nEggs = COTS_Fecundity(COTSabund,mean = 35, sd=10, SR = SR, npops = npops)
+    nEggs = COTS_Fecundity.PCF(COTSabund, avgPCF = avgPCF, sdPCF = sdPCF)
     nLarvae = COTS_Fertilisation(nEggs = nEggs,SR = SR, Params = Params, nCOTS = COTSabund[,'A'])
     COTSabund.t1 = CoTS_Dispersal(ConnMat = ConnMat, COTSabund = COTSabund,
-                                  nLarvae=nLarvae, Loss=0.8)
+                                  nLarvae=nLarvae, Loss=0.95)
   }
   return(COTSabund.t1)
 }
@@ -592,23 +606,24 @@ test.winter = doCOTSDemography("winter", initCOTS)
 #    - CoralCover: Spatially structured coral cover
 ###################!
 
-doCoralConsumption = function(season, COTSabund, CoralCover) {
+doCoralConsumption = function(year, season, COTSabund, CoralCover) {
   if (season =="summer") {
+    #CoralCover= Results[(Results$Year==year-1) & (Results$Season=="winter"),"CoralCover"]
     ConsRate = 250 # coral consumption rate
     CAvailable = (CoralCover*data.grid$PercentReef/100)*1e6*1e4 # in cm2
     CConsumed = ConsRate*COTSabund[,"A"]*182
     CRemaining=((CAvailable-CConsumed)/1e10)*(100/data.grid$PercentReef)
-    CoralCover=CRemaining
-  }
-  return(CoralCover)
+    CRemaining[CRemaining < 0.5] <- 0.5
+  } 
   if (season =="winter") {
+    #CoralCover= Results[(Results$Year==year) & (Results$Season=="summer"),"CoralCover"]
     ConsRate = 150 # coral consumption rate
     CAvailable = (CoralCover*data.grid$PercentReef/100)*1e6*1e4 # in cm2
     CConsumed = ConsRate*COTSabund[,"A"]*182
     CRemaining=((CAvailable-CConsumed)/1e10)*(100/data.grid$PercentReef)
-    CoralCover=CRemaining
+    CRemaining[CRemaining < 0.5] <- 0.5
   }
-  return(CoralCover)
+  return(CRemaining)
 }
 
 CoralCover = doCoralConsumption("winter", COTSabund = COTSabund, CoralCover = CoralCover[1:1000])
@@ -618,7 +633,12 @@ CoralCover = doCoralConsumption("winter", COTSabund = COTSabund, CoralCover = Co
 ####################
 
   
-# Testing Dispersal Matrix ----
+
+(CoralCover = CoralCoverParams$HCINI[,1][1:10])
+doCoralConsumption(1996,"summer",  COTSabund, CoralCover)
+doCoralConsumption(1996,"winter",  COTSabund, CoralCover)
+
+
   
 # Step 1 - Create Geographic Distance Matrix
 # Step 2 - Convert to Sparse

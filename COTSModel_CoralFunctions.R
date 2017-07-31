@@ -44,7 +44,7 @@ intializeCoralCoverParams = function(data.grid, nsims){
                     3,3)
     
     #Pick N random parameters for ith grid cell
-    pick <- mvrnorm(n=N, mu=c(data.grid$pred.HCini.mean[i], data.grid$pred.HCmax.mean[i], data.grid$pred.b0.mean[i]), Sigma = sigma)
+    pick <- MASS::mvrnorm(n=N, mu=c(data.grid$pred.HCini.mean[i], data.grid$pred.HCmax.mean[i], data.grid$pred.b0.mean[i]), Sigma = sigma)
     HCINI[i,] <- pick[,1]
     HCMAX[i,] <- pick[,2]
     B0[i,] <- pick[,3]
@@ -58,5 +58,44 @@ CoralCoverParams = intializeCoralCoverParams(data.grid = data.grid, nsims=10)
 #################!
 # doCoralDistrurbances ----
 #################!  
+
+#################!
+# doCoralGrowth ----
+#################!  
+# OBJECTIVE:
+#    Allow Coral to grow follwinf both disturbance and COTS consumption 
+# PARAMS:
+#    - CoralCover: Coral cover from the previous timestep
+#    - b0 Intrinsic growth parameter from Gompertz Model
+#    - b1 Asymptotic growth parameter from Gompertz Model
+#    - WQ Water quality parameter (not sure whether to predetermine this parameter or allow it to
+#       change for the sensitivity analyses)
+# RETURNS:
+#    - CoralCover: spatially-structured Coral Cover
+###################!
+
+doCoralGrowth = function(CoralCover, B0, WQ) {
+  HC.asym <- CoralCoverParams$HCMAX[,1]
+  b0.wq <- B0 + WQ * rnorm(length(WQ), mean=WQ.mn.sd[1], sd=WQ.mn.sd[2])
+  b1.wq <- b0.wq / log(HC.asym)
+  CoralCover <- log(CoralCover)
+  CoralCover <- b0.wq + (1 - b1.wq)*CoralCover
+  return(exp(CoralCover))
+}
+CoralCover=CoralCover-2
+doCoralGrowth(CoralCover, B0, WQ)
+
+HC.asym <- HCMAX[,j]
+HC.1996 <- HCINI[,j]
+b0 <- B0[,j]
+b0.wq <- b0 + WQ * rnorm(length(WQ), mean=WQ.mn.sd[1], sd=WQ.mn.sd[2])
+b1.wq <- b0.wq / log(HC.asym)
+res[,1,j] <- as.numeric(HC.1996)
+HC.tmp <- log(HC.1996)
+
+HC.tmp[HC.tmp < log(0.01)] <- log(0.01) # sets minimal value to 0.5% (as 0% does not allow for recovery. 0.5% is the minimum HC cover observed in the LTMP data)
+
+### Make coral grow/recover
+HC.tmp <- b0.wq + (1 - b1.wq)* HC.tmp
 
 #########################
