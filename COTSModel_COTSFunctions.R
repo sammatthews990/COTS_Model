@@ -29,7 +29,7 @@ COTS.data <- read.csv("Disturbance/CoTS_data.csv", header = TRUE)[1:1000,]
 
 npops = length(PopData[,1])
 stagenames <- c('J_1', 'J_2', 'A')
-COTSmort <- c(0.7,0.4,0.1)
+COTSmort <- c(0.8,0.7,0.2)
 names(COTSmort) <- stagenames
 COTSremain <- c(0.02,0.2,1) # proportion remianing in each life stage --> we can make this a function of resource
 names(COTSremain) <- stagenames
@@ -107,10 +107,10 @@ COTS.data <- read.csv("Disturbance/CoTS_data.csv", header = TRUE)[1:1000,]
 
 stagenames <- c('J_1', 'J_2', 'A')
 
-initializeCOTSabund <- function(PopData, COTS.init, Year, stagenames, COTS_StableStage){
+initializeCOTSabund <- function(PopData, COTS.data, Year, stagenames, COTS_StableStage){
   
   ### set NA Values in interpolation CoTS.init to 0
-  COTS.init[is.na(COTS.init)] <- 0
+  COTS.data[is.na(COTS.data)] <- 0
   
   npops <- length(PopData[,1])
   nstages <- length(stagenames)
@@ -123,9 +123,9 @@ initializeCOTSabund <- function(PopData, COTS.init, Year, stagenames, COTS_Stabl
   colname <- paste('COTS_', Year, sep="")
   
   ### Update abundances based from interpolated manta tow data
-  COTSabund[,'A'] <- COTS.init[,colname] * 1500 * (PopData$reefpercent/100)   #need to multiply by function from observations to density
-  COTSabund[,'J_2'] <- COTSabund[,'A'] * (COTS_StableStage[2]/COTS_StableStage[3])
-  COTSabund[,'J_1'] <- COTSabund[,'A'] * (COTS_StableStage[1]/COTS_StableStage[3])
+  COTSabund[,'A'] <- COTS.data[,colname] * 1500 * (PopData$reefpercent/100)   #need to multiply by function from observations to density
+  COTSabund[,'J_2'] <- COTSabund[,'A'] * as.numeric(COTS_StableStage[2]/COTS_StableStage[3])
+  COTSabund[,'J_1'] <- COTSabund[,'A'] * as.numeric(COTS_StableStage[1]/COTS_StableStage[3])
   return(COTSabund)
 }
 
@@ -554,18 +554,18 @@ COTSabund.t1 = CoTS_Dispersal(ConnMat = Pdist.test, COTSabund = COTSabund,
 
 
 ##############!
-# doCoTS_Dispersal ----
+# doCOTSDispersal ----
 #############! 
 
 # This is the master fucntion that incorporates the above functions
 
-doCOTSDispersal = function(season, COTSabund, SR, ConnMat){
+doCOTSDispersal = function(season, COTSabund, SexRatio, ConnMat, avgPCF, sdPCF){
   COTSabund.t1 = COTSabund
   if (season=="summer"){
     nEggs = COTS_Fecundity.PCF(COTSabund, avgPCF = avgPCF, sdPCF = sdPCF)
-    nLarvae = COTS_Fertilisation(nEggs = nEggs,SR = SR, Params = Params, nCOTS = COTSabund[,'A'])
+    nLarvae = COTS_Fertilisation(nEggs = nEggs,SR = SexRatio, Params = Params, nCOTS = COTSabund[,'A'])
     COTSabund.t1 = CoTS_Dispersal(ConnMat = ConnMat, COTSabund = COTSabund,
-                                  nLarvae=nLarvae, Loss=0.95)
+                                  nLarvae=nLarvae, Loss=0.99)
   }
   return(COTSabund.t1)
 }
@@ -578,7 +578,7 @@ test.winter = doCOTSDispersal("winter", initCOTS, SR=5, ConnMat = Pdist.test)
 #############! 
 
 # This is the master fucntion that incorporates the above functions
-doCOTSDemography = function(season, COTSabund){
+doCOTSDemography = function(season, COTSabund, COTSmort, COTSremain){
   COTSabund.t1 = COTSabund
   if (season=="winter"){ 
     COTSabund.t1 = COTS_StageTransition(COTSabund, COTSmort, COTSremain)
@@ -606,20 +606,18 @@ test.winter = doCOTSDemography("winter", initCOTS)
 #    - CoralCover: Spatially structured coral cover
 ###################!
 
-doCoralConsumption = function(year, season, COTSabund, CoralCover) {
+doCoralConsumption = function(year, season, COTSabund, CoralCover, ConsRateS, ConsRateW) {
   if (season =="summer") {
     #CoralCover= Results[(Results$Year==year-1) & (Results$Season=="winter"),"CoralCover"]
-    ConsRate = 250 # coral consumption rate
     CAvailable = (CoralCover*data.grid$PercentReef/100)*1e6*1e4 # in cm2
-    CConsumed = ConsRate*COTSabund[,"A"]*182
+    CConsumed = ConsRateS*COTSabund[,"A"]*182
     CRemaining=((CAvailable-CConsumed)/1e10)*(100/data.grid$PercentReef)
     CRemaining[CRemaining < 0.5] <- 0.5
   } 
   if (season =="winter") {
     #CoralCover= Results[(Results$Year==year) & (Results$Season=="summer"),"CoralCover"]
-    ConsRate = 150 # coral consumption rate
     CAvailable = (CoralCover*data.grid$PercentReef/100)*1e6*1e4 # in cm2
-    CConsumed = ConsRate*COTSabund[,"A"]*182
+    CConsumed = ConsRateW*COTSabund[,"A"]*182
     CRemaining=((CAvailable-CConsumed)/1e10)*(100/data.grid$PercentReef)
     CRemaining[CRemaining < 0.5] <- 0.5
   }
@@ -642,11 +640,55 @@ CoralCover = doCoralConsumption("winter", COTSabund = COTSabund, CoralCover = Co
 #    - CoTS abund: spatially-structured and stage-structured COTS abundance
 ###################!
 
-doPredPreyDynamics = function(season, COTSabund, CoralCover)
+setCarryingCapacity = function(npops, ConsRate)
+
+CC.10=rep(10,npops)
+# Calculate percent growth
+MinG.10 = doCoralGrowth(CC.10, B0, WQ)-CC.10
+# Number of COTS sustaianble at this level
+ConsRate = 250 # coral consumption rate
+CAvailable = (MinG.10*data.grid$PercentReef/100)*1e6*1e4 # in cm2
+MinK.10A = CAvailable/(ConsRate*182)
+MinK.10J1 = MinK.10A*COTS_StableStage[1]/COTS_StableStage[3]
+MinK.10J2 = MinK.10A*COTS_StableStage[2]/COTS_StableStage[3]
+MinK.10 = as.matrix(cbind(MinK.10J1, MinK.10J2, MinK.10A)) ##THERE IS AN ISSUE WITH THE MAGNITUDE OF COTS CARRYING CAPACITY
+
+CC.0.5=rep(0.5,npops)
+# Calculate percent growth
+MinG.0.5 = doCoralGrowth(CC.0.5, B0, WQ)-CC.0.5
+# Number of COTS sustaianble at this level
+ConsRate = 250 # coral consumption rate
+CAvailable = (MinG.0.5*data.grid$PercentReef/100)*1e6*1e4 # in cm2
+MinK.0.5A = CAvailable/(ConsRate*182)
+MinK.0.5J1 = MinK.0.5A*COTS_StableStage[1]/COTS_StableStage[3]
+MinK.0.5J2 = MinK.0.5A*COTS_StableStage[2]/COTS_StableStage[3]
+MinK.0.5 = as.matrix(cbind(MinK.0.5J1, MinK.0.5J2, MinK.0.5A))
+
+
+doPredPreyDynamics = function(season, year, COTSabund) {
   # after 1 year at low levels COTS densities get brought down to levels supported by growth
   # work out the %CC growth from 0.5% and set that as the number of COTS
-  CC=rep(0.5,npops)
-  doCoralGrowth(CC, B0, WQ)
+  # MinK is the Maximum CoTS that can be supported at depleted coral cover
+  if(season=="summer"){
+    prevCC = dplyr::filter(Results, Year==year-1 & Season=='winter') %>% select(CoralCover)
+    prevCC = as.matrix(cbind(prevCC, prevCC,prevCC))
+    newCOTS = ifelse(prevCC < 10 & prevCC > 1 & COTSabund[,'A']> MinK.10A, MinK.10/10000,
+           ifelse(prevCC < 1 & COTSabund[,'A']> MinK.0.5A, MinK.0.5/10000, COTSabund))
+    colnames(newCOTS) = stagenames
+  }
+  if(season=="winter"){
+    prevCC = dplyr::filter(Results, Year==year & Season=='summer') %>% select(CoralCover)
+    prevCC = as.matrix(cbind(prevCC, prevCC,prevCC))
+    newCOTS = ifelse(prevCC < 10 & prevCC > 1 & COTSabund[,'A']> MinK.10A, MinK.10/10000,
+              ifelse(prevCC < 1 & COTSabund[,'A']> MinK.0.5A, MinK.0.5/10000, COTSabund))
+    colnames(newCOTS) = stagenames
+  }
+  return(newCOTS)
+} 
+
+
+doPredPreyDynamics("summer", 1997, COTSabund)
+  
   
 library(deSolve)
 library(lattice)
