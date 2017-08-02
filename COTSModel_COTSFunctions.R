@@ -207,21 +207,21 @@ COTS_Fecundity <- function(COTSabund, mean, sd, npops, SR) {
   ### Intitialize matrix to store total eggs
   COTS_Eggs <- vector(mode = "numeric", length = npops)
     for (r in 1:npops) {
-        Sizes <- rnorm(COTSabund[r,'A']*SR/10, mean, sd)
+        Sizes <- rnorm(COTSabund[r,'A']*(10-SR)/10, mean, sd)
         Sizes[Sizes<0] = 0
         COTS_Eggs[r] <- sum(COTS_FecFromMass(COTS_MassFromDiam(Sizes)))
     }
     return(COTS_Eggs)
 }
 COTSabund[,3] = seq(1,100000, length.out = 10)
-nEggs <- COTS_Fecundity(COTSabund, 350, 100, SR = 5, npops=10)
+nEggs <- COTS_Fecundity(COTSabund, 350, 100, SR = 6, npops=10)
 avgPCF = mean(nEggs[-1]/COTSabund[,'A'][-1])
 sdPCF = sd(nEggs[-1]/COTSabund[,'A'][-1])
 COTS_FecFromMass(COTS_MassFromDiam(450))
 rpois(1,PCF)
 
-COTS_Fecundity.PCF = function(COTSabund, avgPCF, sdPCF) {
-  nEggs = COTSabund[,'A']*rnorm(1, avgPCF, sdPCF)
+COTS_Fecundity.PCF = function(COTSabund, avgPCF, sdPCF, SexRatio) {
+  nEggs = COTSabund[,'A']*rnorm(1, avgPCF, sdPCF)*(SexRatio/10)
   #nEggs.Pois = vector("numeric", length = npops)
   #for (i in 1:length(nEggs)){
    # nEggs.Pois[2] = rpois(1,1e10)
@@ -562,7 +562,7 @@ COTSabund.t1 = CoTS_Dispersal(ConnMat = Pdist.test, COTSabund = COTSabund,
 doCOTSDispersal = function(season, COTSabund, SexRatio, ConnMat, avgPCF, sdPCF){
   COTSabund.t1 = COTSabund
   if (season=="summer"){
-    nEggs = COTS_Fecundity.PCF(COTSabund, avgPCF = avgPCF, sdPCF = sdPCF)
+    nEggs = COTS_Fecundity.PCF(COTSabund, avgPCF = avgPCF, sdPCF = sdPCF, SexRatio = SexRatio)
     nLarvae = COTS_Fertilisation(nEggs = nEggs,SR = SexRatio, Params = Params, nCOTS = COTSabund[,'A'])
     COTSabund.t1 = CoTS_Dispersal(ConnMat = ConnMat, COTSabund = COTSabund,
                                   nLarvae=nLarvae, Loss=0.99)
@@ -640,7 +640,7 @@ CoralCover = doCoralConsumption("winter", COTSabund = COTSabund, CoralCover = Co
 #    - CoTS abund: spatially-structured and stage-structured COTS abundance
 ###################!
 
-setCarryingCapacity = function(npops, ConsRate)
+setCarryingCapacity = function(npops, ConsRate) 
 
 CC.10=rep(10,npops)
 # Calculate percent growth
@@ -664,8 +664,7 @@ MinK.0.5J1 = MinK.0.5A*COTS_StableStage[1]/COTS_StableStage[3]
 MinK.0.5J2 = MinK.0.5A*COTS_StableStage[2]/COTS_StableStage[3]
 MinK.0.5 = as.matrix(cbind(MinK.0.5J1, MinK.0.5J2, MinK.0.5A))
 
-
-doPredPreyDynamics = function(season, year, COTSabund) {
+doPredPreyDynamics = function(season, year, COTSabund,Results) {
   # after 1 year at low levels COTS densities get brought down to levels supported by growth
   # work out the %CC growth from 0.5% and set that as the number of COTS
   # MinK is the Maximum CoTS that can be supported at depleted coral cover
@@ -687,129 +686,108 @@ doPredPreyDynamics = function(season, year, COTSabund) {
 } 
 
 
-doPredPreyDynamics("summer", 1997, COTSabund)
-  
-  
-library(deSolve)
-library(lattice)
 
-predpreyLV = function(t,y,p) {
-  N=y[1]
-  P=y[2]
-  with(as.list(p),{
-    dNdt = r*N-a*P*N
-    dPdt = -b*P+f*P*N
-    return(list(c(dNdt, dPdt)))
-  })
-}
-
-r=0.5;a=0.01;f=0.01;b=0.2
-p=c(r=r,a=a,b=b,f=f)
-y0=c(N=25,P=5)
-times=seq(0,200,0.1)
-LV.out = ode(y=y0,times,predpreyLV,p)
-matplot(LV.out[,1], (LV.out[,2:3]), type="l", ylab="population size")
 
 ####################
 ### COTS SANDBOX: for testing, etc.
 ####################
-
-  
-
-(CoralCover = CoralCoverParams$HCINI[,1][1:10])
-doCoralConsumption(1996,"summer",  COTSabund, CoralCover)
-doCoralConsumption(1996,"winter",  COTSabund, CoralCover)
-
-
-  
-# Step 1 - Create Geographic Distance Matrix
-# Step 2 - Convert to Sparse
-  
-  #############
-  # Build Dispersal Matrix (Pdist)----
-  
-  # Import coords of all of our sites ..NB for now this is the Env_Data
-  # setwd(DATA_DIRECTORY)
-  # Gdist <- load("Reefs.csv", header = TRUE) 
-  # Coords <- PopData[,c('lon','lat')]
-  # coordinates(Coords) <- ~lon+lat
-  # Gdist <- gDistance(Coords, Coords, byid = T)
-  
-  
-  # Convert to km
-  Gdist <- Gdist*100
-  
-  # Limit the distance matrix to ~500km. i.e set >500km to NA
-  Gdist[Gdist>500] <- 0
-  Gdist.Sp <- Matrix::Matrix(Gdist, sparse=T)
-  Gdist.Sp[1:10,1:10]
-  
-  #function to ignore NA's when summing
-  plus <- function(x) {
-    if(all(is.na(x))){
-      c(x[0],NA)} else {
-        sum(x,na.rm = TRUE)}
-  }
-  # Assume probability to be the inverse of distance --> need cumulative distrubtion function
-  Pdist <- apply(Gdist.Sp[1:10,1:10], 2, function(x) ((1/x)/plus(1/x))) 
-  signif(1/Gdist.Sp[1:10,1:10],3)
-  
-  
-
-  
-    
-# ----------------------------------------------------   
-
-x = matrix(rnorm(20), ncol=4)
-rownames(x) = paste("X", 1:nrow(x), sep=".")
-y = matrix(rnorm(12), ncol=4)
-rownames(y) = paste("Y", 1:nrow(y), sep=".")
-
-
-#find geographic distances between all sites
-
-Pop1 <- PopData
-coordinates(Pop1) <- ~x+y
-Gdist <- gDistance(Pop1, Pop1, byid = T)
-
-Gdist[1:10,1:10]
-# scale geographic distances between 0-1
-
-# 1/((1-GDistNorm) - 0.5)
-
-
-m <- matrix(1, 3,3)
-v <- 1:3
-m*v
-   ## build a very rough population transition matrix... 
-
-#  typical reproductive female is 300 mm in diameter
-
-Mass <- COTS_MassFromDiam(300)    # 1132 grams
-Fec <- COTS_FecFromMass(Mass)     # each female produces approx 14 million larvae!
-
-  # assume that maybe 0.0001 of these larvae establish on a reef
-Fec <- Fec*0.0001
-
-TransMat <- matrix(c(0,0.03,0,0,0,0,0.2,0,Fec/2,0,0.3,0.1,Fec/(2*6),0,0,0.6),nrow=4)
-
-
-lambda(TransMat)         # strong positive growth rate: 3.57
-stable.stage(TransMat)   #stable age distribution
-
-#### take away: stable stage distribution is heavily biased towards juveniles 
-
-##### Testing VBG ----
-
-VBG.Models[[1]]
-
-fert <- FvD[[7]][[2]][,2]
-dens <- FvD[[7]][[2]][,1]
-rm(dens, fert)
-head(FvD[[1]][[2]])
-
-theta <- c(1, 0.1, 0.1)
-
-out7 <- optim(theta, fn = SSQ, method = "BFGS", dens = na.omit(dens), fert=fert, hessian = TRUE)
-out7$par
+# 
+#   
+# 
+# (CoralCover = CoralCoverParams$HCINI[,1][1:10])
+# doCoralConsumption(1996,"summer",  COTSabund, CoralCover)
+# doCoralConsumption(1996,"winter",  COTSabund, CoralCover)
+# 
+# 
+#   
+# # Step 1 - Create Geographic Distance Matrix
+# # Step 2 - Convert to Sparse
+#   
+#   #############
+#   # Build Dispersal Matrix (Pdist)----
+#   
+#   # Import coords of all of our sites ..NB for now this is the Env_Data
+#   # setwd(DATA_DIRECTORY)
+#   # Gdist <- load("Reefs.csv", header = TRUE) 
+#   # Coords <- PopData[,c('lon','lat')]
+#   # coordinates(Coords) <- ~lon+lat
+#   # Gdist <- gDistance(Coords, Coords, byid = T)
+#   
+#   
+#   # Convert to km
+#   Gdist <- Gdist*100
+#   
+#   # Limit the distance matrix to ~500km. i.e set >500km to NA
+#   Gdist[Gdist>500] <- 0
+#   Gdist.Sp <- Matrix::Matrix(Gdist, sparse=T)
+#   Gdist.Sp[1:10,1:10]
+#   
+#   #function to ignore NA's when summing
+#   plus <- function(x) {
+#     if(all(is.na(x))){
+#       c(x[0],NA)} else {
+#         sum(x,na.rm = TRUE)}
+#   }
+#   # Assume probability to be the inverse of distance --> need cumulative distrubtion function
+#   Pdist <- apply(Gdist.Sp[1:10,1:10], 2, function(x) ((1/x)/plus(1/x))) 
+#   signif(1/Gdist.Sp[1:10,1:10],3)
+#   
+#   
+# 
+#   
+#     
+# # ----------------------------------------------------   
+# 
+# x = matrix(rnorm(20), ncol=4)
+# rownames(x) = paste("X", 1:nrow(x), sep=".")
+# y = matrix(rnorm(12), ncol=4)
+# rownames(y) = paste("Y", 1:nrow(y), sep=".")
+# 
+# 
+# #find geographic distances between all sites
+# 
+# Pop1 <- PopData
+# coordinates(Pop1) <- ~x+y
+# Gdist <- gDistance(Pop1, Pop1, byid = T)
+# 
+# Gdist[1:10,1:10]
+# # scale geographic distances between 0-1
+# 
+# # 1/((1-GDistNorm) - 0.5)
+# 
+# 
+# m <- matrix(1, 3,3)
+# v <- 1:3
+# m*v
+#    ## build a very rough population transition matrix... 
+# 
+# #  typical reproductive female is 300 mm in diameter
+# 
+# Mass <- COTS_MassFromDiam(300)    # 1132 grams
+# Fec <- COTS_FecFromMass(Mass)     # each female produces approx 14 million larvae!
+# 
+#   # assume that maybe 0.0001 of these larvae establish on a reef
+# Fec <- Fec*0.0001
+# 
+# TransMat <- matrix(c(0,0.03,0,0,0,0,0.2,0,Fec/2,0,0.3,0.1,Fec/(2*6),0,0,0.6),nrow=4)
+# 
+# 
+# lambda(TransMat)         # strong positive growth rate: 3.57
+# stable.stage(TransMat)   #stable age distribution
+# 
+# #### take away: stable stage distribution is heavily biased towards juveniles 
+# 
+# ##### Testing VBG ----
+# 
+# VBG.Models[[1]]
+# 
+# fert <- FvD[[7]][[2]][,2]
+# dens <- FvD[[7]][[2]][,1]
+# rm(dens, fert)
+# head(FvD[[1]][[2]])
+# 
+# theta <- c(1, 0.1, 0.1)
+# 
+# out7 <- optim(theta, fn = SSQ, method = "BFGS", dens = na.omit(dens), fert=fert, hessian = TRUE)
+# out7$par
 

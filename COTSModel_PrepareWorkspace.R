@@ -17,20 +17,21 @@
 
 rm(list=ls())
 
+
 #######################
 #   SET USER 
 #######################
 
-# USER = "SAM"
-USER = "SAM_RENO"
+USER = "SAM"
+# USER = "SAM_RENO"
 
 
 ####################
 #  SET GLOBAL VARIABLES  (USER SPECIFIED PARAMS)
 ####################
 
-NREPS <- 1      
-NYEARS <- 10
+NREPS <- 10      
+NYEARS <- 20
 NSEASONS <- 2
 SEASONS <- c("summer","winter")
 
@@ -93,6 +94,7 @@ loadPackages()   # load all packages into the global environment
 
 # save global params
 saveWorkspace(filename="GlobalParams.RData")
+
 
 
 #############

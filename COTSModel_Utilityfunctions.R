@@ -56,12 +56,11 @@ loadPackages <- function(){
   loadPackage("RColorBrewer")
   loadPackage("sampling")
   loadPackage("psych")
-  loadPackage("mbcv")
-  loadPackage("gbm")
+  #loadPackage("mbcv")
+  #loadPackage("gbm")
   loadPackage("MASS")
-  loadPackage("nlme")
-  loadPackage("lme4")
-  
+  #loadPackage("nlme")
+  #loadPackage("lme4")
 }
 
 
@@ -112,11 +111,122 @@ saveWorkspace <- function(objNames=NULL,filename="R_workspace"){
 }
  
 
-#function to ignore NA's when summing
-plus <- function(x) {
-  if(all(is.na(x))){
-    c(x[0],NA)} else {
-      sum(x,na.rm = TRUE)}
+###########
+## FUNCTION "specifyLHSParam"
+##
+## Information necessary to translate standard uniform LHS sample into parameters of interest for paleo project 
+###########
+
+specifyLHSParam <- function(paramslist,name,type,lb,ub){
+  newlist <- paramslist
+  eval(parse(text=sprintf("newlist$%s <- list()",name)))
+  eval(parse(text=sprintf("newlist$%s$type <- \"%s\"",name,type)))
+  eval(parse(text=sprintf("newlist$%s$lb <- %s",name,lb)))
+  eval(parse(text=sprintf("newlist$%s$ub <- %s",name,ub))) 	
+  return(newlist)
 }
 
+###############################
+#        SPECIFY PARAMETER RANGES
+################################
+
+
+MakeLHSSamples <- function(NREPS){
+  
+  LHSParms <- list()    # initialize the container for parameter bounds
+  
+  ### SEXRATIO : 1 = 0.1M:0.9F
+  LHSParms <- specifyLHSParam(paramslist=LHSParms,name="SexRatio",type="CAT",lb=0,ub=9)
+  
+  ####  WINTER CONSUMPTION RATE
+  LHSParms <- specifyLHSParam(LHSParms,"ConsRateW",type="CONT",lb=100,ub=200)
+  
+  #### SUMMER CONSUMPTION RATE
+  LHSParms <- specifyLHSParam(LHSParms,"ConsRateS",type="CONT",lb=150,ub=400)
+  
+  ### AVERAGE PER CAPITA FECUNDITY 
+  LHSParms <- specifyLHSParam(LHSParms,"avgPCF",type="CONT",lb=42e5,ub=21e6)       # KTS: changed to 500
+  
+  ### STD DEV PER CAPITA FECUNDITY
+  LHSParms <- specifyLHSParam(LHSParms,"sdPCF",type="CONT",lb=6e4,ub=14.6e4)     # was 1000 to 40000  
+  
+  ### % JUVENILE1 MORTALITY PER TIME STEP
+  LHSParms <- specifyLHSParam(LHSParms,"mortJ1",type="CONT",lb=0.5,ub=0.99)
+  
+  ### % JUVENILE2 MORTALITY PER TIME STEP
+  LHSParms <- specifyLHSParam(LHSParms,"mortJ2",type="CONT",lb=0.4,ub=0.99) 
+  
+  ### % ADULT MORTALITY PER TIME STEP
+  LHSParms <- specifyLHSParam(LHSParms,"mortA",type="CONT",lb=0.1,ub=0.6)
+  
+  ### % JUVENILE1 TO REMIAIN during transition
+  LHSParms <- specifyLHSParam(LHSParms,"remJ1",type="CONT",lb=0.01,ub=0.5)
+  
+  ### % JUVENILE2 TO REMIAIN during transition 
+  LHSParms <- specifyLHSParam(LHSParms,"remJ2",type="CONT",lb=0.1,ub=0.5)       # KTS: changed to 500
+  
+  ### % ADULT TO REMIAIN during transition
+  LHSParms <- specifyLHSParam(LHSParms,"remA",type="CONT",lb=1,ub=1)     # was 1000 to 40000  
+  
+  ### PROPORTIONAL STABLE STAGE DISTRIBUTION J1
+  LHSParms <- specifyLHSParam(LHSParms,"cssJ1",type="CONT",lb=0.9803,ub=0.9803)
+  
+  ### PROPORTIONAL STABLE STAGE DISTRIBUTION J2
+  LHSParms <- specifyLHSParam(LHSParms,"cssJ2",type="CONT",lb=0.0171,ub=0.0171) 
+  
+  ### PROPORTIONAL STABLE STAGE DISTRIBUTION a
+  LHSParms <- specifyLHSParam(LHSParms,"cssA",type="CONT",lb=0.0026,ub=0.0026)
+  
+  
+  ### DENSITY DEPENDENCE ON HARVEST (y intercept of the harvest rate/abundance relationship)
+  
+  #  # HUNTDD_posvals <- c(seq(-0.05,0,length=10),seq(0.1,1,length=10),seq(1.1,2,length=10))
+  # LHSParms <- specifyLHSParam(LHSParms,"HUNTDD",type="CONT",lb=-0.05,ub=2)
+  
+  #LHSParms <- specifyLHSParam(LHSParms,"HARVZ",type="CONT",lb=1,ub=2)
+  
+  #### HUMAN ARRIVAL (0 represents lower bound on a per-population basis, 1 represents upper bound)
+  #LHSParms <- specifyLHSParam(LHSParms,"HUMAN",type="CONT",lb=0,ub=1)    # NOTE: was "CAT" not sure why
+  
+  ##################
+  ##### GENERATE LATIN HYPERCUBE SAMPLE
+  
+  nVars <- length(names(LHSParms))  
+  
+  LHS <- randomLHS(NREPS, nVars )   # generate multiple samples from parameter space according to a LHS sampling scheme
+  
+  masterDF <- as.data.frame(LHS)    #  storage container (data frame) to record relevant details for each MP file. Rows:MP file/LHS samples. Cols: relevant variables
+  
+  
+  ### translate raw lhs samples into desired parameter space
+  colnames(masterDF) <- names(LHSParms)
+  parm=1
+  for(parm in 1:nVars){
+    if(LHSParms[[parm]]$type=="CONT"){
+      masterDF[,parm] <- LHSParms[[parm]]$lb + LHS[,parm]*(LHSParms[[parm]]$ub-LHSParms[[parm]]$lb)
+    }
+    if(LHSParms[[parm]]$type=="CAT"){
+      masterDF[,parm] <- ceiling(LHSParms[[parm]]$lb + LHS[,parm]*(LHSParms[[parm]]$ub-LHSParms[[parm]]$lb))
+    }
+  }
+  
+  #masterDF$dispndx <- as.numeric(cut(masterDF$DISP2,breaks=c(dispersalFunc.df$Distl,Inf)))   
+  
+  #masterDF$HUNTDD <- HUNTDD_posvals[masterDF$HUNTDD]    # value input into RAMAS DLL for density dependent hunting 
+  
+  #masterDF$NicheBreadth <- NicheBreadth   # set the niche breadth
+  
+  #######  Add the MP filename to the masterDF data frame
+  
+  # masterDF$MPFilename <- ""
+  # for(i in 1:nrow(masterDF)){
+  #   masterDF$MPFilename[i] <- sprintf("NicheBreadth%s_LHS_Sample%s.mp",NicheBreadth,i)
+  # }
+  
+  setwd(RESULTS_DIRECTORY)
+  ## name file for LHS parameters 
+  write.csv(masterDF,"masterDF_prelimCOTS.csv",row.names=F)
+  
+  return(masterDF)
+}
 
