@@ -28,8 +28,6 @@
 #           NOTE: larvae are not considered explicitly here. 
 ###################
 
-setwd(ENVDATA_DIRECTORY)
-data.grid = read.csv("data.grid.csv", header=T) 
 
 intializeCoralCoverParams = function(data.grid, nsims){
   WQ <- data.grid$Primary + data.grid$Secondary + data.grid$Tertiary
@@ -53,7 +51,7 @@ intializeCoralCoverParams = function(data.grid, nsims){
               HCINI=HCINI, HCMAX=HCMAX, B0=B0))
 }
 
-CoralCoverParams = intializeCoralCoverParams(data.grid = data.grid, nsims=10)
+#  CoralCoverParams = intializeCoralCoverParams(data.grid = data.grid, nsims=10)
 
 #################!
 # doCoralDistrurbances ----
@@ -74,28 +72,12 @@ CoralCoverParams = intializeCoralCoverParams(data.grid = data.grid, nsims=10)
 #    - CoralCover: spatially-structured Coral Cover
 ###################!
 
-doCoralGrowth = function(CoralCover, B0, WQ) {
-  HC.asym <- CoralCoverParams$HCMAX[,1]
+doCoralGrowth = function(CoralCover, B0, WQ, HC.asym) {
   b0.wq <- B0 + WQ * rnorm(length(WQ), mean=WQ.mn.sd[1], sd=WQ.mn.sd[2])
   b1.wq <- b0.wq / log(HC.asym)
   CoralCover <- log(CoralCover)
   CoralCover <- b0.wq + (1 - b1.wq)*CoralCover
   return(exp(CoralCover))
 }
-CoralCover=CoralCover-2
-doCoralGrowth(CoralCover, B0, WQ)
-
-HC.asym <- HCMAX[,j]
-HC.1996 <- HCINI[,j]
-b0 <- B0[,j]
-b0.wq <- b0 + WQ * rnorm(length(WQ), mean=WQ.mn.sd[1], sd=WQ.mn.sd[2])
-b1.wq <- b0.wq / log(HC.asym)
-res[,1,j] <- as.numeric(HC.1996)
-HC.tmp <- log(HC.1996)
-
-HC.tmp[HC.tmp < log(0.01)] <- log(0.01) # sets minimal value to 0.5% (as 0% does not allow for recovery. 0.5% is the minimum HC cover observed in the LTMP data)
-
-### Make coral grow/recover
-HC.tmp <- b0.wq + (1 - b1.wq)* HC.tmp
 
 #########################

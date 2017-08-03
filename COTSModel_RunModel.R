@@ -2,45 +2,32 @@
 # RUN COTS MODEL
 ###############################
 
+
+# THINGS TO DO
+# 1. Fix estimates of percapita fecundity.. at the moment the mean and sd vary independently
+# 2. Analyse Results with BRT's
+# 3. Graph Coral Cover Alongside COTS
+
 ####################!
 # 1 SET UP WORKSPACE ----
 ####################!
 
 source("C://Users//jc312264//Documents//GitHub//COTS_Model//COTSModel_PrepareWorkspace.R")
-load # Rdata containing connectivity matrices and precalculations
+setwd(CODE_DIRECTORY)
+# optional to change the number of populations we will test for
+npops = 20
+source("COTSModel_LoadObjectsForModelling.R")
+setwd(CODE_DIRECTORY)
+source("COTSModel_CoralFunctions.R")
+source("COTSModel_COTSFunctions.R")
 
-set.seed(1)
-setwd(DATA_DIRECTORY)
-npops = 10 #number of reefs we want to test
-PopData <- read.csv("reefs.csv", header = TRUE)[1:npops,] # we will just use a subset for testing
-COTS.data <- read.csv("Disturbance/CoTS_data.csv", header = TRUE)[1:npops,]
 
-# Load Connectivity Matrix
-setwd(BASE_DIRECTORY)
-load("R_Objects/ProbDistance.Rdata")
-ConnMat.full = as.matrix(Pdist.Sp)
-ConnMat = ConnMat.full[1:npops, 1:npops]
-# ConnMat[ConnMat>1]=
-
-sum(ConnMat.full[1,][-1])
-  
-setwd(ENVDATA_DIRECTORY)
-data.grid = read.csv("data.grid.csv", header=T)[1:npops,]
-WQ = data.grid$Primary + data.grid$Secondary + data.grid$Tertiary
-
-# Gompertz parameters: disturbance & WQ effect sizes (as per MacNeil et al. in prep)
-bleaching.mn.sd <- c(-0.19, 0.01)
-COTS.mn.sd <- c(-0.54, 0.04)
-disease.mn.sd <- c(-0.13, 0.01)
-storms.mn.sd <- c(-0.64, 0.01)
-unknown.mn.sd <- c(-0.16, 0.01)
-WQ.mn.sd <- c(-0.68, 0.03)
 
 ####################!
 # 2 INITIALIZE MODEL ----
 ####################!
 
-initializeModel = function(PopData,COTSabund,CoralCover){
+initializeModel = function(PopData,COTSabund,CoralCover, SexRatio, ConsRateS, ConsRateW, B0, WQ, HC.asym){
 
 # Probably Change Storage to an array
 Results = data.frame(sapply(PopData, rep.int, times=NYEARS*NSEASONS),
@@ -49,11 +36,11 @@ Results = data.frame(sapply(PopData, rep.int, times=NYEARS*NSEASONS),
 
 for(year in 1996){                  # loop through years
   for(season in SEASONS){               # loop through seasons
-    COTSabund = doCOTSDispersal(season,COTSabund,SexRatio,ConnMat, avgPCF, sdPCF)
+    COTSabund = doCOTSDispersal(season,COTSabund,SexRatio,ConnMat, PCFParams)
     COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
     #COTSabund = doPredPreyDynamics(season, year, COTSabund,Reults)
     CoralCover = doCoralConsumption(year, season,  COTSabund, CoralCover, ConsRateS, ConsRateW)
-    CoralCover = doCoralGrowth(CoralCover, B0, WQ)
+    CoralCover = doCoralGrowth(CoralCover, B0, WQ, HC.asym)
     #CoralCover = doCoralDisturbance(season,CoralCover,...)           # coral disturbance processes, including from COTS
     Results[(Results$Year==year) & (Results$Season==season),
             c("COTSJ1", "COTSJ2", "COTSA", "CoralCover")] = cbind(COTSabund, CoralCover)
@@ -67,7 +54,6 @@ return(Results)
 # 3 GENERATE LATIN HYPERCUBESAMPLE ----
 ####################!
 
-NREPS = 10
 
 masterDF = MakeLHSSamples(NREPS = 10)
 
@@ -79,8 +65,9 @@ runModel = function(masterDF, PopData, rep) {
     SexRatio = masterDF[rep, "SexRatio"]
     ConsRateW = masterDF[rep, "ConsRateW"]
     ConsRateS = masterDF[rep, "ConsRateS"]
-    avgPCF = masterDF[rep, "avgPCF"]
-    sdPCF = masterDF[rep, "sdPCF"]
+    PCFParams = c(masterDF[rep, "avgPCF"], masterDF[rep,"sdPCF"])
+    # avgPCF = masterDF[rep, "avgPCF"]
+    # sdPCF = masterDF[rep, "sdPCF"]
     COTSmort = as.numeric(masterDF[rep, c("mortJ1", "mortJ2", "mortA")])
     COTSremain = as.numeric(masterDF[rep, c("remJ1", "remJ2", "remA")])
     COTS_StableStage = as.numeric(masterDF[rep, c("cssJ1", "cssJ2", "cssA")])
@@ -94,17 +81,18 @@ runModel = function(masterDF, PopData, rep) {
     CoralCoverParams = intializeCoralCoverParams(data.grid = data.grid, nsims=10)
     CoralCover = CoralCoverParams$HCINI[,1][1:10]
     B0=CoralCoverParams$B0[,1]
+    HC.asym = CoralCoverParams$HCMAX[,1]
     COTSabund = initializeCOTSabund(PopData, COTS.data, 1996, stagenames, COTS_StableStage)   # initialize the COTS abundance object (for year 0) 
-    Results = initializeModel(PopData, COTSabund, CoralCover)
+    Results = initializeModel(PopData, COTSabund, CoralCover, SexRatio, ConsRateS, ConsRateW, B0, WQ, HC.asym)
        
     # year Loop
     for(year in 1997:2015){                  # loop through years
       for(season in SEASONS){               # loop through seasons
-        COTSabund = doCOTSDispersal(season,COTSabund,SexRatio,ConnMat, avgPCF, sdPCF)
+        COTSabund = doCOTSDispersal(season,COTSabund,SexRatio,ConnMat, PCFParams)
         COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
         COTSabund = doPredPreyDynamics(season, year, COTSabund, Results)
         CoralCover = doCoralConsumption(year, season,  COTSabund, CoralCover, ConsRateS, ConsRateW)
-        CoralCover = doCoralGrowth(CoralCover, B0, WQ)
+        CoralCover = doCoralGrowth(CoralCover, B0, WQ, HC.asym)
         #CoralCover = doCoralDisturbance(season,CoralCover,...)           # coral disturbance processes, including from COTS
         Results[(Results$Year==year) & (Results$Season==season),
                 c("COTSJ1", "COTSJ2", "COTSA", "CoralCover")] = cbind(COTSabund, CoralCover)
@@ -116,9 +104,9 @@ runModel = function(masterDF, PopData, rep) {
     
 }
 
-# for (i in 1:10){
-#   runModel(masterDF, PopData,i)
-# }
+for (i in 1:npops){
+  runModel(masterDF, PopData,i)
+}
 # setwd(RESULTS_DIRECTORY)
 # load("Sample_3.Rdata")
 
@@ -148,7 +136,7 @@ for (i in 1:NREPS){
 
 # Select Reefs to Plot
 
-df = as.data.frame(CoralMat) %>% dplyr::filter(PIXEL_ID==1) %>% tidyr::gather(LHS, CoralCover, 4:(NREPS+3))
+df = as.data.frame(CoralMat) %>% dplyr::filter(PIXEL_ID==10) %>% tidyr::gather(LHS, CoralCover, 4:(NREPS+3))
 df$rownum = rep((1:(NYEARS*NSEASONS)), NREPS)
 
 Years = as.character(1996:2015)
