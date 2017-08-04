@@ -14,18 +14,55 @@
 # 1 SET UP WORKSPACE ----
 ####################!
 
+rm(list=ls())
 source("C://Users//jc312264//Documents//GitHub//COTS_Model//COTSModel_PrepareWorkspace.R")
-dirs = list(BASE=BASE_DIRECTORY, CODE=CODE_DIRECTORY, RESULTS=RESULTS_DIRECTORY, 
-            DATA=DATA_DIRECTORY, ENVDATA=ENVDATA_DIRECTORY,SPATIALDATA=SPATIALDATA_DIRECTORY)
+# dirs = list(BASE=BASE_DIRECTORY, CODE=CODE_DIRECTORY, RESULTS=RESULTS_DIRECTORY, 
+#             DATA=DATA_DIRECTORY, ENVDATA=ENVDATA_DIRECTORY,SPATIALDATA=SPATIALDATA_DIRECTORY)
 setwd(CODE_DIRECTORY)
 # optional to change the number of populations we will test for
-npops = 10
 source("COTSModel_LoadObjectsForModelling.R")
 setwd(BASE_DIRECTORY)
 save(ConnMat, file = "R_Objects/ConnMat.Rdata")
+load("R_Objects/ConnMat.Rdata")
 setwd(CODE_DIRECTORY)
 source("COTSModel_CoralFunctions.R")
 source("COTSModel_COTSFunctions.R")
+
+
+####################!
+# 4 Make Worker Function For Parallelization ----
+####################!
+
+MakeWorker = function (masterDF, npops){
+  
+  force(masterDF)
+  force(npops)
+  
+  source("C://Users//jc312264//Documents//GitHub//COTS_Model//COTSModel_PrepareWorkspace.R")
+  # dirs = list(BASE=BASE_DIRECTORY, CODE=CODE_DIRECTORY, RESULTS=RESULTS_DIRECTORY, 
+  # DATA=DATA_DIRECTORY, ENVDATA=ENVDATA_DIRECTORY,SPATIALDATA=SPATIALDATA_DIRECTORY)
+  setwd(BASE_DIRECTORY)
+  load(file = "R_Objects/ConnMat.Rdata")
+  setwd(CODE_DIRECTORY)
+  source("COTSModel_LoadSmallObjectsForModelling.R")
+  setwd(CODE_DIRECTORY)
+  source("COTSModel_CoralFunctions.R")
+  source("COTSModel_COTSFunctions.R")
+  ConnMat=ConnMat
+  SEASONS=SEASONS
+  # PopData = PopData[1:npops,]
+  # COTS.data = COTS.data[1:npops,]
+  # data.grid = data.grid[1:npops,]
+  #force(PopData);force(COTS.data); force(data.grid)
+  
+  Worker = function(i){
+    runModel(masterDF=masterDF, PopData=PopData,COTS.data = COTS.data, 
+             data.grid = data.grid, ConnMat = ConnMat, npops=npops, rep=i, seasons = SEASONS)
+  }
+  return(Worker)
+}
+
+#MakeWorker(masterDF, npops=50)(5)
 
 ####################!
 # 2 GENERATE LATIN HYPERCUBESAMPLE ----
@@ -53,109 +90,18 @@ library(foreach)
 
 allsamples <- foreach::foreach(i = 1:nrow(masterDF) 
 
-)%dopar% { 
-                      
-RunMaster = function (masterDF, PopData, dirs){
-  
-  force(masterDF)
-  force(PopData)
-  force(dirs)
-  # source("C://Users//jc312264//Documents//GitHub//COTS_Model//COTSModel_PrepareWorkspace.R")
-  # dirs = list(BASE=BASE_DIRECTORY, CODE=CODE_DIRECTORY, RESULTS=RESULTS_DIRECTORY, 
-  #             DATA=DATA_DIRECTORY, ENVDATA=ENVDATA_DIRECTORY,SPATIALDATA=SPATIALDATA_DIRECTORY)
-  setwd(dirs$BASE)
-  load(file = "R_Objects/ConnMat.Rdata")
-  setwd(dirs$CODE)
-  source("COTSModel_LoadSmallObjectsForModelling.R")
-  setwd(dirs$CODE)
-  source("COTSModel_CoralFunctions.R")
-  source("COTSModel_COTSFunctions.R")
-  
+) %dopar% { 
+          
+  #dirs = list(BASE=BASE_DIRECTORY, CODE=CODE_DIRECTORY, RESULTS=RESULTS_DIRECTORY, 
+  #           DATA=DATA_DIRECTORY, ENVDATA=ENVDATA_DIRECTORY,SPATIALDATA=SPATIALDATA_DIRECTORY)
 
-  ####################!
-  # 3 INITIALIZE MODEL ----
-  ####################!
-  
-  initializeModel = function(PopData,COTSabund,CoralCover, SexRatio, ConsRateS, ConsRateW, B0, WQ, HC.asym){
-  
-  # Probably Change Storage to an array
-  Results = data.frame(sapply(PopData, rep.int, times=NYEARS*NSEASONS),
-                       Year=rep(1996:2015,each=2*npops), Season=rep(c("summer", "winter"),each=npops), 
-                       COTSJ1=NA, COTSJ2=NA, COTSA=NA, CoralCover=NA, DistCOTS=NA, DistCYCL=NA, DistBLCH=NA)
-  
-  for(year in 1996){                  # loop through years
-    for(season in SEASONS){               # loop through seasons
-      COTSabund = doCOTSDispersal(season,COTSabund,SexRatio,ConnMat, PCFParams)
-      COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
-      #COTSabund = doPredPreyDynamics(season, year, COTSabund,Reults)
-      CoralCover = doCoralConsumption(year, season,  COTSabund, CoralCover, ConsRateS, ConsRateW)
-      CoralCover = doCoralGrowth(CoralCover, B0, WQ, HC.asym)
-      #CoralCover = doCoralDisturbance(season,CoralCover,...)           # coral disturbance processes, including from COTS
-      Results[(Results$Year==year) & (Results$Season==season),
-              c("COTSJ1", "COTSJ2", "COTSA", "CoralCover")] = cbind(COTSabund, CoralCover)
-    }
-  }
-  return(Results)
-  }
-  
-  ####################!
-  # 4 RUN MODEL ----
-  ####################!
-  
-  runModel = function(masterDF, PopData, rep) {
-      SexRatio = masterDF[rep, "SexRatio"]
-      ConsRateW = masterDF[rep, "ConsRateW"]
-      ConsRateS = masterDF[rep, "ConsRateS"]
-      PCFParams = c(masterDF[rep, "avgPCF"], masterDF[rep,"sdPCF"])
-      # avgPCF = masterDF[rep, "avgPCF"]
-      # sdPCF = masterDF[rep, "sdPCF"]
-      COTSmort = as.numeric(masterDF[rep, c("mortJ1", "mortJ2", "mortA")])
-      COTSremain = as.numeric(masterDF[rep, c("remJ1", "remJ2", "remA")])
-      COTS_StableStage = as.numeric(masterDF[rep, c("cssJ1", "cssJ2", "cssA")])
-      # avgAdultSize =
-      # sdAdultSize = # These will change the fecundity estimatesC
-      # need an Allee Effect
-      # need to make stable stage vary by a scaling factor
-      # make mortality and remain resource driven
-      
-      # Initialize
-      CoralCoverParams = intializeCoralCoverParams(data.grid = data.grid, nsims=10)
-      CoralCover = CoralCoverParams$HCINI[,1][1:10]
-      B0=CoralCoverParams$B0[,1]
-      HC.asym = CoralCoverParams$HCMAX[,1]
-      COTSabund = initializeCOTSabund(PopData, COTS.data, 1996, stagenames, COTS_StableStage)   # initialize the COTS abundance object (for year 0) 
-      Results = initializeModel(PopData, COTSabund, CoralCover, SexRatio, ConsRateS, ConsRateW, B0, WQ, HC.asym)
-         
-      # year Loop
-      for(year in 1997:2015){                  # loop through years
-        for(season in SEASONS){               # loop through seasons
-          COTSabund = doCOTSDispersal(season,COTSabund,SexRatio,ConnMat, PCFParams)
-          COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
-          COTSabund = doPredPreyDynamics(season, year, COTSabund, Results)
-          CoralCover = doCoralConsumption(year, season,  COTSabund, CoralCover, ConsRateS, ConsRateW)
-          CoralCover = doCoralGrowth(CoralCover, B0, WQ, HC.asym)
-          #CoralCover = doCoralDisturbance(season,CoralCover,...)           # coral disturbance processes, including from COTS
-          Results[(Results$Year==year) & (Results$Season==season),
-                  c("COTSJ1", "COTSJ2", "COTSA", "CoralCover")] = cbind(COTSabund, CoralCover)
-        }
-      }
-      setwd(dirs$RESULTS)
-      name <- sprintf("Sample_%s.Rdata",rep)
-      save(Results, file=name)
-      
-  }
-  
-  # for (i in 1:NREPS){
-  #   runModel(masterDF, PopData,i)
-  # }
-
-runModel(masterDF, PopData, rep=i)
+  temp = MakeWorker(masterDF,npops=npops)(i)
 
 }
 
-RunMaster(masterDF, PopData, dirs)(i)
-
-}
+# for (i in 1:NREPS){
+#   runModel(masterDF, PopData,i)
+# }
 
 ###################!
 # CLOSE CLUSTER ----

@@ -9,7 +9,7 @@
 ##########################
 
 
-setwd(dirs$DATA)
+setwd(DATA_DIRECTORY)
  
 PopData <- read.csv("reefs.csv", header = TRUE)[1:npops,] # we will just use a subset for testing
 COTS.data <- read.csv("Disturbance/CoTS_data.csv", header = TRUE)[1:npops,]
@@ -22,11 +22,11 @@ COTS.data <- read.csv("Disturbance/CoTS_data.csv", header = TRUE)[1:npops,]
 # rm(ConnMat.full)
 
 # Load Fertilisation vs Density Models Estimates
-setwd(dirs$BASE)
+setwd(BASE_DIRECTORY)
 load("R_Objects/FvDParams.Rdata")
 
 # Load Environmental Data Frame
-setwd(dirs$ENVDATA)
+setwd(ENVDATA_DIRECTORY)
 data.grid = read.csv("data.grid.csv", header=T)[1:npops,]
 WQ = data.grid$Primary + data.grid$Secondary + data.grid$Tertiary
 

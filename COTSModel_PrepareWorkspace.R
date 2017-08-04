@@ -34,7 +34,7 @@ USER = "SAM"
 NYEARS <- 20
 NSEASONS <- 2
 SEASONS <- c("summer","winter")
-# npops = 10 #number of reefs we want to test
+npops = 50 #number of reefs we want to test
 
 VERBOSE <- TRUE        # flag whether functions should return detailed information
 DEBUG <- TRUE          # flag whether to output debug files etc. 
@@ -102,9 +102,9 @@ source("COTSModel_GISfunctions.R")     # load functions for implemeting coral gr
 
 loadPackages()   # load all packages into the global environment 
 # THis only installs packages now.. everything else will be defined inline
-library(dplyr)
-library(ggplot2)
-
+#library(dplyr)
+#library(ggplot2)
+`%>%` <- magrittr::`%>%`
 
 # save global params
 saveWorkspace(filename="GlobalParams.RData")
