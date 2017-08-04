@@ -56,6 +56,7 @@ loadPackages <- function(){
   loadPackage("RColorBrewer")
   loadPackage("sampling")
   loadPackage("psych")
+  loadPackage("dismo")
   #loadPackage("mbcv")
   #loadPackage("gbm")
   loadPackage("MASS")
@@ -193,7 +194,7 @@ MakeLHSSamples <- function(NREPS){
   
   nVars <- length(names(LHSParms))  
   
-  LHS <- randomLHS(NREPS, nVars )   # generate multiple samples from parameter space according to a LHS sampling scheme
+  LHS <- lhs::randomLHS(NREPS, nVars )   # generate multiple samples from parameter space according to a LHS sampling scheme
   
   masterDF <- as.data.frame(LHS)    #  storage container (data frame) to record relevant details for each MP file. Rows:MP file/LHS samples. Cols: relevant variables
   

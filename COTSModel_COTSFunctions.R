@@ -10,6 +10,7 @@
 #         1. Add coral cover to dispersal probabilities
 #         2. Incoroporate the [chl] conditions on the dispersal path
 #         3. Write function to determine Carrying Capacity for Pred Prey Dynamics
+#         4. DENSITY DEPENDENCE ON FECUNDITY AND TRANSITION
 
 
 
@@ -486,24 +487,25 @@ doPredPreyDynamics = function(season, year, COTSabund,Results) {
 # m <- matrix(1, 3,3)
 # v <- 1:3
 # m*v
-#    ## build a very rough population transition matrix... 
-# 
-# #  typical reproductive female is 300 mm in diameter
-# 
-# Mass <- COTS_MassFromDiam(300)    # 1132 grams
-# Fec <- COTS_FecFromMass(Mass)     # each female produces approx 14 million larvae!
-# 
-#   # assume that maybe 0.0001 of these larvae establish on a reef
-# Fec <- Fec*0.0001
-# 
-# TransMat <- matrix(c(0,0.03,0,0,0,0,0.2,0,Fec/2,0,0.3,0.1,Fec/(2*6),0,0,0.6),nrow=4)
-# 
-# 
-# lambda(TransMat)         # strong positive growth rate: 3.57
-# stable.stage(TransMat)   #stable age distribution
-# 
-# #### take away: stable stage distribution is heavily biased towards juveniles 
-# 
+   ## build a very rough population transition matrix...
+
+#  typical reproductive female is 300 mm in diameter
+
+Mass <- COTS_MassFromDiam(300)    # 1132 grams
+Fec <- COTS_FecFromMass(Mass)     # each female produces approx 14 million larvae!
+
+  # assume that maybe 0.0001 of these larvae establish on a reef
+Fec <- Fec*0.0001
+
+TransMat <- matrix(c(0,0.03,0,0,0,0,0.2,0,Fec/2,0,0.3,0.1,Fec/(2*6),0,0,0.6),nrow=4)
+
+loadPackage("popbio")
+library(popbio)
+lambda(TransMat)         # strong positive growth rate: 3.57
+stable.stage(TransMat)   #stable age distribution
+
+#### take away: stable stage distribution is heavily biased towards juveniles
+
 # ##### Testing VBG ----
 # 
 # VBG.Models[[1]]
