@@ -33,7 +33,7 @@ USER = "SAM"
 # NREPS <- 10      
 NYEARS <- 20
 NSEASONS <- 2
-SEASONS <- c("summer","winter")
+seasons <- c("summer","winter")
 npops = 50 #number of reefs we want to test
 
 VERBOSE <- TRUE        # flag whether functions should return detailed information
@@ -42,13 +42,13 @@ DEBUG <- TRUE          # flag whether to output debug files etc.
 projection <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"   #"+proj=lcc +lat_1=33 +lat_2=45 +lat_0=39 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs"
 
 stagenames <- c('J_1', 'J_2', 'A')
-COTSmort <- c(0.8,0.7,0.2)
-names(COTSmort) <- stagenames
-COTSremain <- c(0.02,0.2,1) # proportion remianing in each life stage --> we can make this a function of resource
-names(COTSremain) <- stagenames
+#COTSmort <- c(0.8,0.7,0.2)
+#names(COTSmort) <- stagenames
+#COTSremain <- c(0.02,0.2,1) # proportion remianing in each life stage --> we can make this a function of resource
+#names(COTSremain) <- stagenames
 #VBG.Params = VBG.Models[[2]]
 
-COTS_StableStage <- c(0.9803, 0.0171, 0.0026)   # very approximate stable stage distribution (J1, J2, Adult: see below for back-of-the-envelope calculation)
+#COTS_StableStage <- c(0.9803, 0.0171, 0.0026)   # very approximate stable stage distribution (J1, J2, Adult: see below for back-of-the-envelope calculation)
 
 
 

@@ -285,7 +285,7 @@ CoTS_Dispersal <- function(ConnMat, COTSabund, nLarvae, CoralCover, Loss, npops)
 
 # This is the master fucntion that incorporates the above functions
 
-doCOTSDispersal = function(season, COTSabund, SexRatio, ConnMat, PCFParams, npops){
+doCOTSDispersal = function(season, COTSabund, SexRatio, ConnMat, PCFParams, npops, FvDParams){
   #browser()
   COTSabund.t1 = COTSabund
   if (season=="summer"){

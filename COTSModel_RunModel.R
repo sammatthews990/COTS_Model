@@ -96,7 +96,7 @@ allsamples <- foreach::foreach(i = 1:nrow(masterDF)
           
   #dirs = list(BASE=BASE_DIRECTORY, CODE=CODE_DIRECTORY, RESULTS=RESULTS_DIRECTORY, 
   #           DATA=DATA_DIRECTORY, ENVDATA=ENVDATA_DIRECTORY,SPATIALDATA=SPATIALDATA_DIRECTORY)
-  temp = MakeWorker(masterDF=masterDF,npops=npops, seasons=SEASONS)(i)
+  temp = MakeWorker(masterDF=masterDF,npops=npops, seasons = seasons)(i)
 
 }
 

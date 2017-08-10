@@ -91,7 +91,8 @@ doCoralGrowth = function(CoralCover, B0, WQ, HC.asym) {
 # 3 INITIALIZE MODEL ----
 ####################!
 
-initializeModel = function(PopData,COTSabund,CoralCover, SexRatio, ConsRateS, ConsRateW, B0, WQ, HC.asym, PCFParams, npops, ConnMat){
+initializeModel = function(PopData,COTSabund,CoralCover, SexRatio, ConsRateS, 
+                           ConsRateW, B0, WQ, HC.asym, PCFParams, npops, ConnMat, FvDParams){
   
   # Probably Change Storage to an array
   Results = data.frame(sapply(PopData, rep.int, times=NYEARS*NSEASONS),
@@ -99,8 +100,8 @@ initializeModel = function(PopData,COTSabund,CoralCover, SexRatio, ConsRateS, Co
                        COTSJ1=NA, COTSJ2=NA, COTSA=NA, CoralCover=NA, DistCOTS=NA, DistCYCL=NA, DistBLCH=NA)
   
   for(year in 1996){                  # loop through years
-    for(season in SEASONS){               # loop through seasons
-      COTSabund = doCOTSDispersal(season,COTSabund,SexRatio,ConnMat, PCFParams, npops)
+    for(season in seasons){               # loop through seasons
+      COTSabund = doCOTSDispersal(season,COTSabund,SexRatio,ConnMat, PCFParams, npops, FvDParams)
       COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
       #COTSabund = doPredPreyDynamics(season, year, COTSabund,Reults, K)
       CoralCover = doCoralConsumption(year, season,  COTSabund, CoralCover, ConsRateS, ConsRateW)
@@ -118,7 +119,7 @@ initializeModel = function(PopData,COTSabund,CoralCover, SexRatio, ConsRateS, Co
 # 4 RUN MODEL ----
 ####################!
 
-runModel = function(masterDF, PopData, COTS.data, data.grid, ConnMat, npops, rep, seasons) {
+runModel = function(masterDF, PopData, COTS.data, data.grid, ConnMat, npops, rep, seasons, FvDParams) {
   SexRatio = masterDF[rep, "SexRatio"]
   ConsRateW = masterDF[rep, "ConsRateW"]
   ConsRateS = masterDF[rep, "ConsRateS"]
@@ -134,7 +135,10 @@ runModel = function(masterDF, PopData, COTS.data, data.grid, ConnMat, npops, rep
   # need to make stable stage vary by a scaling factor
   # make mortality and remain resource driven
   
+  #### FOR SOME REASON NONE OF THESE PARAMETERS ARE AVAILIABLE INSIDE THE FUNCTION
+  
   # Initialize
+  seasons=seasons
   PopData = PopData[1:npops, ]
   COTS.data = COTS.data[1:npops, ]
   data.grid = data.grid[1:npops, ]
@@ -153,13 +157,13 @@ runModel = function(masterDF, PopData, COTS.data, data.grid, ConnMat, npops, rep
   COTSabund = initializeCOTSabund(PopData, COTS.data, 1996, stagenames, COTS_StableStage, npops)  # initialize the COTS abundance object (for year 0) 
   print(length(COTSabund[,3]))
   Results = initializeModel(PopData, COTSabund, CoralCover, SexRatio, 
-                            ConsRateS, ConsRateW, B0, WQ, HC.asym, PCFParams, npops, ConnMat)
+                            ConsRateS, ConsRateW, B0, WQ, HC.asym, PCFParams, npops, ConnMat, FvDParams)
   
- 
+  #browser()
   # year Loop
   for(year in 1997:2015){                  # loop through years
-    for(season in SEASONS){               # loop through seasons
-      COTSabund = doCOTSDispersal(season,COTSabund,SexRatio,ConnMat, PCFParams, npops)
+    for(season in seasons){               # loop through seasons
+      COTSabund = doCOTSDispersal(season,COTSabund,SexRatio,ConnMat, PCFParams, npops, FvDParams)
       COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
       COTSabund = doPredPreyDynamics(season, year, COTSabund, Results,K)
       CoralCover = doCoralConsumption(year, season,  COTSabund, CoralCover, ConsRateS, ConsRateW)

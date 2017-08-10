@@ -14,6 +14,8 @@ setwd(DATA_DIRECTORY)
 PopData <- read.csv("reefs.csv", header = TRUE)[1:npops,] # we will just use a subset for testing
 COTS.data <- read.csv("Disturbance/CoTS_data.csv", header = TRUE)[1:npops,]
 
+setwd(BASE_DIRECTORY)
+load("R_Objects/FvDParams.RData")
 # # Load Connectivity Matrix
 # setwd(BASE_DIRECTORY)
 # #load("R_Objects/ProbDistance.Rdata")

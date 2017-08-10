@@ -231,6 +231,9 @@ MakeLHSSamples <- function(NREPS){
   return(masterDF)
 }
 
+################!
+# MakeWorker ----
+################!
 
 MakeWorker = function (masterDF, npops, seasons){
   
@@ -256,10 +259,11 @@ MakeWorker = function (masterDF, npops, seasons){
   # FvDParams=FvDParams
   #force(PopData);force(COTS.data); force(data.grid)
   
-  #browser()
+  browser()
   Worker = function(i){
     runModel(masterDF=masterDF, PopData=PopData,COTS.data = COTS.data, 
-             data.grid = data.grid, ConnMat = ConnMat, npops=npops, rep=i, seasons = SEASONS)
+             data.grid = data.grid, ConnMat = ConnMat, npops=npops, rep=i, 
+             seasons = seasons, FvDParams = FvDParams)
   }
   return(Worker)
 }
