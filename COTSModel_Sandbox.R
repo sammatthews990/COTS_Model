@@ -13,8 +13,8 @@ source("COTSModel_LoadSmallObjectsForModelling.R")
 setwd(CODE_DIRECTORY)
 source("COTSModel_CoralFunctions.R")
 source("COTSModel_COTSFunctions.R")
-ConnMat=ConnMat
-SEASONS=SEASONS
+# ConnMat=ConnMat
+# SEASONS=SEASONS
 
 NREPS=10
 
@@ -93,6 +93,9 @@ runModel = function(masterDF, PopData, COTS.data, data.grid, ConnMat, npops, rep
 for (i in 1:20){
   source("C://Users//jc312264//Documents//GitHub//COTS_Model//COTSModel_PrepareWorkspace.R")
   masterDF = MakeLHSSamples(NREPS = 20)
-  temp = MakeWorker(masterDF,npops=npops,seasons=SEASONS)(i)
+  temp = MakeWorker(masterDF,npops=npops,seasons=seasons)(1)
   rm(list=ls())
 }
+
+
+runModel(masterDF, PopData, COTS.data, data.grid, ConnMat, npops, rep=1, seasons, FvDParams = FvDParams)

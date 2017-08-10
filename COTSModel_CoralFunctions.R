@@ -120,6 +120,7 @@ initializeModel = function(PopData,COTSabund,CoralCover, SexRatio, ConsRateS,
 ####################!
 
 runModel = function(masterDF, PopData, COTS.data, data.grid, ConnMat, npops, rep, seasons, FvDParams) {
+  browser()
   SexRatio = masterDF[rep, "SexRatio"]
   ConsRateW = masterDF[rep, "ConsRateW"]
   ConsRateS = masterDF[rep, "ConsRateS"]
@@ -138,6 +139,7 @@ runModel = function(masterDF, PopData, COTS.data, data.grid, ConnMat, npops, rep
   #### FOR SOME REASON NONE OF THESE PARAMETERS ARE AVAILIABLE INSIDE THE FUNCTION
   
   # Initialize
+  npops=npops
   seasons=seasons
   PopData = PopData[1:npops, ]
   COTS.data = COTS.data[1:npops, ]
@@ -147,6 +149,7 @@ runModel = function(masterDF, PopData, COTS.data, data.grid, ConnMat, npops, rep
   # B0=CoralCoverParams$B0[,1][1:npops]
   # HC.asym = CoralCoverParams$HCMAX[,1][1:npops]
   ConnMat=ConnMat
+  FvDParams=FvDParams
   CoralCover=data.grid$pred.HCini.mean[1:npops]
   B0=data.grid$pred.b0.mean[1:npops]
   HC.asym=data.grid$pred.HCmax.mean[1:npops]
