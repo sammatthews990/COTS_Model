@@ -18,15 +18,15 @@ rm(list=ls())
 source("C://Users//jc312264//Documents//GitHub//COTS_Model//COTSModel_PrepareWorkspace.R")
 # dirs = list(BASE=BASE_DIRECTORY, CODE=CODE_DIRECTORY, RESULTS=RESULTS_DIRECTORY, 
 #             DATA=DATA_DIRECTORY, ENVDATA=ENVDATA_DIRECTORY,SPATIALDATA=SPATIALDATA_DIRECTORY)
-setwd(CODE_DIRECTORY)
-# optional to change the number of populations we will test for
-source("COTSModel_LoadObjectsForModelling.R")
-setwd(BASE_DIRECTORY)
-save(ConnMat, file = "R_Objects/ConnMat.Rdata")
-load("R_Objects/ConnMat.Rdata")
-setwd(CODE_DIRECTORY)
-source("COTSModel_CoralFunctions.R")
-source("COTSModel_COTSFunctions.R")
+# setwd(CODE_DIRECTORY)
+# # optional to change the number of populations we will test for
+# # source("COTSModel_LoadObjectsForModelling.R")
+# setwd(BASE_DIRECTORY)
+# # save(ConnMat, file = "R_Objects/ConnMat.Rdata")
+# load("R_Objects/ConnMat.Rdata")
+# setwd(CODE_DIRECTORY)
+# source("COTSModel_CoralFunctions.R")
+# source("COTSModel_COTSFunctions.R")
 
 
 ####################!
@@ -37,6 +37,7 @@ MakeWorker = function (masterDF, npops){
   
   force(masterDF)
   force(npops)
+  # force(seasons)
   
   source("C://Users//jc312264//Documents//GitHub//COTS_Model//COTSModel_PrepareWorkspace.R")
   # dirs = list(BASE=BASE_DIRECTORY, CODE=CODE_DIRECTORY, RESULTS=RESULTS_DIRECTORY, 
@@ -49,7 +50,7 @@ MakeWorker = function (masterDF, npops){
   source("COTSModel_CoralFunctions.R")
   source("COTSModel_COTSFunctions.R")
   ConnMat=ConnMat
-  SEASONS=SEASONS
+  # SEASONS=seasons
   # PopData = PopData[1:npops,]
   # COTS.data = COTS.data[1:npops,]
   # data.grid = data.grid[1:npops,]
@@ -76,6 +77,7 @@ masterDF = MakeLHSSamples(NREPS = 10)
 # 2 SET UP CLUSTERS ----
 ####################!
 
+
 num_cores <- parallel::detectCores() - 2
 
 # Parallel for loop
@@ -94,8 +96,7 @@ allsamples <- foreach::foreach(i = 1:nrow(masterDF)
           
   #dirs = list(BASE=BASE_DIRECTORY, CODE=CODE_DIRECTORY, RESULTS=RESULTS_DIRECTORY, 
   #           DATA=DATA_DIRECTORY, ENVDATA=ENVDATA_DIRECTORY,SPATIALDATA=SPATIALDATA_DIRECTORY)
-
-  temp = MakeWorker(masterDF,npops=npops)(i)
+  temp = MakeWorker(masterDF=masterDF,npops=npops, seasons=SEASONS)(i)
 
 }
 
@@ -170,7 +171,7 @@ CreateResponseVars = function(COTSMat) {
 
 df1 = as.data.frame(COTSMat) %>% tidyr::gather(LHS, COTS, 4:(NREPS+3))
 ResponseVars = df1 %>% dplyr::group_by(as.numeric(LHS)) %>% 
-        summarize(COTSmax = max(COTS), COTSsd = sd(COTS))
+        dplyr::summarize(COTSmax = max(COTS), COTSsd = sd(COTS))
 ResponseVars$meanrecovery = ResponseVars$meanoutbreak = ResponseVars$totoutbreaks = ResponseVars$time2outbreak = NA
 
     Outbreak.interval = function(LHSSubset) {

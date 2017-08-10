@@ -104,9 +104,9 @@ source_github <- function(baseurl,scriptname) {
 #    - nothing. saves an RData file to the R_Workspaces directory in Dropbox 
 ###################
 
-saveWorkspace <- function(objNames=NULL,filename="R_workspace"){
+ saveWorkspace <- function(objNames=NULL,filename="R_workspace", dir){
   if(is.null(objNames)) objNames = ls(all = TRUE,name=.GlobalEnv)
-  setwd(RDATA_DIRECTORY)
+  setwd(dir)
   filename <- sprintf("%s_%s.RData",filename,Sys.Date())
   save(list = objNames, file = filename)
 }
@@ -231,3 +231,35 @@ MakeLHSSamples <- function(NREPS){
   return(masterDF)
 }
 
+
+MakeWorker = function (masterDF, npops, seasons){
+  
+  force(masterDF)
+  force(npops)
+  force(seasons)
+  
+  source("C://Users//jc312264//Documents//GitHub//COTS_Model//COTSModel_PrepareWorkspace.R", local=T)
+  # dirs = list(BASE=BASE_DIRECTORY, CODE=CODE_DIRECTORY, RESULTS=RESULTS_DIRECTORY, 
+  # DATA=DATA_DIRECTORY, ENVDATA=ENVDATA_DIRECTORY,SPATIALDATA=SPATIALDATA_DIRECTORY)
+  setwd(BASE_DIRECTORY)
+  load(file = "R_Objects/ConnMat.Rdata")
+  setwd(CODE_DIRECTORY)
+  source("COTSModel_LoadSmallObjectsForModelling.R", local=T)
+  setwd(CODE_DIRECTORY)
+  source("COTSModel_CoralFunctions.R", local=T)
+  source("COTSModel_COTSFunctions.R", local=T)
+  # ConnMat=ConnMat
+  # SEASONS=seasons
+  # PopData = PopData[1:npops,]
+  # COTS.data = COTS.data[1:npops,]
+  # data.grid = data.grid[1:npops,]
+  # FvDParams=FvDParams
+  #force(PopData);force(COTS.data); force(data.grid)
+  
+  #browser()
+  Worker = function(i){
+    runModel(masterDF=masterDF, PopData=PopData,COTS.data = COTS.data, 
+             data.grid = data.grid, ConnMat = ConnMat, npops=npops, rep=i, seasons = SEASONS)
+  }
+  return(Worker)
+}

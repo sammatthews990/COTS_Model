@@ -33,7 +33,6 @@
 # Pdist.Sp <- Matrix::Matrix(Pdist, sparse=T)
 
 ###################!
-
 # BASIC VITAL RATE AND GROWTH FUNCTIONS ----
 ###################!
 
@@ -403,15 +402,15 @@ doPredPreyDynamics = function(season, year, COTSabund,Results,K) {
     prevCC = dplyr::filter(Results, Year==year-1 & Season=='winter') %>% dplyr::select(CoralCover)
     prevCC = as.matrix(cbind(prevCC, prevCC,prevCC))
     ####THis is the problem
-    newCOTS = ifelse(prevCC < 10 & prevCC > 1 & COTSabund[,'A']> K$MinK.10A, K$MinK.10/10000,
-           ifelse(prevCC < 1 & COTSabund[,'A']> K$MinK.0.5A, K$MinK.0.5/10000, COTSabund))
+    newCOTS = ifelse(prevCC < 10 & prevCC > 1 & COTSabund[,'A']> K$MinK.10A, K$MinK.10A/10000,
+           ifelse(prevCC < 1 & COTSabund[,'A']> K$MinK.0.5A, K$MinK.0.5A/10000, COTSabund))
     colnames(newCOTS) = stagenames
   }
   if(season=="winter"){
     prevCC = dplyr::filter(Results, Year==year & Season=='summer') %>% dplyr::select(CoralCover)
     prevCC = as.matrix(cbind(prevCC, prevCC,prevCC))
-    newCOTS = ifelse(prevCC < 10 & prevCC > 1 & COTSabund[,'A']> K$MinK.10A, K$MinK.10/10000,
-              ifelse(prevCC < 1 & COTSabund[,'A']> K$MinK.0.5A, K$MinK.0.5/10000, COTSabund))
+    newCOTS = ifelse(prevCC < 10 & prevCC > 1 & COTSabund[,'A']> K$MinK.10A, K$MinK.10A/10000,
+              ifelse(prevCC < 1 & COTSabund[,'A']> K$MinK.0.5A, K$MinK.0.5A/10000, COTSabund))
     colnames(newCOTS) = stagenames
   }
   return(newCOTS)

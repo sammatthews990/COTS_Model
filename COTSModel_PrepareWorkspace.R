@@ -107,7 +107,7 @@ loadPackages()   # load all packages into the global environment
 `%>%` <- magrittr::`%>%`
 
 # save global params
-saveWorkspace(filename="GlobalParams.RData")
+saveWorkspace(filename="GlobalParams.RData", dir=RDATA_DIRECTORY)
 
 
 
