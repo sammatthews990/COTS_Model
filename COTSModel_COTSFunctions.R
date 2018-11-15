@@ -80,7 +80,7 @@ COTS_FecFromMass <- function(Mass){
 
 
 initializeCOTSabund <- function(PopData, COTS.data, Year, stagenames, COTS_StableStage, npops){
-  
+  # browser()
   ### set NA Values in interpolation CoTS.init to 0
   COTS.data[is.na(COTS.data)] <- 0
   
@@ -94,13 +94,13 @@ initializeCOTSabund <- function(PopData, COTS.data, Year, stagenames, COTS_Stabl
   colname <- paste('COTS_', Year, sep="")
   
   ### Update abundances based from interpolated manta tow data
-  COTSabund[,'A'] <- COTS.data[,colname] * 1500 * (PopData$reefpercent/100)   #need to multiply by function from observations to density
+  COTSabund[,'A'] <- COTS.data[,colname] * 1500 * (PopData$PercentReef/100)   #need to multiply by function from observations to density
   COTSabund[,'J_2'] <- COTSabund[,'A'] * as.numeric(COTS_StableStage[2]/COTS_StableStage[3])
   COTSabund[,'J_1'] <- COTSabund[,'A'] * as.numeric(COTS_StableStage[1]/COTS_StableStage[3])
   return(COTSabund)
 }
 
-# initCOTS <- initializeCOTSabund(PopData = PopData, COTS.data = COTS.data, Year=1996, stagenames, COTS_StableStage = COTS_StableStage)
+# initCOTS <- initializeCOTSabund(PopData, COTS.data, 1996, stagenames, COTS_StableStage, npops)
 
     
 ###################!
@@ -336,16 +336,16 @@ doCOTSDemography = function(season, COTSabund, COTSmort, COTSremain){
 doCoralConsumption = function(year, season, COTSabund, CoralCover, ConsRateS, ConsRateW) {
   if (season =="summer") {
     #CoralCover= Results[(Results$Year==year-1) & (Results$Season=="winter"),"CoralCover"]
-    CAvailable = (CoralCover*data.grid$PercentReef/100)*1e6*1e4 # in cm2
+    CAvailable = (CoralCover*data.grid$PercentReef/10000)*1e6*1e4 # in cm2
     CConsumed = ConsRateS*COTSabund[,"A"]*182
-    CRemaining=((CAvailable-CConsumed)/1e10)*(100/data.grid$PercentReef)
+    CRemaining=((CAvailable-CConsumed)/1e10)*(10000/data.grid$PercentReef)
     CRemaining[CRemaining < 0.5] <- 0.5
   } 
   if (season =="winter") {
     #CoralCover= Results[(Results$Year==year) & (Results$Season=="summer"),"CoralCover"]
-    CAvailable = (CoralCover*data.grid$PercentReef/100)*1e6*1e4 # in cm2
+    CAvailable = (CoralCover*data.grid$PercentReef/10000)*1e6*1e4 # in cm2
     CConsumed = ConsRateW*COTSabund[,"A"]*182
-    CRemaining=((CAvailable-CConsumed)/1e10)*(100/data.grid$PercentReef)
+    CRemaining=((CAvailable-CConsumed)/1e10)*(10000/data.grid$PercentReef)
     CRemaining[CRemaining < 0.5] <- 0.5
   }
   return(CRemaining)
@@ -371,7 +371,7 @@ setCarryingCapacity = function(npops) {
 data.grid=data.grid[1:npops,]
 CC.10=rep(10,npops)
 # Calculate percent growth
-MinG.10 = doCoralGrowth(CC.10, B0=data.grid$pred.b0.mean[1:npops], WQ[1:npops], HC.asym = data.grid$pred.HCmax.mean[1:npops])-CC.10
+MinG.10 = doCoralGrowth(CC.10, B0=data.grid$pred.b0.mean[1:npops], WQ[1:npops], HCMAX = data.grid$pred.HCmax.mean[1:npops])-CC.10
 # Number of COTS sustaianble at this level
 ConsRate = 250 # coral consumption rate
 CAvailable = (MinG.10*data.grid$PercentReef/100)*1e6*1e4 # in cm2
@@ -382,7 +382,7 @@ MinK.10 = as.matrix(cbind(MinK.10J1, MinK.10J2, MinK.10A)) ##THERE IS AN ISSUE W
 
 CC.0.5=rep(0.5,npops)
 # Calculate percent growth
-MinG.0.5 = doCoralGrowth(CC.0.5, B0=data.grid$pred.b0.mean[1:npops], WQ[1:npops], HC.asym = data.grid$pred.HCmax.mean[1:npops])-CC.0.5
+MinG.0.5 = doCoralGrowth(CC.0.5, B0=data.grid$pred.b0.mean[1:npops], WQ[1:npops], HCMAX = data.grid$pred.HCmax.mean[1:npops])-CC.0.5
 # Number of COTS sustaianble at this level
 ConsRate = 250 # coral consumption rate
 CAvailable = (MinG.0.5*data.grid$PercentReef/100)*1e6*1e4 # in cm2

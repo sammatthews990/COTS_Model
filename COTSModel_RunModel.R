@@ -43,7 +43,7 @@ MakeWorker = function (masterDF, npops){
   # dirs = list(BASE=BASE_DIRECTORY, CODE=CODE_DIRECTORY, RESULTS=RESULTS_DIRECTORY, 
   # DATA=DATA_DIRECTORY, ENVDATA=ENVDATA_DIRECTORY,SPATIALDATA=SPATIALDATA_DIRECTORY)
   setwd(BASE_DIRECTORY)
-  load(file = "R_Objects/ConnMat.Rdata")
+  load(file = "R_Objects/ConnMatFull.Rdata")
   setwd(CODE_DIRECTORY)
   source("COTSModel_LoadSmallObjectsForModelling.R")
   setwd(CODE_DIRECTORY)
@@ -204,6 +204,9 @@ return(list(ResponseVars=ResponseVars,CoralMat=CoralMat, COTSMat=COTSMat))
 }
 
 myresults = HarvestData(RESULTS_DIRECTORY)$ResponseVars
+testdf = as.data.frame(myresults[[2]]) %>% dplyr::filter(PIXEL_ID == 1)
+
+#### START HERE -----
 
 ####################!
 # 3 ANALYSE BRT ----

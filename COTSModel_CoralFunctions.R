@@ -35,7 +35,7 @@ intializeCoralCoverParams = function(data.grid, nsims, npops){
   WQ <- data.grid$Primary + data.grid$Secondary + data.grid$Tertiary
   N = nsims
   HCINI <- HCMAX <- B0 <- matrix(NA, ncol = N, nrow = dim(data.grid)[1])
-  
+  #browser()
   for (j in 1:dim(data.grid)[1]) {
     #Define sigma (i.e. variance-covariance matrix) for ith grid cell 
     sigma <- matrix(c(data.grid$pred.HCini.sd[j]^2, 0.54*data.grid$pred.HCini.sd[j]*data.grid$pred.HCmax.sd[j], 0.14*data.grid$pred.HCini.sd[j]*data.grid$pred.b0.sd[j],
@@ -43,7 +43,7 @@ intializeCoralCoverParams = function(data.grid, nsims, npops){
                       0.14*data.grid$pred.HCini.sd[j]*data.grid$pred.b0.sd[j], -0.13*data.grid$pred.HCmax.sd[j]*data.grid$pred.b0.sd[j], data.grid$pred.b0.sd[j]^2),
                     3,3)
     
-    #Pick N random parameters for ith grid cell
+    #Pick N random parameters for jth grid cell
     #something going wrong when picking values
     pick <- MASS::mvrnorm(n=N, mu=c(data.grid$pred.HCini.mean[j], data.grid$pred.HCmax.mean[j], data.grid$pred.b0.mean[j]), Sigma = sigma)
     HCINI[j,] <- pick[,1]
@@ -54,11 +54,13 @@ intializeCoralCoverParams = function(data.grid, nsims, npops){
               HCINI=HCINI, HCMAX=HCMAX, B0=B0))
 }
 
-#CoralCoverParams = intializeCoralCoverParams(data.grid = data.grid, nsims=10, 10)
+#CoralCoverParams = intializeCoralCoverParams(data.grid = data.grid, nsims=10, npops = npops)
 
 #################!
 # doCoralDistrurbances ----
 #################!  
+
+
 
 #################!
 # doCoralGrowth ----
@@ -71,13 +73,14 @@ intializeCoralCoverParams = function(data.grid, nsims, npops){
 #    - b1 Asymptotic growth parameter from Gompertz Model
 #    - WQ Water quality parameter (not sure whether to predetermine this parameter or allow it to
 #       change for the sensitivity analyses)
+#    - HCMAX Estimated carrying capacity of coral cover
 # RETURNS:
 #    - CoralCover: spatially-structured Coral Cover
 ###################!
 
-doCoralGrowth = function(CoralCover, B0, WQ, HC.asym) {
+doCoralGrowth = function(CoralCover, B0, WQ, HCMAX) {
   b0.wq <- B0 + WQ * rnorm(length(WQ), mean=WQ.mn.sd[1], sd=WQ.mn.sd[2])
-  b1.wq <- b0.wq / log(HC.asym)
+  b1.wq <- b0.wq / log(HCMAX)
   CoralCover <- log(CoralCover)
   CoralCover <- b0.wq + (1 - b1.wq)*CoralCover
   return(exp(CoralCover))
@@ -119,8 +122,8 @@ initializeModel = function(PopData,COTSabund,CoralCover, SexRatio, ConsRateS,
 # 4 RUN MODEL ----
 ####################!
 
-runModel = function(masterDF, PopData, COTS.data, data.grid, ConnMat, npops, rep, seasons, FvDParams) {
-  browser()
+runModel = function(masterDF, PopData, COTS.data, data.grid, ConnMat, npops, rep, seasons, FvDParams=FvDParams) {
+  # browser()
   SexRatio = masterDF[rep, "SexRatio"]
   ConsRateW = masterDF[rep, "ConsRateW"]
   ConsRateS = masterDF[rep, "ConsRateS"]
@@ -164,7 +167,8 @@ runModel = function(masterDF, PopData, COTS.data, data.grid, ConnMat, npops, rep
   
   #browser()
   # year Loop
-  for(year in 1997:2015){                  # loop through years
+  for(year in 1997:2015){  
+    print(year)# loop through years
     for(season in seasons){               # loop through seasons
       COTSabund = doCOTSDispersal(season,COTSabund,SexRatio,ConnMat, PCFParams, npops, FvDParams)
       COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
@@ -182,4 +186,7 @@ runModel = function(masterDF, PopData, COTS.data, data.grid, ConnMat, npops, rep
   
 }
 
+runModel(masterDF=masterDF, PopData=PopData,COTS.data = COTS.data,
+         data.grid = data.grid, ConnMat = ConnMat.full, npops=npops, rep=1, 
+         seasons = seasons, FvDParams = FvDParams)
 

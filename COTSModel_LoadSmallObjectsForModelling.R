@@ -11,11 +11,11 @@
 
 setwd(DATA_DIRECTORY)
  
-PopData <- read.csv("reefs.csv", header = TRUE)[1:npops,] # we will just use a subset for testing
-COTS.data <- read.csv("Disturbance/CoTS_data.csv", header = TRUE)[1:npops,]
+# PopData <- read.csv("reefs.csv", header = TRUE)#[1:npops,] # we will just use a subset for testing
+# COTS.data <- read.csv("Disturbance/CoTS_data.csv", header = TRUE)#[1:npops,]
 
-setwd(BASE_DIRECTORY)
-load("R_Objects/FvDParams.RData")
+# setwd(BASE_DIRECTORY)
+# load("R_Objects/FvDParams.RData")
 # # Load Connectivity Matrix
 # setwd(BASE_DIRECTORY)
 # #load("R_Objects/ProbDistance.Rdata")
@@ -29,7 +29,8 @@ load("R_Objects/FvDParams.Rdata")
 
 # Load Environmental Data Frame
 setwd(ENVDATA_DIRECTORY)
-data.grid = read.csv("data.grid.csv", header=T)[1:npops,]
+data.grid = read.csv("data.grid.csv", header=T)
+
 WQ = data.grid$Primary + data.grid$Secondary + data.grid$Tertiary
 
 # Gompertz parameters: disturbance & WQ effect sizes (as per MacNeil et al. in prep)

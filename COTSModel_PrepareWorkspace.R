@@ -22,7 +22,7 @@
 #   SET USER 
 #######################
 
-USER = "SAM"
+USER = "SAM_UNI"
 # USER = "SAM_RENO"
 
 
@@ -34,7 +34,7 @@ USER = "SAM"
 NYEARS <- 20
 NSEASONS <- 2
 seasons <- c("summer","winter")
-npops = 50 #number of reefs we want to test
+npops = 15928 #number of reefs we want to test
 
 VERBOSE <- TRUE        # flag whether functions should return detailed information
 DEBUG <- TRUE          # flag whether to output debug files etc. 
@@ -61,6 +61,9 @@ if(USER=="KEVIN") CODE_DIRECTORY <- "C:\\Users\\Kevin\\GIT\\COTS_Model"         
 
 if(USER=="SAM") BASE_DIRECTORY <- "C:\\Users\\jc312264\\Dropbox\\CoTS_Model"
 if(USER=="SAM") CODE_DIRECTORY <- "C:\\Users\\jc312264\\Documents\\GitHub\\COTS_Model"
+
+if(USER=="SAM_UNI") BASE_DIRECTORY <- "C:\\Users\\jc312264\\Dropbox\\CoTS_Model"
+if(USER=="SAM_UNI") CODE_DIRECTORY <- "C:\\Users\\jc312264\\OneDrive - James Cook University\\GitHub\\COTS_Model"
 
 if(USER=="SAM_RENO") BASE_DIRECTORY <- "C:\\Users\\kshoemaker\\Dropbox\\CoTS_Model"
 if(USER=="SAM_RENO") CODE_DIRECTORY <- "C:\\Users\\kshoemaker\\Documents\\GitHub\\COTS_Model"
