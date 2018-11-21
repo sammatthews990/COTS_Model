@@ -34,7 +34,7 @@ intializeCoralCoverParams = function(data.grid, nsims, npops){
   data.grid=data.grid[1:npops,]
   WQ <- data.grid$Primary + data.grid$Secondary + data.grid$Tertiary
   N = nsims
-  HCINI <- HCMAX <- B0 <- matrix(NA, ncol = N, nrow = dim(data.grid)[1])
+  HCINI <- HC.asym <- B0 <- matrix(NA, ncol = N, nrow = dim(data.grid)[1])
   #browser()
   for (j in 1:dim(data.grid)[1]) {
     #Define sigma (i.e. variance-covariance matrix) for ith grid cell 
@@ -47,14 +47,14 @@ intializeCoralCoverParams = function(data.grid, nsims, npops){
     #something going wrong when picking values
     pick <- MASS::mvrnorm(n=N, mu=c(data.grid$pred.HCini.mean[j], data.grid$pred.HCmax.mean[j], data.grid$pred.b0.mean[j]), Sigma = sigma)
     HCINI[j,] <- pick[,1]
-    HCMAX[j,] <- pick[,2]
+    HC.asym[j,] <- pick[,2]
     B0[j,] <- pick[,3]
   }
   return(list(WQ=cbind(data.grid[,1:5], WQ), 
-              HCINI=HCINI, HCMAX=HCMAX, B0=B0))
+              HCINI=HCINI, HC.asym=HC.asym, B0=B0))
 }
 
-#CoralCoverParams = intializeCoralCoverParams(data.grid = data.grid, nsims=10, npops = npops)
+# CoralCoverParams = intializeCoralCoverParams(data.grid = data.grid, nsims=10, npops = npops)
 
 #################!
 # doCoralDistrurbances ----
@@ -78,9 +78,9 @@ intializeCoralCoverParams = function(data.grid, nsims, npops){
 #    - CoralCover: spatially-structured Coral Cover
 ###################!
 
-doCoralGrowth = function(CoralCover, B0, WQ, HCMAX) {
+doCoralGrowth = function(CoralCover, B0, WQ, HC.asym) {
   b0.wq <- B0 + WQ * rnorm(length(WQ), mean=WQ.mn.sd[1], sd=WQ.mn.sd[2])
-  b1.wq <- b0.wq / log(HCMAX)
+  b1.wq <- b0.wq / log(HC.asym)
   CoralCover <- log(CoralCover)
   CoralCover <- b0.wq + (1 - b1.wq)*CoralCover
   return(exp(CoralCover))
@@ -94,20 +94,22 @@ doCoralGrowth = function(CoralCover, B0, WQ, HCMAX) {
 # 3 INITIALIZE MODEL ----
 ####################!
 
-initializeModel = function(PopData,COTSabund,CoralCover, SexRatio, ConsRateS, 
+initializeModel = function(PopData, data.grid, COTSabund,CoralCover, SexRatio, ConsRateS, 
                            ConsRateW, B0, WQ, HC.asym, PCFParams, npops, ConnMat, FvDParams){
   
   # Probably Change Storage to an array
+  
   Results = data.frame(sapply(PopData, rep.int, times=NYEARS*NSEASONS),
                        Year=rep(1996:2015,each=2*npops), Season=rep(c("summer", "winter"),each=npops), 
                        COTSJ1=NA, COTSJ2=NA, COTSA=NA, CoralCover=NA, DistCOTS=NA, DistCYCL=NA, DistBLCH=NA)
-  
+  CoralCover=CoralCover
   for(year in 1996){                  # loop through years
     for(season in seasons){               # loop through seasons
+      # browser()
       COTSabund = doCOTSDispersal(season,COTSabund,SexRatio,ConnMat, PCFParams, npops, FvDParams)
       COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
       #COTSabund = doPredPreyDynamics(season, year, COTSabund,Reults, K)
-      CoralCover = doCoralConsumption(year, season,  COTSabund, CoralCover, ConsRateS, ConsRateW)
+      CoralCover = doCoralConsumption(year, data.grid, season,  COTSabund, CoralCover, ConsRateS, ConsRateW)
       CoralCover = doCoralGrowth(CoralCover, B0, WQ, HC.asym)
       #CoralCover = doCoralDisturbance(season,CoralCover,...)           # coral disturbance processes, including from COTS
       Results[(Results$Year==year) & (Results$Season==season),
@@ -122,7 +124,7 @@ initializeModel = function(PopData,COTSabund,CoralCover, SexRatio, ConsRateS,
 # 4 RUN MODEL ----
 ####################!
 
-runModel = function(masterDF, PopData, COTS.data, data.grid, ConnMat, npops, rep, seasons, FvDParams=FvDParams) {
+runModel = function(masterDF, PopData, COTS.data, Years = Years, data.grid, ConnMat, npops, rep, seasons, FvDParams=FvDParams) {
   # browser()
   SexRatio = masterDF[rep, "SexRatio"]
   ConsRateW = masterDF[rep, "ConsRateW"]
@@ -162,20 +164,23 @@ runModel = function(masterDF, PopData, COTS.data, data.grid, ConnMat, npops, rep
   print(length(K$MinK.10A))
   COTSabund = initializeCOTSabund(PopData, COTS.data, 1996, stagenames, COTS_StableStage, npops)  # initialize the COTS abundance object (for year 0) 
   print(length(COTSabund[,3]))
-  Results = initializeModel(PopData, COTSabund, CoralCover, SexRatio, 
+  Results = initializeModel(PopData, data.grid, COTSabund, CoralCover=CoralCover, SexRatio, 
                             ConsRateS, ConsRateW, B0, WQ, HC.asym, PCFParams, npops, ConnMat, FvDParams)
   
-  #browser()
+  
+  # browser()
   # year Loop
-  for(year in 1997:2015){  
+  for(year in Years){  
     print(year)# loop through years
-    for(season in seasons){               # loop through seasons
+    for(season in seasons){             # loop through seasons
+      # browser()
       COTSabund = doCOTSDispersal(season,COTSabund,SexRatio,ConnMat, PCFParams, npops, FvDParams)
       COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
-      COTSabund = doPredPreyDynamics(season, year, COTSabund, Results,K)
-      CoralCover = doCoralConsumption(year, season,  COTSabund, CoralCover, ConsRateS, ConsRateW)
+      COTSabund[,'A'] = doPredPreyDynamics(season, year, COTSabund, Results,K)[,'A']
+      CoralCover = doCoralConsumption(year, data.grid, season, COTSabund, CoralCover, ConsRateS, ConsRateW)
       CoralCover = doCoralGrowth(CoralCover, B0, WQ, HC.asym)
       #CoralCover = doCoralDisturbance(season,CoralCover,...)           # coral disturbance processes, including from COTS
+      # browser()
       Results[(Results$Year==year) & (Results$Season==season),
               c("COTSJ1", "COTSJ2", "COTSA", "CoralCover")] = cbind(COTSabund, CoralCover)
     }
@@ -186,7 +191,12 @@ runModel = function(masterDF, PopData, COTS.data, data.grid, ConnMat, npops, rep
   
 }
 
-runModel(masterDF=masterDF, PopData=PopData,COTS.data = COTS.data,
-         data.grid = data.grid, ConnMat = ConnMat.full, npops=npops, rep=1, 
+# data.grid = data.grid[1:npops,]
+# PopData=PopData[1:npops,]
+# COTS.data = COTS.data[1:npops,]
+npops = 6000
+
+runModel(masterDF=masterDF, Years = 1997:2015, PopData=PopData[1:npops,],COTS.data = COTS.data[1:npops,],
+         data.grid = data.grid[1:npops,], ConnMat = ConnMat.full[1:npops, 1:npops], npops=npops, rep=2,
          seasons = seasons, FvDParams = FvDParams)
 

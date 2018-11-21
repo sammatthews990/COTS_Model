@@ -62,5 +62,5 @@ unknown.mn.sd <- c(-0.16, 0.01)
 WQ.mn.sd <- c(-0.68, 0.03)
 
 
-gone = read.csv("data.grid.csv", header=T) %>% 
-  dplyr::anti_join(PopData, by = c("lon", "lat")) %>% dplyr::pull(PIXEL_ID)
+# gone = read.csv("data.grid.csv", header=T) %>% 
+#   dplyr::anti_join(PopData, by = c("lon", "lat")) %>% dplyr::pull(PIXEL_ID)
