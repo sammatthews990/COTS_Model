@@ -79,10 +79,10 @@ COTS_FecFromMass <- function(Mass){
 ###################!
 
 
-initializeCOTSabund <- function(PopData, COTS.data, Year, stagenames, COTS_StableStage, npops){
+initializeCOTSabund <- function(data.grid, data.COTS, Year, stagenames, COTS_StableStage, npops){
   # browser()
   ### set NA Values in interpolation CoTS.init to 0
-  COTS.data[is.na(COTS.data)] <- 0
+  data.COTS[is.na(data.COTS)] <- 0
   
   nstages <- length(stagenames)
   
@@ -94,7 +94,7 @@ initializeCOTSabund <- function(PopData, COTS.data, Year, stagenames, COTS_Stabl
   colname <- paste('COTS_', Year, sep="")
   
   ### Update abundances based from interpolated manta tow data
-  COTSabund[,'A'] <- round(COTS.data[,colname] * 1500 * (PopData$PercentReef/100),0)   #need to multiply by function from observations to density
+  COTSabund[,'A'] <- round(data.COTS[,colname] * 666 * (data.grid$PercentReef/100),0)   # 666 converts manta tow to 1kmx1km
   COTSabund[,'J_2'] <- round(COTSabund[,'A'] * as.numeric(COTS_StableStage[2]/COTS_StableStage[3]),0)
   COTSabund[,'J_1'] <- round(COTSabund[,'A'] * as.numeric(COTS_StableStage[1]/COTS_StableStage[3]),0)
   return(COTSabund)
@@ -186,13 +186,13 @@ COTS_Fecundity <- function(COTSabund, mean, sd, npops, SR) {
 }
 
 COTSPCF = function (npops, SexRatio) {
-COTSabund = matrix(NA, nrow=npops, ncol=3)
-COTSabund[,3] = seq(1,100000, length.out = npops)
-colnames(COTSabund) = stagenames
-nEggs <- COTS_Fecundity(COTSabund, 350, 100, SR = SexRatio, npops=npops)
-avgPCF = mean(nEggs[-1]/COTSabund[,'A'][-1])
-sdPCF = sd(nEggs[-1]/COTSabund[,'A'][-1])
-return(c(avgPCF,sdPCF))
+  COTSabund = matrix(NA, nrow=npops, ncol=3)
+  COTSabund[,3] = seq(1,100000, length.out = npops)
+  colnames(COTSabund) = stagenames
+  nEggs <- COTS_Fecundity(COTSabund, 350, 100, SR = SexRatio, npops=npops)
+  avgPCF = mean(nEggs[-1]/COTSabund[,'A'][-1])
+  sdPCF = sd(nEggs[-1]/COTSabund[,'A'][-1])
+  return(c(avgPCF,sdPCF))
 }
 
 
@@ -206,7 +206,7 @@ COTS_Fecundity.PCF = function(COTSabund, PCFParams, SexRatio) {
   return(nEggs)
 }
 
-nEggs = COTS_Fecundity.PCF(COTSabund, PCFParams, SexRatio=5)
+# nEggs = COTS_Fecundity.PCF(COTSabund, PCFParams, SexRatio=5)
 
 ###################!
 # CoTS_Fertilisation ----
@@ -230,9 +230,9 @@ COTS_Fertilisation = function(nEggs, nCOTS, SexRatio, FvDParams) {
   return(nLarvae)
 }
 
-nLarvae = COTS_Fertilisation(nEggs = nEggs, nCOTS = COTSabund[,'A'], SexRatio =5, FvDParams = FvDParams)
-
-
+# nLarvae = COTS_Fertilisation(nEggs = nEggs, nCOTS = COTSabund[,'A'], SexRatio =5, FvDParams = FvDParams)
+# range(nLarvae, na.rm = T)
+##### PRODUCING NEGATIVE LARVAE
 
 
 
@@ -264,6 +264,50 @@ CoTS_Dispersal <- function(ConnMat, COTSabund, nLarvae, CoralCover, Loss, npops)
   # 5. Determine path of larvae to estimate survival (leave this for now)
   # 4. add vector of larvae produced to COTSabund
   # browser()
+  nLarvae = ifelse(nLarvae < 0 , 0, nLarvae) ### FIx this
+  nLarvae = as.matrix((1-Loss)*nLarvae) # assume 80% lost to the sea
+  row.names(nLarvae) = data.grid$REEF_NAME
+  nLarvae_Reef = rowsum(nLarvae, row.names(nLarvae), reorder = F) 
+  nArriving_Reef = ConnMat
+  nArriving_Reef[nArriving_Reef > 0] = 0
+  
+  for (i in 1:length(nLarvae_Reef)) {
+    nArriving_Reef[i,] = signif(nLarvae_Reef[i]*(ConnMat[i,]),3)
+  }
+  nArriving_Reef = base::colSums(nArriving_Reef, na.rm = T) # create total juveniles arriving at a reef
+  nArriving_Reef_PerPix = nArriving_Reef/Pixels$Pixels
+  nArriving = rep(nArriving_Reef_PerPix, Pixels$Pixels)
+  COTSabund[,'J_1'] = COTSabund[,'J_1'] + nArriving # add these to our abundance
+  # need to add a line that increases survival based on maternal resources
+  return(COTSabund)
+}
+
+# COTSabund.t1 = CoTS_Dispersal(ConnMat = ConnMat.full, COTSabund = COTSabund, npops=npops,
+#                               nLarvae=nLarvae, Loss=0.99)
+
+
+##############!
+# CoTS_Dispersal_Conn ----
+#############!  
+# OBJECTIVE: Disperse larvae throughout the system based on the connectivity matrix, 
+# PARAMS: 
+#   - ConnMat: 3806x3806 connectivity matrix
+#   - COTSabund: 15928 x 3 matrix containing COTS abundances from current timestep
+#   - CoralCover: 15928 vector containing coral cover for the current year to determine
+#               the maternal condition (needs to be looked into further)
+# RETURNS: 
+#   - COTSabund: updated 15928 x 3 matrix containing COTS abundances from current timestep
+
+# START HERE ----
+
+CoTS_Dispersal_Conn <- function(COTSConnMat, COTSabund, nLarvae, CoralCover, Loss, npops){
+  # PsuedoCode:
+  # 1. Loop through every population of fertilised eggs
+  # 2. Sum eggs up to reef level
+  # 3. Multiply nLarvae * connectivity probabilities to get larvae ditributed to each reef
+  # 5. Split up larve to each of the cells within the reef based on coral percentage
+  # 4. add vector of larvae produced to COTSabund
+  # browser()
   nLarvae = (1-Loss)*nLarvae # assume 80% lost to the sea
   nArriving = matrix(nrow=npops, ncol=npops)
   for (i in 1:npops) {
@@ -275,8 +319,6 @@ CoTS_Dispersal <- function(ConnMat, COTSabund, nLarvae, CoralCover, Loss, npops)
   return(COTSabund)
 }
 
-# COTSabund.t1 = CoTS_Dispersal(ConnMat = ConnMat.full, COTSabund = COTSabund, npops=npops,
-#                               nLarvae=nLarvae, Loss=0.99)
 
 
 ##############!
@@ -340,6 +382,7 @@ doCoralConsumption = function(year, data.grid, season, COTSabund, CoralCover, Co
     CAvailable = (CoralCover*data.grid$PercentReef/10000)*1e6*1e4 # in cm2
     CConsumed = ConsRateS*COTSabund[,"A"]*182
     CRemaining=((CAvailable-CConsumed)/1e10)*(10000/data.grid$PercentReef)
+    CChange = CRemaining-CoralCover
     CRemaining[CRemaining < 0.5] <- 0.5
   } 
   if (season =="winter") {
@@ -347,9 +390,10 @@ doCoralConsumption = function(year, data.grid, season, COTSabund, CoralCover, Co
     CAvailable = (CoralCover*data.grid$PercentReef/10000)*1e6*1e4 # in cm2
     CConsumed = ConsRateW*COTSabund[,"A"]*182
     CRemaining=((CAvailable-CConsumed)/1e10)*(10000/data.grid$PercentReef)
+    CChange = CRemaining-CoralCover
     CRemaining[CRemaining < 0.5] <- 0.5
   }
-  return(CRemaining)
+  return(cbind(CRemaining, CChange))
 }
 
 # CoralCover = doCoralConsumption("winter", COTSabund = COTSabund, CoralCover = CoralCover[1:1000])
@@ -370,57 +414,60 @@ doCoralConsumption = function(year, data.grid, season, COTSabund, CoralCover, Co
 
 setCarryingCapacity = function(npops) {
   # browser()
-data.grid=data.grid[1:npops,]
-CC.10=rep(10,npops)
-# Calculate percent growth
-MinG.10 = doCoralGrowth(CC.10, B0=data.grid$pred.b0.mean[1:npops], WQ[1:npops], HC.asym = data.grid$pred.HCmax.mean[1:npops])-CC.10
-# Number of COTS sustaianble at this level
-ConsRate = 250 # coral consumption rate
-CAvailable = (MinG.10*data.grid$PercentReef/10000)*1e6*1e4 # in cm2
-MinK.10A = CAvailable/(ConsRate*182)
-MinK.10J1 = MinK.10A*COTS_StableStage[1]/COTS_StableStage[3]
-MinK.10J2 = MinK.10A*COTS_StableStage[2]/COTS_StableStage[3]
-MinK.10 = as.matrix(cbind(MinK.10J1, MinK.10J2, MinK.10A)) ##THERE IS AN ISSUE WITH THE MAGNITUDE OF COTS CARRYING CAPACITY
-
-CC.0.5=rep(0.5,npops)
-# Calculate percent growth
-MinG.0.5 = doCoralGrowth(CC.0.5, B0=data.grid$pred.b0.mean[1:npops], WQ[1:npops], HC.asym = data.grid$pred.HCmax.mean[1:npops])-CC.0.5
-# Number of COTS sustaianble at this level
-ConsRate = 250 # coral consumption rate
-CAvailable = (MinG.0.5*data.grid$PercentReef/10000)*1e6*1e4 # in cm2
-MinK.0.5A = CAvailable/(ConsRate*182)
-MinK.0.5J1 = MinK.0.5A*COTS_StableStage[1]/COTS_StableStage[3]
-MinK.0.5J2 = MinK.0.5A*COTS_StableStage[2]/COTS_StableStage[3]
-MinK.0.5 = as.matrix(cbind(MinK.0.5J1, MinK.0.5J2, MinK.0.5A))
+  data.grid=data.grid[1:npops,]
+  CC.10=rep(10,npops)
+  # Calculate percent growth
+  MinG.10 = doCoralGrowth(CC.10, B0=data.grid$pred.b0.mean[1:npops], WQ[1:npops], HC.asym = data.grid$pred.HCmax.mean[1:npops])[,2]
+  # Number of COTS sustaianble at this level
+  ConsRate = 250 # coral consumption rate
+  CAvailable = (MinG.10*data.grid$PercentReef/10000)*1e6*1e4 # in cm2
+  MinK.10A = CAvailable/(ConsRate*365)
+  MinK.10J1 = MinK.10A*COTS_StableStage[1]/COTS_StableStage[3]
+  MinK.10J2 = MinK.10A*COTS_StableStage[2]/COTS_StableStage[3]
+  MinK.10 = as.matrix(cbind(MinK.10J1, MinK.10J2, MinK.10A)) ##THERE IS AN ISSUE WITH THE MAGNITUDE OF COTS CARRYING CAPACITY
+  
+  CC.0.5=rep(0.5,npops)
+  # Calculate percent growth
+  MinG.0.5 = doCoralGrowth(CC.0.5, B0=data.grid$pred.b0.mean[1:npops], WQ[1:npops], HC.asym = data.grid$pred.HCmax.mean[1:npops])[,2]
+  # Number of COTS sustaianble at this level
+  ConsRate = 250 # coral consumption rate
+  CAvailable = (MinG.0.5*data.grid$PercentReef/10000)*1e6*1e4 # in cm2
+  MinK.0.5A = CAvailable/(ConsRate*365)
+  MinK.0.5J1 = MinK.0.5A*COTS_StableStage[1]/COTS_StableStage[3]
+  MinK.0.5J2 = MinK.0.5A*COTS_StableStage[2]/COTS_StableStage[3]
+  MinK.0.5 = as.matrix(cbind(MinK.0.5J1, MinK.0.5J2, MinK.0.5A))
 return(list=c(as.data.frame(MinK.0.5), data.frame(MinK.10)))
 }
 
 
-doPredPreyDynamics = function(season, year, COTSabund,Results,K) {
+doPredPreyDynamics = function(season, year, COTSabund,Results,K, CoralCover) {
   # after 1 year at low levels COTS densities get brought down to levels supported by growth
   # work out the %CC growth from 0.5% and set that as the number of COTS
   # MinK is the Maximum CoTS that can be supported at depleted coral cover
-  # browser()
+  # Carry is overarching carrying capacity - cannot have more COTS than could eat the reef in 1 year
+  # Carry = CoralCover*COTS_Per_CC
+  
   if(season=="summer"){
-    prevCC = dplyr::filter(Results, Year==year-1 & Season=='winter') %>% dplyr::select(CoralCover)
-    prevCC = as.matrix(cbind(prevCC, prevCC,prevCC))
-    ####THis is the problem
-    newCOTS = ifelse(prevCC < 10 & prevCC > 1 & COTSabund[,'A']> K$MinK.10A, K$MinK.10A/10000,
-           ifelse(prevCC < 1 & COTSabund[,'A']> K$MinK.0.5A, K$MinK.0.5A/10000, COTSabund))
-    colnames(newCOTS) = stagenames
+    prevCC = dplyr::filter(Results, Year==year-1 & Season=='winter') %>% dplyr::select(CoralCover) %>% as.matrix()
+    # browser()
+    COTSabund[which(prevCC < 5 & COTSabund[,'A']> K$MinK.0.5A),] = c(0,0,0)
+    # COTSabund[which(prevCC < 10 & prevCC > 3 & COTSabund[,'A']> K$MinK.10A),] = 
+    #   K$MinK.10A[which(prevCC < 10 & prevCC > 3 & COTSabund[,'A']> K$MinK.10A)]
   }
   if(season=="winter"){
-    prevCC = dplyr::filter(Results, Year==year & Season=='summer') %>% dplyr::select(CoralCover)
-    prevCC = as.matrix(cbind(prevCC, prevCC,prevCC))
-    newCOTS = ifelse(prevCC < 10 & prevCC > 1 & COTSabund[,'A']> K$MinK.10A, K$MinK.10A/10000,
-              ifelse(prevCC < 1 & COTSabund[,'A']> K$MinK.0.5A, K$MinK.0.5A/10000, COTSabund))
-    colnames(newCOTS) = stagenames
+    prevCC = dplyr::filter(Results, Year==year & Season=='summer') %>% dplyr::select(CoralCover) %>% as.matrix()
+    COTSabund[which(prevCC < 5 & COTSabund[,'A']> K$MinK.0.5A),] = c(0,0,0)
+    # COTSabund[which(prevCC < 10 & prevCC > 3 & COTSabund[,'A']> K$MinK.10A),] = 
+    #   K$MinK.10A[which(prevCC < 10 & prevCC > 3 & COTSabund[,'A']> K$MinK.10A)]
   }
-  return(newCOTS)
+  COTSabund[,'A'] = ifelse(COTSabund[,'A']> Carry, Carry, COTSabund[,'A'])
+  return(COTSabund)
 } 
 
-
-
+# Results[(Results$Year==1999),"CoralCover"] = rep(2,6000)
+# 
+# CoralCovertest = rep(2,6000)
+# doPredPreyDynamics("summer", 2000, Results = Results, K=K, COTSabund = COTSabund, CoralCover = CoralCovertest )
 
 ####################
 ### COTS SANDBOX: for testing, etc.
@@ -497,18 +544,18 @@ doPredPreyDynamics = function(season, year, COTSabund,Results,K) {
 
 #  typical reproductive female is 300 mm in diameter
 
-Mass <- COTS_MassFromDiam(300)    # 1132 grams
-Fec <- COTS_FecFromMass(Mass)     # each female produces approx 14 million larvae!
-
-  # assume that maybe 0.0001 of these larvae establish on a reef
-Fec <- Fec*0.0001
-
-TransMat <- matrix(c(0,0.03,0,0,0,0,0.2,0,Fec/2,0,0.3,0.1,Fec/(2*6),0,0,0.6),nrow=4)
-
-loadPackage("popbio")
-library(popbio)
-lambda(TransMat)         # strong positive growth rate: 3.57
-stable.stage(TransMat)   #stable age distribution
+# Mass <- COTS_MassFromDiam(300)    # 1132 grams
+# Fec <- COTS_FecFromMass(Mass)     # each female produces approx 14 million larvae!
+# 
+#   # assume that maybe 0.0001 of these larvae establish on a reef
+# Fec <- Fec*0.0001
+# 
+# TransMat <- matrix(c(0,0.03,0,0,0,0,0.2,0,Fec/2,0,0.3,0.1,Fec/(2*6),0,0,0.6),nrow=4)
+# 
+# loadPackage("popbio")
+# library(popbio)
+# lambda(TransMat)         # strong positive growth rate: 3.57
+# stable.stage(TransMat)   #stable age distribution
 
 #### take away: stable stage distribution is heavily biased towards juveniles
 

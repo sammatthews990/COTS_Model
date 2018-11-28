@@ -1,0 +1,413 @@
+---
+title: "COTS_Model"
+author: "Samuel Matthews"
+date: "21 November 2018"
+output:
+  html_document:
+    toc: true
+    code_folding: hide
+    toc_float: true
+    theme: journal
+    highlight: haddock
+  prettydoc::html_pretty:
+    highlight: github
+    theme: architect
+    toc: true
+---
+---
+
+
+# Preparing the Workspace
+
+This section of the model sets up the directories to access data and to save files
+
+```{r cars, cache=T, eval=T}
+# CLEAR THE WORKSPACE ----
+#######################!
+
+rm(list=ls())
+
+####
+# SET USER ----
+####
+
+USER = "SAM_UNI"
+# USER = "SAM_RENO"
+
+
+#################!
+# SET GLOBAL VARIABLES  (USER SPECIFIED PARAMS) ----
+####
+
+# NREPS <- 10      
+NYEARS <- 20
+NSEASONS <- 2
+seasons <- c("summer","winter")
+npops = 6000 #number of reefs we want to test
+
+VERBOSE <- TRUE        # flag whether functions should return detailed information
+DEBUG <- TRUE          # flag whether to output debug files etc. 
+
+projection <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"   #"+proj=lcc +lat_1=33 +lat_2=45 +lat_0=39 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs"
+
+stagenames <- c('J_1', 'J_2', 'A')
+COTSmort <- c(0.8,0.7,0.2)
+names(COTSmort) <- stagenames
+COTSremain <- c(0.02,0.2,1) # proportion remianing in each life stage --> we can make this a function of resource
+names(COTSremain) <- stagenames
+#VBG.Params = VBG.Models[[2]]
+
+COTS_StableStage <- c(0.9803, 0.0171, 0.0026)   # very approximate stable stage distribution (J1, J2, Adult: see below for back-of-the-envelope calculation)
+```
+
+## Set Project Directories
+
+```{r Project Directories,eval=T, cache=TRUE}
+
+####
+# SET PROJECT DIRECTORIES ----
+####
+
+# (this should be the only place where local directories should be referenced)
+
+if(USER=="KEVIN") BASE_DIRECTORY <- "C:\\Users\\Kevin\\Dropbox\\CoTS_Model"             # NOTE: this should link to the Dropbox folder with shared project resources	                                                                        
+if(USER=="KEVIN") CODE_DIRECTORY <- "C:\\Users\\Kevin\\GIT\\COTS_Model"              # NOTE: code directory should be your local copy of the GitHub repository
+
+if(USER=="SAM") BASE_DIRECTORY <- "C:\\Users\\jc312264\\Dropbox\\CoTS_Model"
+if(USER=="SAM") CODE_DIRECTORY <- "C:\\Users\\jc312264\\Documents\\GitHub\\COTS_Model"
+
+if(USER=="SAM_UNI") BASE_DIRECTORY <- "C:\\Users\\jc312264\\Dropbox\\CoTS_Model"
+if(USER=="SAM_UNI") CODE_DIRECTORY <- "C:\\Users\\jc312264\\OneDrive - James Cook University\\GitHub\\COTS_Model"
+
+if(USER=="SAM_RENO") BASE_DIRECTORY <- "C:\\Users\\kshoemaker\\Dropbox\\CoTS_Model"
+if(USER=="SAM_RENO") CODE_DIRECTORY <- "C:\\Users\\kshoemaker\\Documents\\GitHub\\COTS_Model"
+
+SPATIALDATA_DIRECTORY <- paste(BASE_DIRECTORY,"\\Spatial Layers",sep="")                          # directory for storing relevant spatial data (ASC, SHP files)
+if(is.na(file.info(SPATIALDATA_DIRECTORY)[1,"isdir"])) dir.create(SPATIALDATA_DIRECTORY)
+
+DATA_DIRECTORY <- paste(BASE_DIRECTORY,"\\Data",sep="")                                 # directory for storing data (CSV files)
+if(is.na(file.info(DATA_DIRECTORY)[1,"isdir"])) dir.create(DATA_DIRECTORY)
+
+ENVDATA_DIRECTORY <- paste(DATA_DIRECTORY,"\\Environmental",sep="")                                 # directory for storing data (CSV files)
+if(is.na(file.info(ENVDATA_DIRECTORY)[1,"isdir"])) dir.create(ENVDATA_DIRECTORY)
+
+FIGURES_DIRECTORY <- paste(BASE_DIRECTORY,"\\Figures\\RawFigures",sep="")               # directory for storing raw figures generated from R
+if(is.na(file.info(FIGURES_DIRECTORY)[1,"isdir"])) dir.create(FIGURES_DIRECTORY)
+
+RESULTS_DIRECTORY <- paste(BASE_DIRECTORY,"\\results",sep="")                           # directory for storing relevant results
+if(is.na(file.info(RESULTS_DIRECTORY)[1,"isdir"])) dir.create(RESULTS_DIRECTORY)
+
+RDATA_DIRECTORY <- paste(BASE_DIRECTORY,"\\R_Workspaces",sep="")                        # directory for storing .RData files (R workspaces and data objects)
+if(is.na(file.info(RDATA_DIRECTORY)[1,"isdir"])) dir.create(RDATA_DIRECTORY)
+
+cat(sprintf("The current user is %s",USER))
+
+```
+
+## Load Functions, Packages and Data
+
+```{r Load, eval=T, cache=T}
+##################!
+# LOAD FUNCTIONS AND SCRIPTS FROM SOURCE CODE (your local GitHub repository) ----
+##################!
+
+setwd(CODE_DIRECTORY)
+source("COTSModel_Utilityfunctions.R")   # load utility functions, e.g., for loading packages etc.
+source("COTSModel_COTSfunctions.R")      # load functions for implementing COTS demography and dispersal
+source("COTSModel_Coralfunctions.R")     # load functions for implemeting coral growth/recovery and dispersal
+source("COTSModel_GISfunctions.R")     # load functions for implemeting coral growth/recovery and dispersal
+
+#####################!
+# LOAD PACKAGES ----
+#####################!
+# note: 'loadPackage' should install the package from CRAN automatically if it is not already installed
+
+loadPackages()   # load all packages into the global environment 
+# THis only installs packages now.. everything else will be defined inline
+
+`%>%` <- magrittr::`%>%` # bringt the pipe operator into the global environment
+
+#####################!
+# LOAD DATA FOR MODELLING ----
+#####################!
+setwd(CODE_DIRECTORY)
+source("COTSModel_LoadObjectsForModelling.R")
+CC_Per_CC = (data.grid$PercentReef/10000)*1e6*1e4 
+COTS_Per_CC = CC_Per_CC/(250*365)
+
+# save global params
+saveWorkspace(filename="GlobalParams.RData", dir=RDATA_DIRECTORY)
+```
+
+
+
+# Model Structure and Functions
+
+FIgure 1 below describes the general framework for the COTS model. A dataframe is set up to create latin hypercube samples, then the model is run for each sample and stored as a `.Rdata` file. Each function is described in detail below. 
+
+![Model Structure](C:/Users//jc312264//Dropbox//CoTS_Model//MindMaps//Structure.png)
+
+## makeLHSsamples
+
++ __Objective__: This function creates _n_ replicates across paremeter space for an individual model run
++ __Paremeters__: 
+    + __NREPS__: number of replicate samples we wish to draw from parameter space
++ __Returns__: 
+    + __masterDF__: n x 14 dataframe containing the parameters for that 
+    + __.csv__: masterDF is written to the Results Directory
+
++ _Major Issues_: No major issues at this time, the biggest concern is developing more realisic densit dependent parameters to sample across
+
+```{r makeLHSSample, eval=T}
+
+MakeLHSSamples <- function(NREPS){
+  
+  # Information necessary to translate standard uniform LHS sample into parameters of interest
+  specifyLHSParam <- function(paramslist,name,type,lb,ub){
+    newlist <- paramslist
+    eval(parse(text=sprintf("newlist$%s <- list()",name)))
+    eval(parse(text=sprintf("newlist$%s$type <- \"%s\"",name,type)))
+    eval(parse(text=sprintf("newlist$%s$lb <- %s",name,lb)))
+    eval(parse(text=sprintf("newlist$%s$ub <- %s",name,ub))) 	
+    return(newlist)
+  }
+  
+  LHSParms <- list()    # initialize the container for parameter bounds
+  
+  ### SEXRATIO : 1 = 0.1M:0.9F
+  LHSParms <- specifyLHSParam(paramslist=LHSParms,name="SexRatio",type="CAT",lb=0,ub=9)
+  
+  ####  WINTER CONSUMPTION RATE
+  LHSParms <- specifyLHSParam(LHSParms,"ConsRateW",type="CONT",lb=100,ub=200)
+  
+  #### SUMMER CONSUMPTION RATE
+  LHSParms <- specifyLHSParam(LHSParms,"ConsRateS",type="CONT",lb=150,ub=400)
+  
+  ### AVERAGE PER CAPITA FECUNDITY 
+  LHSParms <- specifyLHSParam(LHSParms,"avgPCF",type="CONT",lb=42e5,ub=21e6)       
+  
+  ### STD DEV PER CAPITA FECUNDITY
+  LHSParms <- specifyLHSParam(LHSParms,"sdPCF",type="CONT",lb=6e4,ub=14.6e4)      
+  
+  ### % JUVENILE1 MORTALITY PER TIME STEP
+  LHSParms <- specifyLHSParam(LHSParms,"mortJ1",type="CONT",lb=0.5,ub=0.99)
+  
+  ### % JUVENILE2 MORTALITY PER TIME STEP
+  LHSParms <- specifyLHSParam(LHSParms,"mortJ2",type="CONT",lb=0.4,ub=0.99) 
+  
+  ### % ADULT MORTALITY PER TIME STEP
+  LHSParms <- specifyLHSParam(LHSParms,"mortA",type="CONT",lb=0.1,ub=0.6)
+  
+  ### % JUVENILE1 TO REMIAIN during transition
+  LHSParms <- specifyLHSParam(LHSParms,"remJ1",type="CONT",lb=0.01,ub=0.5)
+  
+  ### % JUVENILE2 TO REMIAIN during transition 
+  LHSParms <- specifyLHSParam(LHSParms,"remJ2",type="CONT",lb=0.1,ub=0.5)      
+  
+  ### % ADULT TO REMIAIN during transition
+  LHSParms <- specifyLHSParam(LHSParms,"remA",type="CONT",lb=1,ub=1)      
+  
+  ### PROPORTIONAL STABLE STAGE DISTRIBUTION J1
+  LHSParms <- specifyLHSParam(LHSParms,"cssJ1",type="CONT",lb=0.9803,ub=0.9803)
+  
+  ### PROPORTIONAL STABLE STAGE DISTRIBUTION J2
+  LHSParms <- specifyLHSParam(LHSParms,"cssJ2",type="CONT",lb=0.0171,ub=0.0171) 
+  
+  ### PROPORTIONAL STABLE STAGE DISTRIBUTION a
+  LHSParms <- specifyLHSParam(LHSParms,"cssA",type="CONT",lb=0.0026,ub=0.0026)
+  
+  
+  ##### GENERATE LATIN HYPERCUBE SAMPLE
+  
+  nVars <- length(names(LHSParms))  
+  
+  LHS <- lhs::randomLHS(NREPS, nVars )   # generate multiple samples from parameter space according to a LHS sampling scheme
+  
+  masterDF <- as.data.frame(LHS)    #  storage container (data frame) to record relevant details for each file. Rows LHS samples. Cols: relevant variables
+  
+  
+  ### translate raw lhs samples into desired parameter space
+  colnames(masterDF) <- names(LHSParms)
+  parm=1
+  for(parm in 1:nVars){
+    if(LHSParms[[parm]]$type=="CONT"){
+      masterDF[,parm] <- LHSParms[[parm]]$lb + LHS[,parm]*(LHSParms[[parm]]$ub-LHSParms[[parm]]$lb)
+    }
+    if(LHSParms[[parm]]$type=="CAT"){
+      masterDF[,parm] <- ceiling(LHSParms[[parm]]$lb + LHS[,parm]*(LHSParms[[parm]]$ub-LHSParms[[parm]]$lb))
+    }
+  }
+  
+  setwd(RESULTS_DIRECTORY)
+  ## name file for LHS parameters 
+  write.csv(masterDF,"masterDF_prelimCOTS.csv",row.names=F)
+  
+  return(masterDF)
+}
+
+####################!
+# GENERATE LATIN HYPERCUBESAMPLE ----
+####################!
+
+masterDF = MakeLHSSamples(NREPS = 10)
+
+```
+
+## initalizeCOTSabund
+
++ __Objective__: Create a npops x 3 matrix to store COTS abundances (COTSabund) as the model progress
++ __Paremeters__:
+    + __data.grid__: XYZ grid conatining all metadata for each pixel and environmental variables
+    + __data.COTS__: interpolated COTS per manta tow dataframe used to initialize the COTS populations
+    + __Year__: which year we choose to start from (usually 1996)
+    + __stagenames__: character vector containing the names of the COTS stages (e.g J_1, J_2, A)
+    + __COTS_StableStage__: 3 element vector conatinin the estimated proportions of J_1 and J_2 COTS to support the initialized adult population
++ __Returns__:
+    + __COTSabund__: npops x 3 matrix containing our starting values of COTS
+
++ _Major Issues_: I need to make a more reliable estimate of the stable stage distribution, I can probably get this from Cameron Fletcher
+
+
+```{r initializeCOTSabund}
+initializeCOTSabund <- function(data.grid, data.COTS, Year, stagenames, COTS_StableStage){
+  # browser()
+  ### set NA Values in interpolation CoTS.init to 0
+  data.COTS[is.na(data.COTS)] <- 0
+  
+  nstages <- length(stagenames)
+  
+  ### Set up the COTS abundance object
+  COTSabund <- matrix(0,nrow=npops, ncol=nstages)
+  colnames(COTSabund) <- stagenames
+  
+  ### Set up reference for year
+  colname <- paste('COTS_', Year, sep="")
+  
+  ### Update abundances based from interpolated manta tow data
+  COTSabund[,'A'] <- round(data.COTS[,colname] * 666 * (data.grid$PercentReef/100),0)   # 666 converts manta tow to 1kmx1km
+  COTSabund[,'J_2'] <- round(COTSabund[,'A'] * as.numeric(COTS_StableStage[2]/COTS_StableStage[3]),0)
+  COTSabund[,'J_1'] <- round(COTSabund[,'A'] * as.numeric(COTS_StableStage[1]/COTS_StableStage[3]),0)
+  return(COTSabund)
+}
+```
+
+## initializeModel
+
++ __Objective__: 
++ __Paremeters__:
++ __Returns__:
+
++ _Major Issues_:
+
+## doCOTSDispersal
+
++ __Objective__: 
++ __Paremeters__:
++ __Returns__:
+
++ _Major Issues_:
+
+## doCOTSDemography
+
++ __Objective__: 
++ __Paremeters__:
++ __Returns__:
+
++ _Major Issues_:
+
+## doCoralDisturbance
+
++ __Objective__: 
++ __Paremeters__:
++ __Returns__:
+
++ _Major Issues_:
+
+## doPredPreyDynamics
+
++ __Objective__: 
++ __Paremeters__:
++ __Returns__:
+
++ _Major Issues_:
+
+## doCoralConsumption
+
++ __Objective__: 
++ __Paremeters__:
++ __Returns__:
+
++ _Major Issues_:
+
+## doCoralGrowth
+
++ __Objective__: 
++ __Paremeters__:
++ __Returns__:
+
++ _Major Issues_:
+
+## RunModel
+
+## HarvestData
+
+## PlotResults
+
+# Parameters 
+
+This section outlines the different parameters that are currently tunable across LatinHypercube space.
+
++ __SexRatio__:
++ __ConsRateS__:
++ __ConsRateW__:
++ __avgPCF__:
++ __sdPCF__:
++ __mortJ1__:
++ __mortJ2__:
++ __mortA__:
++ __remJ1__:
++ __remJ2__:
+
+
+# Data Structures
+
+## data.grid
+
+## data.COTS
+
+## data.Bleach
+
+## data.Cyclones
+
+## COTS.ConnMat
+
+## Results
+
+## Testing Arena
+ 
+```{r, eval=F}
+rep=5
+runModel(masterDF=masterDF, Years = 1997:2015, PopData=PopData[1:npops,],COTS.data = COTS.data[1:npops,],
+         data.grid = data.grid[1:npops,], ConnMat = ConnMat.full[1:npops, 1:npops], npops=npops, rep=rep,
+         seasons = seasons, FvDParams = FvDParams)
+setwd(RESULTS_DIRECTORY)
+load(sprintf("Sample_%s.Rdata",rep))
+
+library(ggplot2)
+library(dplyr)
+plotresults = Results %>% 
+  filter(REEF_ID==23) %>%
+  group_by(Year, Season) %>% 
+  mutate(COTSA = (COTSA/100)*0.15) %>%
+  summarise(COTSm = mean(COTSA, na.rm=T),
+            COTSsd = sd(COTSA, na.rm = T),
+            Coralm = mean(CoralCover, na.rm=T),
+            Coralsd = sd(CoralCover, na.rm = T)) %>%
+  mutate(Time = paste0(Year, substr(Season, 1,1)))
+ggplot(data=plotresults, aes(x=Year, y=Coralm)) + geom_smooth() #+ geom_smooth(aes(y=COTSm))
+
+
+
+
+
+```

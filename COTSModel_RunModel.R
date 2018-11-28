@@ -203,8 +203,8 @@ return(list(ResponseVars=ResponseVars,CoralMat=CoralMat, COTSMat=COTSMat))
 
 }
 
-myresults = HarvestData(RESULTS_DIRECTORY)$ResponseVars
-testdf = as.data.frame(myresults[[2]]) %>% dplyr::filter(PIXEL_ID == 1)
+# myresults = HarvestData(RESULTS_DIRECTORY)$ResponseVars
+# testdf = as.data.frame(myresults[[2]]) %>% dplyr::filter(PIXEL_ID == 1)
 
 #### START HERE -----
 
@@ -212,17 +212,17 @@ testdf = as.data.frame(myresults[[2]]) %>% dplyr::filter(PIXEL_ID == 1)
 # 3 ANALYSE BRT ----
 ####################!
 
-masterDF$SexRatio <- as.factor(masterDF$SexRatio)  
-
-masterDF = na.omit(cbind(masterDF, myresults))
-
-CoTS.gbmRec <- dismo::gbm.step(data=as.data.frame(masterDF),
-                       gbm.x = c(1:10), gbm.y = "meanrecovery", # need to add sector and shelf
-                       family = "gaussian", #what is the family of distribution of our response 
-                       learning.rate = 0.001,
-                       tree.complexity = 3, #how "deep" are each tree, i.e how complex are the interactions 3 is for two
-                       bag.fraction=0.5, # how much of the train data do we use for each tree
-                       n.trees = 100,
-                       max.trees = 100000)
-summary(CoTS.gbmRec)
+# masterDF$SexRatio <- as.factor(masterDF$SexRatio)  
+# 
+# masterDF = na.omit(cbind(masterDF, myresults))
+# 
+# CoTS.gbmRec <- dismo::gbm.step(data=as.data.frame(masterDF),
+#                        gbm.x = c(1:10), gbm.y = "meanrecovery", # need to add sector and shelf
+#                        family = "gaussian", #what is the family of distribution of our response 
+#                        learning.rate = 0.001,
+#                        tree.complexity = 3, #how "deep" are each tree, i.e how complex are the interactions 3 is for two
+#                        bag.fraction=0.5, # how much of the train data do we use for each tree
+#                        n.trees = 100,
+#                        max.trees = 100000)
+# summary(CoTS.gbmRec)
 

@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1543376287574.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "446270293",
+    "id" : "C9540495",
+    "lastKnownWriteTime" : 1543383590,
+    "last_content_update" : 1543383590319,
+    "path" : "C:/Users/jc312264/OneDrive - James Cook University/GitHub/COTS_Model/COTSModel_LoadObjectsForModelling.R",
+    "project_path" : "COTSModel_LoadObjectsForModelling.R",
+    "properties" : {
+        "cursorPosition" : "13,6",
+        "scrollLine" : "0"
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

@@ -1,0 +1,1039 @@
+---
+title: "Chapter 5 - Appendix"
+output:
+  html_document:
+    toc: true
+    code_folding: hide
+    toc_float: true
+    theme: journal
+    highlight: haddock
+  prettydoc::html_pretty:
+    highlight: github
+    theme: architect
+    toc: true
+---
+
+Please read introduction in the main text.
+
+# __A5.1 What is required for a fishery to be sustainable?__
+
+Please read section 5.1 in the main text.
+
+# __A5.2 Geometric Growth Revisited__
+
+For most fish, the __*potential*__ population growth is immense. One of the reasons that people believed that cod populations were indestructible was that a mature female cod may produce up to 9 million eggs in one spawning season—if they all matured, she could generate a respectable new school of cod on her own for every year that she survived. But since many other species like to eat fish eggs and larvae, most eggs never become fish.
+
+We can calculate the number of new individuals in a year as:
+$$\textrm{Total new recruits} = bN$$
+Where
+
++ $b$ is the average annual number of new fish produced per year per individual: the **per capita recruitment** (sometimes called per capita births, even though only the newborns that survive to the next year are counted) and  
+
++ $N$ is the number of fish in the population.
+
+But every year, many individuals also die: the total number of deaths can be expressed as:
+$$\textrm{Total deaths} = dN$$
+Where
+
++ $d$ is the proportion of individuals dying per year (the per capita mortality); you can also think of this as the probability that any given individual will die, on average
+
++ $N$ is the number of fish.
+
+
+
+------------------------------------------
+
+**NOTE**
+
+Per capita recruitment (the number of new individuals per existing individual recruited into the population between 1 year and the next) is obviously not the same as the number of eggs laid. For example, a female tiger prawn may produce 800,000 eggs in a season but if, on average, only 1 of the larvae hatching from those eggs actually manages to join the population as a prawn the next year, then assuming a 50:50 sex ratio, $b=0.5$.
+
+---------------------------------------------
+
+We will make a number of simplifying assumptions:
+
+1. The number of new recruits per individual is the same for all individuals from age 1 onwards, regardless of their age.    
+2. Every individual from age 1 onward has the same chance of dying, regardless of their age.    
+3. Per capita recruitment and natural per capita mortality remain constant from one year to the next.  
+
+In nature, none of these assumptions holds, and much of contemporary fisheries modelling is about realistically capturing some of these additional complexities. However, as with much modelling in science, we start with the "simplest possible" model, and we gradually build things up from there.
+
+Getting back to our model, the assumptions just stated imply that the population change each year should be modelled as
+$$
+\begin{aligned}
+\Delta N &= G(N) = bN-dN\\ 
+         &= (b-d)N
+\end{aligned}         
+$$
+This says that the population change each year can be modelled as total births minus total deaths. If there are more new recruits than deaths, $\Delta N$ is positive, and the population will increase; if there are more deaths than recruits, $\Delta N$ is negative, and the population will decline. $\Delta N$ also depends on $N$, since a larger population means that there are more individuals to reproduce or die.  
+Note that quantity $(b - d)$ is the proportion or percentage by which the population grows or shrinks every year (e.g., $b - d = 0.2$) means the population grows by 20% every year). For now, we will simplify the way we write this by defining $b - d = R$. Population biologists sometimes refer to $R$ as the net *per-capita* rate of increase. This simplifies the way we write our population growth equation slightly:
+$$\Delta N = G(N) = RN$$
+
+The population will not change from one year to the next if either $R = 0$ or if
+$N = 0$. It shrinks over time if $R < 0$, and grows if $R > 0$.
+
+-----------------------------------------------------------------------------
+
+### __*Exercise*__
+
+1. In Chapter 4 we described geometric growth with the equation
+$$N_{t+1}=\lambda N_t$$  
+Where   
+* $N_{t+1}$ is the population size at time $t+1$  
+* $N_t$ is the population size at time $t$  
+* $\lambda$ is a constant factor by which the population increases per time unit    
+
+Show that:
+
+$$N_{t+1}=\lambda N_t$$ 
+equates to $$\Delta N_{t~to~t+1}=RN_t$$  
+
+where $\lambda = 1+R$
+
+-----------------------------------------------------------------------------
+
+
+## __*Example A5.2: A population with constant birth and death rates*__
+
+Suppose that:
+
+* 50% of the fish population is always female  
+* each female in the population lays 10 eggs per year  
+* 20% of the eggs produce new fish which join the population the next year  
+* 50 % of the fish die each year,  
+then: 
+
+$$\begin{aligned}
+b &=0.5 \times 10 \times 2\\ 
+&=1.0\\
+d &=0.5\\ 
+b-d &=1-0.5\\ 
+R &=0.5
+\end{aligned}$$
+
+Therefore
+$$
+\begin{aligned}
+\Delta N &= G(N) =0.5N \\ 
+& \textrm{and}\\
+\lambda &= 1+0.5\\
+&= 1.5
+\end{aligned}
+$$
+Since $\Delta N = 0.5N$, the population will increase by 50% each year. The larger the population size $N$, the larger $\Delta N = 0.5N$ will be.  
+We will start with a population of 2 fish. To examine the annual changes in $N$ and $\Delta N$ over 10 years for this population, open a new R Script and define the parameters as shown in the following code chunk.
+
+```{r SetParameters, cache=T}
+
+######## 1. SET PARAMETERS ##########
+
+# b = 1 and d = 0.5
+# There will be 10 time units, starting population = 2
+
+b=1 
+d=0.5
+Times = 10
+StartPopulation = 2
+
+# To re-run the model with different parameters, only the values in this 
+#  4-line code block need to be changed
+```
+
+#### *Pseudo-code*
+Create 4 empty vectors of length `Times+1` to hold:
+
+1. Times, $t$ (`Time`),   
+2. Population sizes, $N$ (`N`), 
+3. Population Growth, $G(N)$ (`G.N`) 
+4. Change in population, $\Delta N$ (`delta.N`)
+
+`N`, `G.N` and `delta.N` are created with all zero values by default; 
+but since 0 could be a real value the zeroes should be replaced by missing values (`NA`). Each numbered comment refers to each sequential line of pseudo-code.
+
+```{r CreateModelOuts, cache=T}
+####### 2. CREATE MODEL OUTS ##############
+
+# 1. Create vector between zero and the amount of timesteps (t)
+Time = 0:Times  
+# 2. Create an empty numeric vector (length=t+1), to store poulation size
+N = numeric(Times+1)      
+#Change all 0's to NA's
+N[N==0]=NA                
+#Assign the first element of N to our starting population size
+N[1] = StartPopulation    
+# 3. Create an empty numeric vector (length=t+1), to store poulation growth
+G.N = numeric(Times+1)    
+#Change all 0's to NA's
+G.N[G.N==0]=NA            
+# 4. Create an empty numeric vector (length=t+1), to store change in population size
+delta.N = numeric(Times+1)
+#Change all 0's to NA's
+delta.N[delta.N==0]=NA    
+```
+
+Now all of our parameters are set, vectors have been created and the model is ready to be run.
+
+------------------
+
+**NOTE**
+
+This model does not contain harvesting so $\Delta N = G(N)$ `delta.N = G.N`
+
+------------------
+
+#### *Pseudo-code* 
+1. Calculate the value of $R$
+2. Loop over `Times` (the amount of timesteps), using a `for` loop.  
+3. Store the vectors in a `data.frame`  called `GeometricGrowth` and display it (rounding to 2 decimal places) using `round()`
+
+
+```{r RunModel, cache=T}
+########## 3. RUN MODEL ###########
+
+# 1. Calculate the value of R
+R = b - d
+# 2. Loop over Times, calculating the population changes and the new 
+# population size at each successive time
+
+# NB no harvesting so delta.N = G.N
+for (time in 1:Times)
+{
+  G.N[time]= R * N[time]
+  delta.N[time] = G.N[time]
+  N[time+1] = N[time] + delta.N[time]
+}
+# 3.  Store the vectors in a data frame and display it (rounding to 
+# two decimal places)
+GeometricGrowth = data.frame(Time, N, G.N, delta.N)
+round(head(GeometricGrowth,10),2)
+```
+
+-------------------
+
+**NOTE**
+
+It is good practice to calculate the first few values of $N$ on a piece of paper or with a calculator as a check that you have constructed the model correctly and it is behaving as you expect.
+
+-------------------
+
+Notice that both $N$ and $\Delta N$ increase by 50% in each time unit.
+
+Now we will plot our results using both base R
+
+#### *Psuedo-code*
+1. Plot population size against time; `plot(x ~ y)`
+2. Add titles; `xlab=""`, `ylab=:""`, `main=""`
+3. Add label for $b$ and $d$ using  `text()`
+
+
+```{r PlotModelBase}
+######### 4. PLOT MODEL ##########
+# Show the values for b & d on the plot (NB label position may need to change 
+# when different parameters are used)
+
+# 1.Plot population size against time
+with(GeometricGrowth, plot(N ~ Time, type="l", las=1, lwd=2, col="red",
+# 2. Add titles
+ylab="Population (N)", main="Geometric growth")) 
+# 3. add labels
+label = paste("b = ", b,", d = ", d)                                           
+text(4,N[10], label)
+```
+
+**Figure A5.2-1**.  Population size as a function of time produced by the geometric model with $R=0.5$ and $N_0=2$.
+
+What happens to $N$ and $G(N)$ if you now change the value of $b$ from 0.5 (the same value as $d$) to 0.1?
+
+In the plot above, we have plotted $N$ against time. We now look at the behaviour of $G(N)$: as $N$ increases, so does $G(N)$, as we would expect from the relationship:  
+$$G(N)=(b-d)N=RN$$
+The plot of $G(N)$ against $N$ (rather than against time, as in Fig. A5.2-1) is the __**production function**__ for the population: it tells us, for any population size, how much the population will grow between one year and the next. For a population rowing geometrically or exponentially, the production function is a straight line through the origin.
+
+```{r PlotProductionFunction, cache=T}
+## Plot the Production function (G.N against N)
+with(GeometricGrowth, plot(G.N ~ N, type="l",  lwd=2, col="red", xlab="Population (N)", ylab="G(N)", main="Production function"))
+text(N[10],G.N[5], label)
+```
+
+**Figure A5.2-2**. The production function, $G(N)$ for the logistic model, when $R=0.5$.
+
+
+--------------
+
+**NOTE**
+
+Save the script for the model and plots as `GeometricModel.R` ... you can save your plots as images from the plots tab if you wish.
+
+---------------------
+
+<div style="text-align:center" markdown="1">
+![](Figures/Chapter 5/Fig5.3.blah.png) 
+</div>
+
+
+Notice that, for the geometric model, the population is only predicted to be at
+equilibrium (i.e., to neither grow nor shrink) when $N = 0$.
+
+-----------------------------------------------------------------------------
+
+### __*Exercise*__
+
+2. This exercise assumes that you have built the model and plots shown in Figures A5.2-1 to A5.2-4 for yourself.   
+    (a) If the *per capita* recruitment $b = 0.5$, and the *per capita* mortality $d = 0.1$, what is the value of $R$?  
+    (b) Assume the population in (a) starts with 2 fish. Draw plots to show  
+        (i) How the population grows over a 50-year period
+        (ii) The production function for the range of population sizes achieved.   
+    (c) Assume the population starts with 200 fish.
+        (i) If the *per capita* recruitment $b = 0.5$, and the *per capita* mortality $d = 0.6$, what is the value of $R$? 
+        (ii) Plot the population size and the production function for this population over 10 years.
+        (iii) How large is the population after 5 and after 10 years?
+
+      
+All you should have to change in your script are the initial model parameters
+
+
+-----------------------------------------------------------------------------
+
+
+This modelling approach makes three unrealistic assumptions: 
+
+1. That the population will always grow exponentially, regardless of the population size. We will reconsider that assumption in the next section (A5.3) and modify the population model accordingly.  
+2. That we have perfect knowledge of the stock size $N$, and the "natural" per capita increase $R (= b-d)$. We will also examine the effects of imperfect knowledge in Section 5.3.  
+3. That the birth and death rates (and consequently the value of $R$), are constant from year to year. We will look at the effect of year-to-year variation in $R$ in section 5.4.
+
+
+# __A5.3 Limits to population increase__
+
+In section A5.2 our underlying population model was of geometric growth. Most biological populations will indeed grow geometrically in favourable conditions, but no population can grow geometrically forever. Sooner or later, the population will start to run out of resources such as food or living space. In general, as population size increases, both recruitment rates and death rates are likely to be affected:
+
++ Reproduction requires energy and nutrients to invest in offspring: as
+food becomes harder to obtain, the birth rate is likely to decline.  
++ Territorial or sedentary species may die or fail to reproduce in the absence of sufficient appropriate living space or breeding sites.  
++ Dense, crowded populations are susceptible to new risks: disease is more likely, predators may become more abundant, and if food is short, individuals may starve. Consequently, death rates are likely to increase.
+
+## __*How does $R$ change with population size?*__
+
+The simplest form of this relationship is when population growth rates change
+linearly with population size.
+
+Remember that when $b$ (*per capita recruitment*) $> d$ (*per capita mortality*) the population will grow, when $b < d$ the population will decline, and when $b = d$ it will remain stable.  
+
+As per capita recruitment declines with population size, and the per capita deaths increase, there will be a point where the two lines cross (Figure A5.3-1) below.
+
+<div style="text-align:center" markdown="1"> 
+![](Figures/Chapter 5/Fig5.3.1.png)
+</div>
+
+**Figure A5.3-1**. Changes in per capita recruitment and death rates as population size increases
+
+The crossing point, where $b = d$ (and therefore $R = 0$), is called the carrying capacity ($K$).
+
++ When the population size $N > K$, $N$ will decline.    
++ When the population size $N < K$, $N$ will increase.  
+
+If the relationships between N and b and between N and d are both linear, then the relationship between N and R (= b - d) will also be linear (Figure A5.3-2). What this means is that the effect of adding an extra individual to the popula- tion always has the same effect, regardless of the population size: the value of R decreases by some constant amount for every new individual.
+
+<div style="text-align:center" markdown="1">
+![](Figures/Chapter 5/Fig5.3.2.png)
+</div>
+
+**Figure A5.3-2**. Changes in per capita net rate of increase ($R$) as population size increases. $R_0$ (the intercept of the line) is the value of $R$ when $N=0$; that is, $R_0$ is the net per capita rate of increase under the most uncrowded conditions possible. $K$ is the value of $N$ when $R=0$.
+
+
+Because $\Delta N = RN$, when $N = K$, $\Delta N = 0$ and the population remains stable. This means that, when $N = K$, the population is at equilibrium (we expect it to neither grow nor shrink over time)-- provided, of course, that there is no harvesting.
+
+If we have a scatter plot with a fitted straight line to predict $R$ (the y-value) from $N$ (the x-value) as in Figure 5.3-3, then the parameters a and b of the fitted line $R = a + bN$ can be used to give us estimates for $R_0$ and $K$:
+
++ $R_0$ is given by the intercept $a$.  
++ From Figure 5.3-3 the slope $b = -\frac{R_0}{K}$. Therefore $K = -\frac{R_0}{b}$
+
+The equation for the straight line $R = a + bN$ can therefore be written:
+
+$$
+R = R_0 - \frac{R_0}{K}N\\
+\textrm{or}\\
+R = R_0\left( 1-\frac{N}{K}\right)  ~~~~~\textrm{...(A1)}
+$$
+
+which we will make use of later.
+
+(The key equations that you will need to use again have been numbered.)
+
+R is not always a linear function of population size, but Figure 5.3-3 shows an example where a straight line is as good an approximation as any. This shows the relationship between year-to-year population growth rate and larval population size in a small fly (*Phytobia betulae*), whose larvae are wood-borers, living and feeding just under the bark of Scandinavian birch trees.
+
+-------------------------------
+
+**NOTE**
+
+**The Phytobia betulae data**
+Birch trees grow only during the warmer months, and the wood shows clear annual growth rings. Because the larvae live only in the tree cambium (the wood just below the bark), the density of larvae for each year ($Nt$) during the life of a tree could be estimated by cutting sections of the tree and counting larval tunnels left in the wood of each growth ring.
+In these data, $R$ has been calculated from the population growth rate ($\lambda$) for each successive year estimated as $\frac{Nt+1}{Nt}$ (see Exercise 1).
+Notice that although there is an obvious negative relationship between population growth rate and numbers of larvae per tree, the relationship is quite "noisy" - in particular, there are some years where population growth is unusually low. When population growth rates are estimated from a time series of field data, as in this case, year-to-year variation in environmental conditions will also affect population growth rates. This can make evaluating the relationship between population density and population growth rate quite difficult.
+
+<div style="text-align:center" markdown="1">
+![](Figures/Chapter 5/Fig5.3.3.png)
+</div>
+
+**Figure A5.3-3**. Density-dependent population growth in a woodboring fly *Phytopia betulae*, which exploits birch forests. Redrawn from Ylioja *et al.* (1999).
+
+-------------------------------------------------
+
+The relationship between $R$ and population size often depends on the details of the particular mechanisms by which crowding impacts birth and death rates, so it is not always a straight line. We discuss some of these issues in section A5.5. However, the basic lessons of this chapter do not depend on the use of this particular way of modelling effects of crowding. The same principles apply to alternative models.
+
+-----------------------------------------------------------------------------
+
+### __Exercise__
+
+If we have a time series of population sizes $N_0$, $N_1$, $N_2$, ... $N_t$, $N_{t+1}$ ... etc, then for each value of N except the last, we can estimate $\lambda_t$  as $N_{t+1}/N_t$. From the values of $\lambda$ we can then estimate the value of $R$ achieved at each population size (Exercise 1).
+
+3. The file `Paramecium_aurelia.csv` contains the results of a single trial carried out by Gause in 1934, who examined population growth of the single-celled protozoan Paramecium aurelia in the laboratory. The data are protozoan densities in a laboratory population each day over a period of 20 days.
+
+    (a) Use these data to estimate the values of $\lambda$ and $R$ on each day. 
+    (b) Draw a scatterplot of the relationship between $R$ and $N$.
+    (c) Fit a regression to estimate $R$ from $N$.
+    (d) Use the parameters of the regression equation to estimate $R_0$ and $K$.
+    (e) Explain what $R_0$ and $K$ represent in this system.
+    (f) What is the estimated value of $R$ when $N$ (the number of Paramecium) is:
+        + 200?
+        + 700?  
+  (data obtained from Roughgarden 1998)
+  
+-------------------------------------------------------------------------------------------
+
+
+## __*What is the production function when $R$ decreases linearly as population size increases?*__
+
+Because  $\Delta N = G( N ) = RN$ in the absence of harvesting, and because $R$ decreases linearly with population size, it follows from Figure 5.3-3 that the production function must be hump-shaped (Figure A5.3-4):
+
+* When $N = 0, G( N ) = R\times0 = 0$ 
+* When $N = K, G( N ) = 0\times N = 0$
+* When $N$ is between $0$ and $K$, $N$ and $R$ are both positive, so $G(N)$ is positive 
+* When $N > K$, $R$ is negative but $N$ is positive, so $G(N)$ is negative
+     
+<div style="text-align:center" markdown="1">
+![](Figures/Chapter 5/Fig5.3.4.png)  
+</div>
+ 
+**Figure A5.3-4**. The production function ($G(N)$ versus $N$) when $R$ declines linearly as $N$ increases.
+
+## __*Logistic population growth*__ 
+
+For any value of $N$, $G(N) = RN$ , so we can use equation (A1) from earlier and substitute for the value of $R$ to obtain
+
+$$G(N) = \left( R_0 - \frac{R_0}{K}N\right)N\\
+or\\
+G(N) = R_0\left( 1-\frac{N}{K}\right)N$$
+
+This is called the __*logistic equation*__, and populations which behave in this way are said to be showing **logistic growth**-- the simplest form of density-dependent population growth.
+
+The logistic equation is essentially an equation for exponential growth
+
+$$G(N)=R_0N$$
+modified by the factor
+
+$$\left(1-\frac{N}{K}\right)$$
+That is, the value of R in any particular year will be $R_0\left(1-\frac{N}{K}\right)$
+When $N$ is very small relative to $K$, the factor $\left(1-\frac{N}{K}\right)$ will be close to 1 and the population will grow exponentially. As $N$ increases, $\left(1-\frac{N}{K}\right)$ will decrease, and the population will grow more slowly. When $N$ reaches $K$, $\left(1-\frac{N}{K}\right)$ reaches 0, and the population stabilizes (Figure A5.3-5). If the population begins with $N > K$, $\left(1-\frac{N}{K}\right)$ is negative, and the population will decline until $N$ reaches $K$ (Figure A5.3-5).
+
+<div style="text-align:center" markdown="1">
+![](Figures/Chapter 5/Fig5.3.5.png)
+</div>
+
+**Figure A5.3-5**. Logistic growth. When the initial population $N_0>K$, the population declines until $N=K$. When $N_0<K$, the population grows until $N=K$.
+
+-----------------------------------------------------------------------------
+
+### __Exercise__
+
+Using the relationship between $R$ and $N$ estimated for Paramecium aurelia from Exercise 3:  
+
+4. Write the logistic equation to describe growth in the Paramecium population, and estimate $G(N)$ and the population size one time unit later when:    
+    (a) N (the number of Paramecium) = 0
+    (b) N = 1
+    (c) N = 100
+    (d) N = 300
+    (e) N = 500
+    (f) N = 700
+  
+-------------------------------------------------------------------------------------------
+
+## __*Example A5.3 Modelling harvest effects in populations showing logistic growth*__ 
+
+Now we can build harvesting into a model for logistic growth, and think again
+about how to harvest sustainably.
+
+Recall that the first requirement for sustainability is to find a harvest, and a stock size, where the stock will be in equilibrium-- that is, where $h = G(N)$ so that $\Delta N = 0$. We can use a similar Excel model to the one which we used for exponential growth to exhibit logistic growth. The logistic model will need to provide a value for $K$ and change the formula for calculating $G(N)$ to the logistic equation
+
+$$G(N) = R_0\left( 1-\frac{N}{K}\right)N$$
+
+
+We can then add the effects of harvesting to the model by subtracting the harvest target from $G(N)$ to calculate $\Delta N$, the change in population size from one year to the next:
+
+$$\Delta N = G(N)-h$$
+
+The model with harvesting will then be:
+
+$$\Delta N = G(N)-h = R_0\left( 1-\frac{N}{K}\right)N-h$$
+
+Notice that there is one thing that is unrealistic about our equation for logistic growth with harvesting. If the population size is really low, and we treat h as a constant value that is bigger than $N_t + G(N)$, then the model could actually predict a negative population size. Of course, negative population sizes can't really happen in nature. There are more sophisticated ways of handling this problem, but here we'll just adopt a quick-and-dirty fix by stipulating a rule that, if a population is predicted to decline below zero, it is actually set at zero.
+Open a new R script, and set the starting conditions as shown in the R code chunk below with the harvest target initially set to 0, the carrying capacity at 100, $R_0$ at 0.2, and the initial population size as 2 individuals.
+
+```{r SetParamsLogistic, cahce=T}
+####### SET PARAMETERS ###########
+# R0 is uncrowded rate of increase, K is carrying capacity, h is harvest
+R0 = 0.2
+h = 0
+K = 100
+Times = 100
+StartPopulation = 2
+
+# To re-run the model with different parameters, only the values in this 5-line code block need to be changed
+```
+
+#### *Pseudo-code*
+
+---------------------
+
+**NOTE**
+
+We use the same outputs as for geometric growth, we just have to account for the harvest when we calculate the population size in the next year
+
+---------------------
+
+Create 4 empty vectors of length `Times+1` to hold:
+
+1. Times, $t$ (`Time`),   
+2. Population numbers, $N$ (`N`), 
+3. Population Growth, $G(N)$ (`G.N`) 
+4. Change in population, $\Delta N$ (`delta.N`)
+
+`N`, `G.N` and `delta.N` are created with all zero values by default; 
+but since 0 could be a real value the zeroes should be replaced by missing values (`NA`). Each numbered comment refers to each sequential line of code.
+
+```{r CreateModelOutsLog,cache=T}
+######## CREATE MODEL OUTPUTS ##################
+# 1.
+#Create vector between zero and the amount of timesteps (t)
+Time = 0:Times  
+# 2.
+#Create an empty numeric vector (length=t+1), to store poulation size
+N = numeric(Times+1)      
+#Change all 0's to NA's
+N[N==0]=NA                
+#Assign the first element of N to our starting population size
+N[1] = StartPopulation    
+# 3.
+#Create an empty numeric vector (length=t+1), to store poulation growth
+G.N = numeric(Times+1)    
+#Change all 0's to NA's
+G.N[G.N==0]=NA            
+# 4. 
+#Create an empty numeric vector (length=t+1), to store change in population size
+delta.N = numeric(Times+1)
+#Change all 0's to NA's
+delta.N[delta.N==0]=NA    
+```
+
+
+once again our parameters are set, vectors have been created and the model is ready to be run.
+
+#### *Pseudo-code* 
+1. Loop over `Times` (the number of timesteps), using a `for` loop. For each year:  
++ Calculate the value of $R$
++ Use this to predict the value of $N$ in the next year
++ If the predicted value of $N$ is negative, replace that value with zero.
+2. Store the vectors in a `data.frame`  called `GeometricGrowth` and display it (rounding to 2 decimal places), using the function `round`
+
+```{r RunModelLog, cache=T}
+######### RUN MODEL ###########
+
+# 1. Loop over Times, calculating the population changes and the new population size at each successive time
+#   NB (a) harvest is initially set to zero; (b) if N drops below 0 it is set to 0
+for (time in 1:Times)
+{
+  R = R0 * (1 - N[time] / K) #calc value of R
+  G.N[time]= R * N[time]
+  delta.N[time] = G.N[time] - h
+  N[time+1] = N[time] + delta.N[time] #predict Nt+1
+  N[time+1] = ifelse(N[time+1] < 0, 0, N[time+1]) # replace with 0 if negative
+}
+
+# 2.  Store the vectors in a data frame and display initial values (rounding to 2 decimal places)
+LogisticGrowth = na.omit(data.frame(Time, N, G.N, delta.N))
+round(head(LogisticGrowth,10),2)
+```
+
+Use the data set to draw two plots
+
+* A plot to show how $N$ changes with time     
+* A plot to show the production function (how $G(N)$ changes with $N$). 
+
+-----------------
+
+**NOTE**
+
+This basically the same code as for the Geometric growth, all that changes is the data frame we use as an input and the label we create for the graph, notice the utility of re-using code
+
+------------------------
+
+```{r PlotBase, cache=T}
+# Show the values for R0, K and h on the plot (NB label position may need to change when different parameters are used)
+with(LogisticGrowth, plot(N ~ Time, type="l", las=1, lwd=2, col="red", ylab="Population (N)", main="Logistic growth"))
+label = paste("Ro = ", R0,", K = ",K, ", h = ",h)
+text(50,N[10], label)
+```
+
+**Figure A5.3-6**. Population size as a function of time for the logistic model, with parameters and initial condition as specified on the panel.
+
+```{r PlotProdFxn, cache=T}
+## Plot the Production function (G.N against N)
+with(LogisticGrowth, plot(G.N ~ N, type="l",  lwd=2, col="red", xlab="Population (N)", ylab="G(N)", main="Production function"))
+text(K/2,G.N[5], label)
+```
+
+**Figure A5.3-7**. The logistic production function, with parameters as specified on the panel.
+
+---------------------
+
+**NOTE**
+
+NB save the script for the model and plots as `LogisticModel.R` ... You can save the plot as an image from the plots tab if you wish
+
+---------------------
+
+The production function tells us that with $R_0 = 0.2$ and $K = 100$, the maximum value for $G(N)$ is 5, and it is achieved when $N = K/2 = 50$
+
+-----------------------------------------------------------------------------
+
+### __Exercise__
+
+5. For the *Paramecium aurelia* logistic equation from Exercise 4:    
+      (a) Plot the population size over 100 time units if $N_0 = 1$     
+      (b) What is the maximum value achieved by $G(N)$?   
+      (c)  What is the population size when $G(N)$ is at its maximum value?   
+
+-------------------------------------------------------------------------------------------
+
+
+In Fig. A5.3.7 above, the maximum value for $G(N)$ is 5, and it is achieved when $N = K/2 = 50$. Consequently, if we set the initial population size to 50 and the harvest
+target $h$ to 5, the population should be at equilibrium. Set $R = 0.2, K = 100$ and $h = 5$ to demonstrate that these values predict that $N$ will remain constant over time.
+
+More generally, if we set the harvest to any value of $G(N)$ on the production function, the population will stabilize if it reaches that point. This gives us three qualitatively different kinds of harvesting strategies. For $R_0  = 0.2$ and $K = 100$, consider three possible values of $h$ that illustrate these three possibilities (Figure A5.3-9).
+
+```{r, cache=TRUE, fig.cap= "__Figure A5.3.9__ Production function for $K=100$, $R_0 = 0.2$, showing three possible harvest targets: $h=6$, $h=5$, and $h=4$", warning=FALSE}
+
+with(LogisticGrowth, 
+     plot(G.N ~ N, type="l",  lwd=2, col="blue", 
+     xlab="Population (N)", ylab="G(N)", main="Production function", ylim=c(0,6.5)))
+text(K/2,G.N[5], label)
+abline(h=c(4,5,6), col=c("blue", "orange" ,"red"))
+text(x=95,y=4.2, label="h = 4")
+text(x=95,y=5.2, label="h = 5 (MSY)")
+text(x=95,y=6.2, label="h = 6")
+```
+
+## __*Unsustainable harvesting*__
+
+There is no point on this production function where $G(N) = 6$. This means that there is no equilibrium-- no population size where natural population growth is equal to the harvest. Thus our first condition of sustainability is violated. If you set $h = 6$ and the initial population size $N_0 = 100$, it takes a little over 50 years for the population to go extinct (try it!).
+
+## __*Maximum Sustainable Yield (MSY)*__
+
+Now set $h = 5$ (keeping the initial population size ($N_0 = 100$). In this case, there is an equilibrium at $N = 50$: at this point $G(N) = 5$, which is the same as the harvest, and so if the population size is 50, the population should neither grow nor shrink. Thus our first condition for stability is satisfied.
+
+This  particular  harvesting  strategy  is  infamous  in  fisheries biology,  and
+goes by the name *Maximum Sustainable Yield* (MSY). This is because the production function peaks when $N = K/2$ , so if we set the harvest to equal population growth at this particular point, this is the largest possible harvest for which the population can be kept at equilibrium. To find this maximum harvest, we can just do a bit of algebra to find out what natural population
+growth, $G(N)$, will be when $N = K/2$ :
+
+$$
+\begin{aligned}
+G(N) &= R_0\left( 1-\frac{N}{K}\right)N\\
+     &= R_O\left(1-\left(\frac{K}{2}\right)\left(\frac{1}{K}\right)\right)\frac{K}{2}\\
+     &= \frac{R_0K}{2}\left(1-\frac{1}{2}\right)\\
+     &= \frac{R_0K}{4}\\
+ MSY &= \frac{R_0K}{4}
+\end{aligned}
+$$
+
+As noted earlier, in fisheries management, this quantity is called the "maximum sustainable yield", or MSY, for the fishery, and for many years estimates of the MSY have been used to set catch targets. However, recall that there is a second requirement for a sustainable harvest. Not only must our harvesting keep the population at equilibrium, the equilibrium must also be ecologically stable. If the population bounces up above or below the equilibrium, we want it to naturally tend to go back to that equilibrium, rather than collapsing. Shortly, we will ask whether MSY really is "sustainable" at all.
+
+Remember that without harvest, if $N < K$, then the population will grow until $N = K$. Conversely, if the population starts with $N > K$, then it will decline until $N = K$ (Figure A5.3-5). This means that without harvest, the population is ecologically stable-- if some event pushes populations above or below the equilibrium, it will tend to return to it. But what happens if the population is consistently harvested at MSY?
+
+Using the R script `LogisticModel.R`, set the starting value of $N$ to 100, and the harvest to MSY-- that is, the maximum sustainable yield, which is 5 for this model. Notice that the population declines, but appears to be stabilizing at $N$ = 50, as predicted. Now set the starting value of $N$ = 50: the population remains constant (Figure A5.3-12 (a) and (b)). But what happens if some event pushes the population below 50? Set the starting value to 45: in just over 90 years, the population is extinct (Figure A5.3-11 (c)).
+
+<div style="text-align:center" markdown="1">
+![](Figures/Chapter 5/Fig5.3.11.png)
+</div>
+
+**Figure A5.3-11**. The consequences of harvesting a population at MSY. All is well as long as the population never drops below its equilibrium level, but, should it do so, it will collapse
+
+This means that harvesting at MSY is **not** ecologically stable. If N drops below the equilibrium value, population numbers will continue to decrease until the population is extinct. To emphasize this, we also show a plot with an extended time period and a starting population of 48. This time, the stock decline is almost imperceptible for 100 years, but the stock is still headed for extinction.
+
+<div style="text-align:center" markdown="1">
+![](Figures/Chapter 5/Fig5.3.12.png)
+</div>
+
+**Figure A5.3.12**. Logistic growth with $K=100$, $R_0=2$, and $h=5$, and the starting population just below the equilibrium value.
+
+## __*Harvesting below MSY*__
+
+In  Figure  A5.3-10  there  are  two  points  on  the  production  function  where $G(N) = 4$: on the left hand side, when $N \approx 28$ and on the right, when $N \approx 72$. This means that, when $h = 4$, there are two possible equilibria for the fishery population. Again, however, we want to know whether either or both of these equilibria are ecologically stable.
+
+Set $h = 4$ (still keeping the initial population size $N_0  = 100$). Which of the two stable points does the population approach?
+
+Now try progressively reducing the starting population size by 10-- to 90, then
+80, and so on. What happens?
+
+In general, if the starting population size is greater than the lower stable point the population size will grow to the upper stable point. But if the starting population size is even slightly less than the lower stable point, the population will go extinct. This means that the lower stable point is a very unsafe target for the stock size: even small errors of estimation may result in the stock crashing.
+
+## __*How can we achieve ecological sustainability*__
+
+The problem with the lower stable point is the same problem as we demonstrated with harvesting at MSY: this harvesting strategy is very unsafe, since if the stock drops below the lower stable point, continuing to harvest at the same rate will eventually destroy the population.
+
+In general, if we start with a value of $N$ above the lower stable point, the system will gradually move to its upper stable point. But if we try to maintain the stock at its lower stable point, and make a small error in our estimates of population size or growth rate, the stock will be at risk of collapse. Alternatively, if unfavourable environmental conditions reduce population growth rates for a year or two, and the harvest target is not modified, then the stock will also collapse.
+
+Harvesting at MSY is the most profitable strategy in the short term, because it is the highest harvest target which the population might sustain, but it is highly sensitive to imperfect knowledge and environmental variation. This sensitivity is a key problem with using the MSY as the harvest target and $K/2$ as the target stock size in any real system.
+
+* We do not know the exact value of $N$, the number of fish in the sea. Even using the best practicable methods to estimate N, our estimates are subject to chance errors.
+* The values of $R_0$ and $K$ are also estimates-- also subject to error-- and they may also vary from year to year as environmental conditions change. (We will examine the effect of random variation in $R$ in more detail in the next section.)
+
+So what should we do? Simply setting a harvest target below MSY is not enough on its own since if the population by chance drops below the lower stable point it is unlikely to recover.
+
+A conservative approach would be to try to always operate in the right half of the production function, that is:
+
+* Set a stock size target > $K/2$. In this case, for example, we might try to keep the stock close to 80 rather than 50.
+* Set a harvest target chosen to maintain this stock size: from Figure A5.3-10
+that means a target of about 3 rather than 5.
+
+If we run this model with a starting population of 80 and a harvest target $h$ of 3, the population stabilizes at about 81. Then, even if we make a quite significant error in our estimate of the stock size, the population will tend to return to the stable point: in fact, the starting population can be as low as 19 (why 19?), and the stock will still find its way back to the stable point (try it!).
+
+Thus it is only for a harvest rate below MSY, and a target stock size to the right of the peak that we have a harvesting strategy that satisfies both of our criteria for sustainability:
+
+1. __an equilibrium (harvest = natural population growth)__
+2. __that is ecologically stable (a population that is close to our harvest equilibrium will tend towards it, rather than moving away).__
+
+-----------------------------------------------------------------------------
+
+### __Exercises__
+
+6. Consider a fish population in which the carrying capacity K has been estimated as 10 million fish, and with a per-capita rate of increase in uncrowded conditions ($R_0$) of approximately 1 per year. Assume that $R$ declines linearly with $N$. You are charged with providing advice on the management of the fishery   
+    (a)  Write an equation to predict $R$ from the value of $N$.  
+    (b) Write an equation to predict changes in $\Delta N$ with population size (i.e. how $\Delta N$ can be predicted from the value of $N$). Assume for the moment that there is no harvesting, i.e. $h=0$.
+    (c)  What is the maximum sustainable yield (MSY) for this population? What is the target stock size if the harvest target is set to the MSY? 
+    (d) Plot the production function for this population.
+    (e) Model and plot the values of $N$ over a 100-year period with no harvest if the population size at the start was only 100 fish. How long does it take the population to reach its carrying capacity?
+    (f) You want to allow for the possibility that your estimates of $R$ and $K$ are too optimistic and decide to recommend a harvest target that is 20% below MSY, as well as an appro- priate target stock size. What harvest and stock size targets do you recommend?
+    (g) You have been over-ruled, and the harvest target has been set to your estimated MSY. The stock has not previously been fished, and when fishing begins it is at carrying capacity. In fact, $R_0$ has been overestimated (it is actually 0.9, not 1.0). But the carrying capacity $K$ has been underestimated (it is actually 11 million, not 10 million). What will happen to the fishery?
+    (h) Given the errors specified in (g), what would have happened to the fishery if your recommendations (in (f)) had been followed?
+
+7.	Estimates for the Newfoundland cod fishery are that $K$ was probably about 1.4 million tonnes of fish, and that $R_0$ was about 1 per year. Given this, what was the MSY and the target stock size (in tonnes) at MSY? Considering the history of the fishery as shown in Figure 5.0-5, why did the stock decline through the 1970's? Why do you think it finally collapsed despite controls on the harvest?
+
+<div style="text-align:center" markdown="1">
+![](Figures/Chapter 5/Fig5.0.5.png)
+
+
+# __A5.4 Assessing the *robustness* of our conclusions: modelling year-to-year variation in the rate of increase__
+
+To this point, we have assumed that the parameters of the model remain constant from one year to the next. In the real world, things vary in ways we cannot predict or control, and this adds a new level of difficulty to management of a fishery. We got some insight into how this might affect a harvesting strategy, by thinking about what happens if our population is pushed up above or below an equilibrium (due to, for instance, unusually favourable or unfavourable conditions in any given year). However, a more realistic way to think about effects of environmental fluctuations is in terms of our population growth parameters fluctuating. In a good year, $R$ might be higher than average (lots of food for adults means more offspring produced, or better survival of offspring). In a bad year, $R$ might drop due to low reproduction, low survival of offspring, or even high death rates of adults due to starvation or disease. Similarly, in good and bad years, the population size that the environment can support (the carrying capacity, $K$), might be higher or lower than average. We want to know whether our basic rules of thumb for sustainable fishing will hold up, if we adopt this more realistic approach to modelling environmental fluctuations.
+
+What we are doing here is a critically important part of modelling. It concerns assessing the robustness of our results. If we modify the assumptions of our models to make them more realistic, and the conclusions we drew from the simpler model hold up, we would say that our conclusions are robust to relaxing that particular simplifying assumption. If not, we say that it is sensitive to that assumption. Because models are always simplifications of nature, we want to be confident that conclusions we draw from models are robust.
+
+Specifically, in this section, we will concentrate on variation in $R$. Figure 5.3-3 (identical to A5.3.3), reproduced below, demonstrates that in natural populations with no harvesting, there is a considerable amount of year-to-year "noise" or residual variation around the regression line used to predict the growth increment $R$ from the population size $N$. In other words, the straight line shows what the population does on average, but in any given year, $R$ is likely to be a little bit more, or a little bit less, than the model would predict, based on population size.
+
+
+<div style="text-align:center" markdown="1">
+![](Figures/Chapter 5/Fig5.3.rep.png)
+</div>
+
+---------------------
+
+**NOTE**
+
+A *random number generator* (RNG) is a computational or physical device designed to generate a sequence of numbers (or symbols) that lack pattern. When you toss a coin you are using a physical RNG which can only generate two possible values. R has a random number generator function `runif()` which will produce numbers between any user-specified upper and lower bounds in an apparently random sequence, where all possible values are equally likely.  Later we will use this function to introduce variability into our harvesting model.
+
+-----------------------------
+
+## __*Manually adding variation to estimates of $R$ for the first few years*__
+
+Begin a new R script (or Markdown file) named `HarvestingManualVariation.R`. You can copy over the code from the Logistic model and adapt it or copy from the code below. Change the Population parmaeters to a starting population $N_0 = 50$, $R_0 = 0.2$, $h = 5$ and $K = 100$. That is, we are harvesting at $MSY (= R_0K/4)$ with the population size in equilibrium at 50.
+*Note that we are adding a new model parameter `R.deviation`, which stores the variation in R
+
+```{r SetModelParamsDev, cache=T}
+####### SET PARAMETERS #####################
+
+R0 = 0.2
+h = 5
+K = 100
+Times = 100
+StartPopulation = 50
+R.deviation = numeric(Times+1) # add in deviation around the estimate of R
+```
+
+Let us suppose that for the first 6 years, the deviation in $R$ is either 0.2 or -0.2, in an alternating sequence but after that there is no deviation and $R$ then follows the normal logistic equation.
+
+
+```{r, cache=T}
+# set the first 6 values of R.deviation to be alternately +0.2 or -0.2, 
+# leaving the rest at zero
+R.deviation[1:6] = c(0.2,-0.2, 0.2, -0.2, 0.2, -0.2)
+```
+
+Now if we update our model to include these deviations in $R$ we can see the result..
+
+```{r ManualVariation, cache=T, fig.cap= "__Fig A5.4-1__. Harvest model with manual variation added to $R$"}
+######## CREATE MODEL OUTPUTS ##################
+
+# Just like we have done before
+Time = 0:Times
+N = numeric(Times+1)
+N[N==0]=NA
+N[1] = StartPopulation
+G.N = numeric(Times+1)
+G.N[G.N==0]=NA
+delta.N = numeric(Times+1)
+delta.N[delta.N==0]=NA
+
+######### RUN MODEL ###########
+
+for (time in 1:Times)
+{
+  R = R0 * (1 - N[time] / K) + R.deviation[time] # this is where we add the deviatioin
+  G.N[time]= R * N[time]
+  delta.N[time] = G.N[time] - h
+  N[time+1] = N[time] + delta.N[time]
+  N[time+1] = ifelse(N[time+1] < 0, 0, N[time+1])
+}
+
+# Store the vectors in a data frame and display it (rounding to 2 decimal places)
+LogisticGrowth = data.frame(Time, N, G.N, delta.N, R.deviation)
+round(head(LogisticGrowth,10),2)
+
+########## PLOT RESULTS #################
+#plot polution size against time   
+with(LogisticGrowth, 
+     plot(N ~ Time, type="l",  lwd=2, col="blue", 
+          xlab="Time", ylab="Population Size (N)"))
+text(Times/2,K/10, label)                                  
+```
+
+The result is that the population collapses: this happens because the last deviation, which is negative, leaves the population below the stable point. As a result, a harvest of 5 cannot be sustained (Figure 5.4-2). More generally, if deviations in $R$ push the population below the lower equilibrium point, the population will be at risk of collapse
+
+__Make sure you save the completed `HarvestingManualVariation.R` model as it will be used in the following exercises__
+
+--------------------------------------------------------------------------------------------
+
+### __Exercise__
+
+8.	This exercise assumes that you have built the model HarvestingManualVariation.R and drawn the plot shown in Figure A5.4.1 for yourself.  
+    (a)  What would you expect to happen if the next deviation in $R$
+ was +0.2? Why? Hint: `R.deviation[7] = 0.2`
+    (b) What happens if the alternating sequence of deviations (+0.2, -0.2) is continued for another decade (to year 16), ending with a positive deviation? Why do you get this outcome? Hint: use the `rep` function to replicate the sequence of 0.2, -0.2
+    (c)  Continue the sequence of alternating positive and negative deviations for the whole time period. How low does the harvest have to be (to the nearest 0.1) to prevent progressive population decline?   
+    (d) If the alternating deviations are +0.5 and -0.5 instead of +0.2 and -0.2, how low does the harvest need to be to prevent population collapse?
+    
+-----------------------------------------------------------------------------------------------
+
+## __*Adding random variation to estimates of $R$ for the whole modelled period*__
+
+In real populations, of course, the deviations in R may vary unpredictably from year to year. If we don't know what the parameter values in any given year are going to be, then how can we model a population's dynamics? Well, if we knew absolutely nothing about how those parameters fluctuated-- $R$, for instance could take on any value and we had no idea how likely different values were-- then we'd be stuck. However, often, we can look at past fluctuations in the parameter's value to give us a clue as to how likely different values are. Equipped with this information, it is possible to say something about the range of likely trajectories a population would take, using a tool called __*stochastic simulation*__. In stochastic simulation, we get a computer to mimic random fluctuations in the values of one or more parameters, based on what we think we know about how those parameters vary. This information might come, for instance, from analysis of data on past fluctuations in population size. Exactly how we can extract this sort of information from historical data is a topic too advanced to cover in this subject. However, the key point is that we model this by taking a parameter that has a single fixed value in our original model, and adding some random variation to it. To achieve this, we have to choose a *frequency distribution* of these random fluctuations.
+
+Imagine, for example, that we had analyzed historical data on a population, and we worked out that the population's $R$, in addition to depending on population size, also seemed to vary from year to year as follows:
+
+<div style="text-align:center" markdown="1">
+![](Figures/Chapter 5/StochasticLogistic.png)
+
+</div>
+
+**Figure A5.4-2**. A graph of per-capita growth rate ($R$) versus population size ($N$) for a hypothetical population exhibiting logistic growth with stochastic variation in $R$. 
+
+Fig. A5.4-2, above, is a graph of $R$ versus population size. You can think of each point as representing a single year, and telling you the population size in that year, and the population's per-capita growth ($R$) -- the percentage by which it grew or shrank -- in that same year. You can see that the solid line goes through the middle of the data, and represents a kind of average $R$. You can also see that the points seem to be evenly spread between the two dashed lines, which range from about 0.15 below, to about 0.15 above, the average $R$. So one way to construct a model that could mimic the dynamics of this population would be to use the logistic model, where average $R$ varies with population size according to the solid line, but where, in any given year, the actual $R$ deviates from this average by a random number between -0.15 and +0.15. 
+
+In stochastic simulation, we ask the computer to choose a quantity (such as a parameter value) at random every year, but where the relative likelihood of different values can vary according to what we believe about the real population. In other words, we have to specify a _*probability distribution*_ for the random deviation. In this case, we will ask the computer to choose a value of $R$ every year from a _*uniform distribution*_ between -0.15 and 0.15: that is, a distribution where all values between these two limits are equally likely. In **R**, we can do this using a function called `runif()` (`r` for "random", `unif` for "uniform"). So, for instance, if we wanted to generate 10000 possible values of this random deviation, and then have a look at their frequency distribution, we would type:
+
+```{r}
+numvalues = 10000
+min.deviation = -0.15
+max.deviation = 0.15
+R.deviation = runif(numvalues, min=min.deviation, max= max.deviation)
+hist(R.deviation,xlab = "R Deviation", ylab="Frequency",main="",breaks=seq(-0.15,0.15,by=0.05))
+```
+
+**Figure A5.4-3**. A histogram of ten thousand random numbers drawn from a uniform distribution between -0.15 and +0.15.
+
+Notice that the frequency distribution is flat: in between the upper and lower limits, values close to -0.15 occur with virtually identical frequency to values near zero, and also to values near the upper limit of 0.15. This is what we expect for a uniform distribution.
+
+Adding random variation to $R$ means that, even with the same parameters and starting conditions, the exact outcome of the model will be different each time we run it. We will leave the value of $R_0$  at 0.2 and the value of $K$ at 100, the same values as we have used in earlier examples, and we will modify the value of R for each year by adding a random deviation within the range $\pm v$. That is, instead of calculating $\Delta N$ as
+
+$$\Delta N = R_0\left( 1-\frac{N}{K}\right)N$$
+
+we calculate it as 
+
+$$\Delta N = (R_0\left( 1-\frac{N}{K}\right) +x_t)N$$
+
+where $x_t$ is a random number between $-v$ and $+v$ that is different every year.
+
+Each time you run this line of code the model will generate a new set of random numbers and hence produce a different outcome. 
+
+To see how this works, set the starting population size $N_0 = 100$, $R_0 = 0.2$, $K = 100$, and $h = 5$. That is, we assume that at the start of the simulation, the population has not previously been fished. Let's then simulate population size for 100 years, using the stochastic model specified above, with $v$ set at 0.15.
+
+```{r, cache=F}
+R0 = 0.2
+h = 5
+K = 100
+Times = 100
+StartPopulation = 50
+v=0.15 # new model parameter
+```
+
+```{r, collapse=T, cache=F}
+Time = 0:Times
+N = numeric(Times+1)
+N[N==0]=NA
+N[1] = StartPopulation
+G.N = numeric(Times+1)
+G.N[G.N==0]=NA
+delta.N = numeric(Times+1)
+delta.N[delta.N==0]=NA
+## Run the model with the specified parameters
+R.deviation = runif(Times+1, -v, v)
+for (time in 1:Times)
+{
+  R = R0 * (1 - N[time] / K) + R.deviation[time]
+  G.N[time]= R * N[time]
+  delta.N[time] = G.N[time] - h
+  N[time+1] = N[time] + delta.N[time]
+  N[time+1] = ifelse(N[time+1] < 0, 0, N[time+1])
+}
+## Store the vectors in a data frame and display it (rounding to 2 decimal places)
+LogisticGrowth = data.frame(Time, N, G.N, delta.N, R.deviation)
+round(head(LogisticGrowth,10),2)
+
+label = paste("No = ", StartPopulation,", Ro = ", R0,", K = ",K, ", h = ",h, ", v = ", v)
+#plot results
+with(LogisticGrowth, 
+     plot(N ~ Time, type="l",  lwd=2, col="blue", 
+     xlab="Time", ylab="Population Size (N)", main="Population Growth"))
+text(Times/2,K/10, label) 
+```
+
+**Figure A5.4-4** A simulation of population size over time, for the model in the code chunk above.
+
+Every time we run this code, the plot will be different. The reason is that the $R$ deviations will be different each time. 
+
+---------------------
+
+**NOTE**
+
+You may have noticed that to run this model we are using the same code over and over again and just changing the model parameters ($N_0, R_0, h, K, v$..) To make our lives simpler (and code neater) we can wrap all of the above code into a function
+
+---------------------------------------------
+
+```{r, WriteModelFuntion}
+# Start a function that takes our 6 model parameters as arguments
+
+LogisticModel <- function(R0, h, K, Times, StartPopulation, v){
+  
+# Now we just define our empty vectors like we have done before, except 
+# this time they are "wrapped"" in a function
+  Time = 0:Times
+  N = numeric(Times+1)
+  N[N==0]=NA
+  N[1] = StartPopulation
+  G.N = numeric(Times+1)
+  G.N[G.N==0]=NA
+  delta.N = numeric(Times+1)
+  delta.N[delta.N==0]=NA
+  
+  # Create the deviation around R
+  R.deviation = runif(Times+1, -v, v)
+  
+  # Run the model with the specified parameters
+      for (time in 1:Times) {
+        R = R0 * (1 - N[time] / K) + R.deviation[time]
+        G.N[time]= R * N[time]
+        delta.N[time] = G.N[time] - h
+        N[time+1] = N[time] + delta.N[time]
+        N[time+1] = ifelse(N[time+1] < 0, 0, N[time+1])
+    }
+  # Store the vectors in a data frame and display it (rounding to 2 decimal places)
+  LogisticGrowth = data.frame(Time, N, G.N, delta.N, R.deviation)
+  #print(round(head(LogisticGrowth,10),2)) #this will print our data to make sure it has worked
+  
+  # Define what we want our model to "return" - in this case, our data frame
+  return(LogisticGrowth)
+}
+
+# Now lets run our model to see if it works and store results
+LogisticGrowth<- LogisticModel(R0=0.2, h=5, K=100, Times=100, StartPopulation = 50, v=0.15)
+
+# plot results
+with(LogisticGrowth, 
+     plot(N ~ Time, type="l",  lwd=2, col="blue", ylim=c(0,K),
+     xlab="Time", ylab="Population Size (N)", main="Population Growth"))
+label = paste("No = ", StartPopulation,", Ro = ", R0,", K = ",K, ", h = ",h, ", v = ", v)
+text(Times/2,K/10, label) 
+ 
+```
+
+**Figure A5.4-5**. A second simulation of population size over time, for the model in the code chunk above. Notice that the model, parameter values, and initial population size are identical to those in Fig. A5.4-3, but the incorporation of random variation in $R$ means that the trajectory of population size over time is different in every simulation run.
+
+We can explore this more extensively by creating a for-loop to run a large number of simulations, and to plot them all on the same graph. To do this, we'll store the population sizes from all of our simulations in a matrix, and then we'll use a nifty function called `matplot`, which will plot all of the rows of a matrix on a single graph.
+
+```{r PlotManySimulations, results="hide"}
+# Specify how many simulations we want to run, and create a list() data object
+# to store all of the data frames
+
+num.sims = 10
+stored.sims = matrix(nrow=Times+1,ncol=num.sims)
+
+for (sim in 1:num.sims) {
+  LogisticGrowth <- LogisticModel(R0=0.2, h=5, K=100, Times=100, StartPopulation = 50, v=0.15)
+  stored.sims[,sim]= LogisticGrowth$N
+}
+matplot(stored.sims,type="l",xlab = "Time", ylab = "Population Size (N)")
+```
+
+**Figure A5.4-6**. A plot of 10 stochastic simulations on the same panel. Notice that some go extinct within the first 100 years, and some do not. 
+
+When you are confident that the model is working as it should, save it as HarvestingStochastic.R
+
+----------------------------------------------------------------------------------------
+
+### __Excercise__
+
+9.	This exercise assumes that you have built and tested the function `LogisticModel` for yourself.
+    (a)  Run the model 30 times with the starting values for $N_0 =100$, $R_0=0.2$, $h=5$, $K=100$, and $v=0.15$ shown above, noting for each run whether the population survived for 100 years or went extinct during that time. What would you conclude about the chances of the population surviving for 100 years? What would you conclude about the chances of the population surviving for 1000 years rather than 100?
+    (b) Try reducing the harvest target. If you run the model 30 times, how low does the value of $h$ need to be in order for the population to survive in all 30 runs?
+    
+-------------------------------------------------------------------------------------------
+
+In general, the introduction of random year-to-year variation in the population growth rate will reduces the likelihood that a given level of harvest will be sustainable-- and certainly makes harvesting at the theoretical maximum sustainable yield unsustainable in the long term
+
+Notice that our criteria for sustainable harvest are reasonably robust as rules of thumb for coping with randomness as well: we need to harvest at an equilibrium that is to the right of the peak of the production function. However, we have to consider one modification. In this case, we need to be far enough to the right of the peak to avoid the risk of environmental fluctuations causing the population to drop all the way to the other side of the peak, and into the danger zone.
+
+------------------------------------------------------------------------------------------
+
+### __Exercises__
+
+10. Using your LogisticModel function with $N_0 =50$, $K=100$, and $R_0 = 0.2$, examine the effect of adding five different levels of random variation to $R$:
+    + No random variation
+    + $R \pm 0.1$ (i.e., scaling = 0.2)
+    + $R \pm 0.2$
+    + $R \pm 0.3$
+    + $R \pm 0.4$
+
+In each case, plot the relationship between harvest level and
+the frequency with which the population survives for 100 years, and find the highest "safe" harvest level (to the nearest 0.5) which consistently allows the model population to survive
+the 100-year period. (For each combination of variation and harvest target, use at least 30 runs to test for survival.)
+
+11.	Develop a model in which $K$ is subject to random variation. Use it to examine the sensitivity of 100-year survival to the level of variation in $K$ (use levels up to $\pm K$). In which parameter, $R$ or $K$, does variability appear to have most impact?
+ 
+------------------------------------------------------------------------------------------
+
+In order to cope with random variation, fisheries managers will normally attempt to monitor the size of the stock carefully, so that if environmental con- ditions are unfavourable and the stock has a "bad year", the harvest targets can be reduced to compensate. This means being far enough to the right of the peak of the production function that a decline below the peak is not only likely to be very rare, but will be a big enough crash to be obvious in stock assessments, so that the adjustments to harvest targets can be made immediately. While this is technically straightforward, the political and economic consequences of a reduction in the allowable catch may make its implementation difficult, as we discuss later. Also, the initial, short term reductions in harvest needed to bring depleted stocks back up to a safe population size also often meet with considerable resistance. This is partly because such large population sizes have not been seen for generations of fishers. Depleted stocks have become a "new normal", and convincing fishers, politicians, and the public that cutting back on catches and restoring stocks will in many cases lead to bigger catches in the long run, has not been an easy task.
+
+# __A5.5 Complications and difficulties__
+
+Please read section 5.5 in the main text.
+
+
+
+
+

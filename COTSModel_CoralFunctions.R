@@ -82,8 +82,8 @@ doCoralGrowth = function(CoralCover, B0, WQ, HC.asym) {
   b0.wq <- B0 + WQ * rnorm(length(WQ), mean=WQ.mn.sd[1], sd=WQ.mn.sd[2])
   b1.wq <- b0.wq / log(HC.asym)
   CoralCover <- log(CoralCover)
-  CoralCover <- b0.wq + (1 - b1.wq)*CoralCover
-  return(exp(CoralCover))
+  CoralCover.t1 <- b0.wq + (1 - b1.wq)*CoralCover
+  return(cbind(CoralCover=exp(CoralCover.t1), CoralGrowth=(exp(CoralCover.t1)-exp(CoralCover))))
 }
 
 #########################
@@ -102,6 +102,8 @@ initializeModel = function(PopData, data.grid, COTSabund,CoralCover, SexRatio, C
   Results = data.frame(sapply(PopData, rep.int, times=NYEARS*NSEASONS),
                        Year=rep(1996:2015,each=2*npops), Season=rep(c("summer", "winter"),each=npops), 
                        COTSJ1=NA, COTSJ2=NA, COTSA=NA, CoralCover=NA, DistCOTS=NA, DistCYCL=NA, DistBLCH=NA)
+  Results$CoralCover.Consum = NA
+  Results$CoralCover.Growth = NA
   CoralCover=CoralCover
   for(year in 1996){                  # loop through years
     for(season in seasons){               # loop through seasons
@@ -109,11 +111,16 @@ initializeModel = function(PopData, data.grid, COTSabund,CoralCover, SexRatio, C
       COTSabund = doCOTSDispersal(season,COTSabund,SexRatio,ConnMat, PCFParams, npops, FvDParams)
       COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
       #COTSabund = doPredPreyDynamics(season, year, COTSabund,Reults, K)
-      CoralCover = doCoralConsumption(year, data.grid, season,  COTSabund, CoralCover, ConsRateS, ConsRateW)
-      CoralCover = doCoralGrowth(CoralCover, B0, WQ, HC.asym)
+      Consumption = doCoralConsumption(year, data.grid, season, COTSabund, CoralCover, ConsRateS, ConsRateW)
+      CoralCover = Consumption[,'CRemaining']
+      CoralConsum = Consumption['CChange']
+      Growth = doCoralGrowth(CoralCover, B0, WQ, HC.asym)
+      CoralCover = Growth[,'CoralCover']
+      CoralGrowth = Growth[,'CoralGrowth']
       #CoralCover = doCoralDisturbance(season,CoralCover,...)           # coral disturbance processes, including from COTS
       Results[(Results$Year==year) & (Results$Season==season),
-              c("COTSJ1", "COTSJ2", "COTSA", "CoralCover")] = cbind(COTSabund, CoralCover)
+              c("COTSJ1", "COTSJ2", "COTSA", "CoralCover", "CoralCover.Consum", 'CoralCover.Growth')] = 
+        cbind(COTSabund, CoralCover,CoralConsum, CoralGrowth)
     }
   }
   return(Results)
@@ -153,7 +160,7 @@ runModel = function(masterDF, PopData, COTS.data, Years = Years, data.grid, Conn
   # CoralCover = CoralCoverParams$HCINI[,1][1:npops]
   # B0=CoralCoverParams$B0[,1][1:npops]
   # HC.asym = CoralCoverParams$HCMAX[,1][1:npops]
-  ConnMat=ConnMat
+  ConnMat=COTS.ConnMat
   FvDParams=FvDParams
   CoralCover=data.grid$pred.HCini.mean[1:npops]
   B0=data.grid$pred.b0.mean[1:npops]
@@ -166,7 +173,8 @@ runModel = function(masterDF, PopData, COTS.data, Years = Years, data.grid, Conn
   print(length(COTSabund[,3]))
   Results = initializeModel(PopData, data.grid, COTSabund, CoralCover=CoralCover, SexRatio, 
                             ConsRateS, ConsRateW, B0, WQ, HC.asym, PCFParams, npops, ConnMat, FvDParams)
-  
+  # Results$CoralCover.Consum = NA
+  # Results$CoralCover.Growth = NA
   
   # browser()
   # year Loop
@@ -176,13 +184,18 @@ runModel = function(masterDF, PopData, COTS.data, Years = Years, data.grid, Conn
       # browser()
       COTSabund = doCOTSDispersal(season,COTSabund,SexRatio,ConnMat, PCFParams, npops, FvDParams)
       COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
-      COTSabund[,'A'] = doPredPreyDynamics(season, year, COTSabund, Results,K)[,'A']
-      CoralCover = doCoralConsumption(year, data.grid, season, COTSabund, CoralCover, ConsRateS, ConsRateW)
-      CoralCover = doCoralGrowth(CoralCover, B0, WQ, HC.asym)
+      COTSabund = doPredPreyDynamics(season, year, COTSabund, Results,K, CoralCover)
+      Consumption = doCoralConsumption(year, data.grid, season, COTSabund, CoralCover, ConsRateS, ConsRateW)
+      CoralCover = Consumption[,'CRemaining']
+      CoralConsum = round(Consumption[,'CChange'],4)
+      Growth = doCoralGrowth(CoralCover, B0, WQ, HC.asym)
+      CoralCover = Growth[,'CoralCover']
+      CoralGrowth = round(Growth[,'CoralGrowth'],4)
       #CoralCover = doCoralDisturbance(season,CoralCover,...)           # coral disturbance processes, including from COTS
       # browser()
       Results[(Results$Year==year) & (Results$Season==season),
-              c("COTSJ1", "COTSJ2", "COTSA", "CoralCover")] = cbind(COTSabund, CoralCover)
+              c("COTSJ1", "COTSJ2", "COTSA", "CoralCover", "CoralCover.Consum", 'CoralCover.Growth')] = 
+        cbind(COTSabund, CoralCover,CoralConsum, CoralGrowth)
     }
   }
   setwd(RESULTS_DIRECTORY)
@@ -191,12 +204,6 @@ runModel = function(masterDF, PopData, COTS.data, Years = Years, data.grid, Conn
   
 }
 
-# data.grid = data.grid[1:npops,]
-# PopData=PopData[1:npops,]
-# COTS.data = COTS.data[1:npops,]
-npops = 6000
 
-runModel(masterDF=masterDF, Years = 1997:2015, PopData=PopData[1:npops,],COTS.data = COTS.data[1:npops,],
-         data.grid = data.grid[1:npops,], ConnMat = ConnMat.full[1:npops, 1:npops], npops=npops, rep=2,
-         seasons = seasons, FvDParams = FvDParams)
+
 
