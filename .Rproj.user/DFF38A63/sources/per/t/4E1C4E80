@@ -1,0 +1,29 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1543449445910.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "4E1C4E80",
+    "lastKnownWriteTime" : 8534991224714065765,
+    "last_content_update" : 1543449445910,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "B16E6517",
+        "caption" : "nLarvae_Reef",
+        "contentUrl" : "grid_resource/gridviewer.html?env=_rs_no_env&obj=nLarvae_Reef&cache_key=B16E6517",
+        "displayedObservations" : "430",
+        "environment" : "_rs_no_env",
+        "object" : "nLarvae_Reef",
+        "preview" : "0",
+        "totalObservations" : "430",
+        "variables" : "1"
+    },
+    "relative_order" : 8,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}

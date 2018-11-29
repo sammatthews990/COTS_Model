@@ -136,6 +136,15 @@ specifyLHSParam <- function(paramslist,name,type,lb,ub){
 
 MakeLHSSamples <- function(NREPS){
   
+  specifyLHSParam <- function(paramslist,name,type,lb,ub){
+    newlist <- paramslist
+    eval(parse(text=sprintf("newlist$%s <- list()",name)))
+    eval(parse(text=sprintf("newlist$%s$type <- \"%s\"",name,type)))
+    eval(parse(text=sprintf("newlist$%s$lb <- %s",name,lb)))
+    eval(parse(text=sprintf("newlist$%s$ub <- %s",name,ub))) 	
+    return(newlist)
+  }
+  
   LHSParms <- list()    # initialize the container for parameter bounds
   
   ### SEXRATIO : 1 = 0.1M:0.9F

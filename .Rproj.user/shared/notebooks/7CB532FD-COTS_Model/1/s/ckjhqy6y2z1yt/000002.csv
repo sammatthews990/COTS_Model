@@ -1,0 +1,6 @@
+"0","kable(COTS.ConnMat) %>%
+  kable_styling() %>%
+  scroll_box(width = ""100%"", height = ""300px"")
+"
+"2","Error in kable(COTS.ConnMat) : could not find function ""kable""
+"

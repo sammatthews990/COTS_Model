@@ -1,0 +1,29 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1543450090494.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "41C4C1C9",
+    "lastKnownWriteTime" : 29555362185347173,
+    "last_content_update" : 1543450090494,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "6044493F",
+        "caption" : "Pixels",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=Pixels&cache_key=6044493F",
+        "displayedObservations" : "430",
+        "environment" : "",
+        "object" : "Pixels",
+        "preview" : "0",
+        "totalObservations" : "430",
+        "variables" : "2"
+    },
+    "relative_order" : 10,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}
