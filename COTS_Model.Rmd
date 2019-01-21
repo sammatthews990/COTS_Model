@@ -96,7 +96,7 @@ if(is.na(file.info(ENVDATA_DIRECTORY)[1,"isdir"])) dir.create(ENVDATA_DIRECTORY)
 FIGURES_DIRECTORY <- paste(BASE_DIRECTORY,"\\Figures\\RawFigures",sep="")               # directory for storing raw figures generated from R
 if(is.na(file.info(FIGURES_DIRECTORY)[1,"isdir"])) dir.create(FIGURES_DIRECTORY)
 
-RESULTS_DIRECTORY <- paste(BASE_DIRECTORY,"\\results",sep="")                           # directory for storing relevant results
+RESULTS_DIRECTORY <- paste(BASE_DIRECTORY,"\\Results",sep="")                           # directory for storing relevant results
 if(is.na(file.info(RESULTS_DIRECTORY)[1,"isdir"])) dir.create(RESULTS_DIRECTORY)
 
 RDATA_DIRECTORY <- paste(BASE_DIRECTORY,"\\R_Workspaces",sep="")                        # directory for storing .RData files (R workspaces and data objects)
@@ -413,29 +413,38 @@ doCOTSDemography = function(season, COTSabund, COTSmort, COTSremain){
 + _Major Issues_: This is the biggest issue with the model. 
 
 ```{r doPredPreyDynamics}
-doPredPreyDynamics = function(season, year, COTSabund,KC, CoralCover, Crash) {
+p=2
+CoralCOTSMort = function(p,CoralCover) {
+  (1 - (p*CoralCover/(1+CoralCover)))
+}
+CoralCOTSMort(3,seq(0,1, 0.01))
+
+doPredPreyDynamics = function(season, year, COTSabund,KC, CoralCover, Crash, p) {
   # after 1 year at low levels COTS densities get brought down to levels supported by growth
   # work out the %CC growth from 0.5% and set that as the number of COTS
   # MinK is the Maximum CoTS that can be supported at depleted coral cover
   # Carry is overarching carrying capacity - cannot have more COTS than could eat the reef in 1 year
   # Carry = CoralCover*COTS_Per_CC
-  COTSabund[,'A'] = ifelse(COTSabund[,'A']> KC, KC, COTSabund[,'A'])
-  if(season=="summer"){
-    # prevCC = dplyr::filter(Results, Year==year-1 & Season=='winter') %>% dplyr::select(CoralCover) %>% as.matrix()
-    # browser()
-    COTSabund[which(CoralCover < Crash),] = c(0,0,0)
-    # COTSabund[which(prevCC < 10 & prevCC > 3 & COTSabund[,'A']> K$MinK.10A),] = 
-    #   K$MinK.10A[which(prevCC < 10 & prevCC > 3 & COTSabund[,'A']> K$MinK.10A)]
-  }
-  if(season=="winter"){
-    # prevCC = dplyr::filter(Results, Year==year & Season=='summer') %>% dplyr::select(CoralCover) %>% as.matrix()
-    COTSabund[which(CoralCover < Crash),] = c(0,0,0)
-    # COTSabund[which(prevCC < 10 & prevCC > 3 & COTSabund[,'A']> K$MinK.10A),] = 
-    #   K$MinK.10A[which(prevCC < 10 & prevCC > 3 & COTSabund[,'A']> K$MinK.10A)]
-  }
-  
+  # COTSabund[,'A'] = ifelse(COTSabund[,'A']> KC, KC, COTSabund[,'A'])
+  # if(season=="summer"){
+  #   # prevCC = dplyr::filter(Results, Year==year-1 & Season=='winter') %>% dplyr::select(CoralCover) %>% as.matrix()
+  #   # browser()
+  #   COTSabund[which(CoralCover < Crash),] = c(0,0,0)
+  #   # COTSabund[which(prevCC < 10 & prevCC > 3 & COTSabund[,'A']> K$MinK.10A),] = 
+  #   #   K$MinK.10A[which(prevCC < 10 & prevCC > 3 & COTSabund[,'A']> K$MinK.10A)]
+  # }
+  # if(season=="winter"){
+  #   # prevCC = dplyr::filter(Results, Year==year & Season=='summer') %>% dplyr::select(CoralCover) %>% as.matrix()
+  #   COTSabund[which(CoralCover < Crash),] = c(0,0,0)
+  #   # COTSabund[which(prevCC < 10 & prevCC > 3 & COTSabund[,'A']> K$MinK.10A),] = 
+  #   #   K$MinK.10A[which(prevCC < 10 & prevCC > 3 & COTSabund[,'A']> K$MinK.10A)]
+  # }
+  # 
+  COTSabund[,"A"] = 1 - (p*CoralCover/(1+CoralCover))
   return(COTSabund)
+  
 } 
+# doPredPreyDynamics(season, year, COTSabund, KC, CoralCover, Crash, p=1)
 ```
 
 ## doCoralConsumption
@@ -574,7 +583,7 @@ runModel = function(masterDF, PopData, COTS.data, Years = Years, data.grid, rep,
       # browser()
       COTSabund = doCOTSDispersal(season,COTSabund,SexRatio,ConnMat, PCFParams, Pred, FvDParams)
       COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
-      COTSabund = doPredPreyDynamics(season, year, COTSabund, KC, CoralCover, Crash)
+      COTSabund = doPredPreyDynamics(season, year, COTSabund, KC, CoralCover, Crash, p=5)
       Consumption = doCoralConsumption(year, data.grid, season, COTSabund, CoralCover, ConsRateS, ConsRateW)
       CoralCover = Consumption[,'CRemaining']
       CoralConsum = round(Consumption[,'CChange'],4)
@@ -669,7 +678,7 @@ test = HarvestData(RESULTS_DIRECTORY)
 
 ```{r Plot Results}
 setwd(RESULTS_DIRECTORY)
-load(sprintf("Sample_%s.Rdata",5))
+load(sprintf("Sample_%s.Rdata",1))
 
 library(ggplot2)
 library(dplyr)
