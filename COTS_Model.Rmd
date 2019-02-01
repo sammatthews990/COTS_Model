@@ -786,9 +786,12 @@ CC.wCOTS = as.data.frame(DataHarvest.wCOTS[[2]]) %>%
             Serr.CC1 = sd(CoralCover)/sqrt(n())) 
 COTS.wCOTS = as.data.frame(DataHarvest.wCOTS[[1]]) %>%
   tidyr::gather(key = "Simulation", value = "COTS", 4:103) %>%
-  group_by(PIXEL_ID, Year, Season) %>%
-  summarise(Avg.COTS = mean(CoralCover),
-            Serr.COTS = sd(CoralCover)/sqrt(n())) 
+  dplyr::group_by(PIXEL_ID, Year, Season) %>%
+  dplyr::summarise(Avg.COTS = mean(COTS),
+            Serr.COTS = sd(COTS)/sqrt(n())) 
+ForDashboard = bind_cols(CC.NoCOTS, CC.wCOTS[,4:5], COTS.wCOTS[,4:5])
+setwd(RESULTS_DIRECTORY)
+write.csv(ForDashboard, "Dashboard_Sum.csv", row.names = F)
 
 ```
 
