@@ -771,7 +771,25 @@ for (j in 1:nsimul){
 runModel(masterDF=masterDF, Years = 1996:2015, PopData=PopData[1:npops,],data.COTS = data.COTS[1:npops,],
          data.grid = data.grid[1:npops,], rep=1, Pred=0.98, p=0.25, Crash = 3, nsimul = 100, j=j)
 }
-test = HarvestData(RESULTS_DIRECTORY)
+NREPS = 100
+DataHarvest.NoCOTS = HarvestData(RESULTS_DIRECTORY)
+DataHarvest.wCOTS = HarvestData(RESULTS_DIRECTORY)
+CC.NoCOTS = as.data.frame(DataHarvest.NoCOTS[[2]]) %>%
+  tidyr::gather(key = "Simulation", value = "CoralCover", 4:103) %>%
+  group_by(PIXEL_ID, Year, Season) %>%
+  summarise(Avg.CC = mean(CoralCover),
+            Serr.CC = sd(CoralCover)/sqrt(n()))
+CC.wCOTS = as.data.frame(DataHarvest.wCOTS[[2]]) %>%
+  tidyr::gather(key = "Simulation", value = "CoralCover", 4:103) %>%
+  group_by(PIXEL_ID, Year, Season) %>%
+  summarise(Avg.CC1 = mean(CoralCover),
+            Serr.CC1 = sd(CoralCover)/sqrt(n())) 
+COTS.wCOTS = as.data.frame(DataHarvest.wCOTS[[1]]) %>%
+  tidyr::gather(key = "Simulation", value = "COTS", 4:103) %>%
+  group_by(PIXEL_ID, Year, Season) %>%
+  summarise(Avg.COTS = mean(CoralCover),
+            Serr.COTS = sd(CoralCover)/sqrt(n())) 
+
 ```
 
 ## HarvestData
@@ -843,9 +861,10 @@ setwd(RESULTS_DIRECTORY)
 load(sprintf("Sample_%s.Rdata",1))
 
 # CHECK COTS INTERPOLATION --> NO COTS DATA IN 1996/7
-m = test[[2]]
-subset(m, m[,1] == 1)
+m = DataHarvest.NoCOTS[[2]]
+m2 = DataHarvest.wCOTS[[2]]
 matplot(subset(m, m[,1] == 1)[,-c(1:3)], type="l")
+matplot(subset(m2, m2[,1] == 1)[,-c(1:3)], type="l")
 
 library(ggplot2)
 library(dplyr)
@@ -858,6 +877,6 @@ plotresults = Results %>%
             Coralm = mean(CoralCover, na.rm=T),
             Coralsd = sd(CoralCover, na.rm = T)) %>%
   mutate(Time = paste0(Year, substr(Season, 1,1)))
-# ggplot(data=plotresults, aes(x=Year, y=Coralm)) + geom_smooth() + facet_wrap(~REEF_NAME)#+ geom_smooth(aes(y=COTSm))
+ggplot(data=plotresults, aes(x=Year, y=Coralm)) + geom_smooth() #+ facet_wrap(~REEF_NAME)#+ geom_smooth(aes(y=COTSm))
 # ggplot(data=plotresults, aes(x=Year, y=COTSm)) + geom_point() + geom_line() +  facet_wrap(~REEF_NAME)
 ```
