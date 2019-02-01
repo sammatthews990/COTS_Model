@@ -189,7 +189,7 @@ COTSPCF = function (npops, SexRatio) {
   COTSabund = matrix(NA, nrow=npops, ncol=3)
   COTSabund[,3] = seq(1,100000, length.out = npops)
   colnames(COTSabund) = stagenames
-  nEggs <- COTS_Fecundity(COTSabund, 350, 100, SR = SexRatio, npops=npops)
+  nEggs <- COTS_Fecundity(COTSabund, 250, 70, SR = SexRatio, npops=npops)
   avgPCF = mean(nEggs[-1]/COTSabund[,'A'][-1])
   sdPCF = sd(nEggs[-1]/COTSabund[,'A'][-1])
   return(c(avgPCF,sdPCF))

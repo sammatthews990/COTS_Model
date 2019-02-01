@@ -408,7 +408,7 @@ doCOTSDemography = function(season, COTSabund, COTSmort, COTSremain){
 
 + _Major Issues_: Not implemented yet
 
-```{r, doCoralDisturbance}
+```{r doCoralDisturbance}
 doCoralDisturbance = function (i, j, season, CoralCover) {
   CoralCover = log(CoralCover)
   if (season =="summer"){
@@ -600,7 +600,15 @@ nsimul = 100
   nyears <- length(1996:2017)
   res <- array(NA, dim=c(dim(data.grid)[1], nyears, nsimul)) ## Stores the coral cover values for each grid cell (rows), year (columns) and simulation (third dimension)
   bleaching.rsmpl <- COTS.rsmpl <- disease.rsmpl <- storms.rsmpl <- unknown.rsmpl <- array(NA, dim=c(dim(data.grid)[1], nyears, nsimul)) ## Stores the actual (i.e. resampled) disturbance intensity values for each grid cell (rows), year (columns) and simulation (third dimension)
+ 
+    # Create back up files of disturbance tables ----
+  data.bleaching[is.na(data.bleaching)] <- 0
+  data.COTS[is.na(data.COTS)] <- 0
+  data.storms[is.na(data.storms)] <- 0
   
+  data.bleaching.bckp <- data.bleaching
+  data.COTS.bckp <- data.COTS
+  data.storms.bckp <- data.storms 
   # Resample Distrubances for each simulation    
 for (j in 1:nsimul) {
   HC.1996 <- HCINI[,j]
@@ -611,9 +619,6 @@ for (j in 1:nsimul) {
   #CoralCover <- log(HC.1996)
   CoralCover = HC.1996
   
-  data.bleaching[is.na(data.bleaching)] <- 0
-  data.COTS[is.na(data.COTS)] <- 0
-  data.storms[is.na(data.storms)] <- 0
   
   # Re-initialize disturbance data
   data.bleaching <- data.bleaching.bckp
@@ -661,8 +666,25 @@ for (j in 1:nsimul) {
   unknown.rsmpl[,,j] <- as.matrix(data.unknown[,-(1:16)])
 }
   
+masterDF = data.frame("SexRatio" = 5, 
+                      "ConsRateW" = 150, 
+                      "ConsRateS" = 250,
+                      "avgPCF" = 10000000,
+                      "sdPCF" = 1000000,
+                      "mortJ1" =  0.99,
+                      "mortJ2" = 0.95,
+                      "mortA" = 0.6,
+                      "remJ1" = 0,
+                      "remJ2" = 0,
+                      "remA" = 1,
+                      "cssJ1" = 0.9803,
+                      "cssJ2" = 0.0171,
+                      "cssA" = 0.0026,
+                      "Pred" = 0.98,
+                      "p" = 0.25,
+                      "Crash" = 3)
 
-runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep, Pred, p, Crash, nsimul) {
+runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep, Pred, p, Crash, nsimul, j) {
   # browser()
   ## MAKE THESE FIXED FOR NOW
   SexRatio = masterDF[rep, "SexRatio"]
@@ -673,6 +695,9 @@ runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep,
   COTSmort = as.numeric(masterDF[rep, c("mortJ1", "mortJ2", "mortA")])
   COTSremain = as.numeric(masterDF[rep, c("remJ1", "remJ2", "remA")])
   COTS_StableStage = as.numeric(masterDF[rep, c("cssJ1", "cssJ2", "cssA")])
+  Pred = masterDF[,"Pred"]
+  p = masterDF[,"p"]
+  Crash = masterDF[,"Crash"]
   
   # Initialize
   npops=npops
@@ -742,9 +767,10 @@ runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep,
 # Testing Arena
  
 ```{r, eval=F}
+for (j in 1:nsimul){
 runModel(masterDF=masterDF, Years = 1996:2015, PopData=PopData[1:npops,],data.COTS = data.COTS[1:npops,],
-         data.grid = data.grid[1:npops,], rep=1, Pred=0.98, p=0.25, Crash = 3, nsimul = 100)
-
+         data.grid = data.grid[1:npops,], rep=1, Pred=0.98, p=0.25, Crash = 3, nsimul = 100, j=j)
+}
 test = HarvestData(RESULTS_DIRECTORY)
 ```
 
@@ -814,9 +840,12 @@ kable(Results[1:500,]) %>%
 
 ```{r Plot Results}
 setwd(RESULTS_DIRECTORY)
-load(sprintf("Sample_%s.Rdata",100))
+load(sprintf("Sample_%s.Rdata",1))
 
 # CHECK COTS INTERPOLATION --> NO COTS DATA IN 1996/7
+m = test[[2]]
+subset(m, m[,1] == 1)
+matplot(subset(m, m[,1] == 1)[,-c(1:3)], type="l")
 
 library(ggplot2)
 library(dplyr)
