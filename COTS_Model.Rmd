@@ -409,7 +409,7 @@ doCOTSDemography = function(season, COTSabund, COTSmort, COTSremain){
 + _Major Issues_: Not implemented yet
 
 ```{r doCoralDisturbance}
-doCoralDisturbance = function (i, j, season, CoralCover) {
+doCoralDisturbance = function (i, j, season, CoralCover, COTS = F) {
   CoralCover = log(CoralCover)
   if (season =="summer"){
     # browser()
@@ -417,9 +417,10 @@ doCoralDisturbance = function (i, j, season, CoralCover) {
     storms.rsmpl[,i,j][WQ > (-1)*B.STORMS[j]/WQ_Cyclone[1]] <- 0
     CoralCover[storms.rsmpl[,i,j]>0] <- CoralCover[storms.rsmpl[,i,j]>0] + 
       storms.rsmpl[,i,j][storms.rsmpl[,i,j]>0] * (B.STORMS[j] + WQ[storms.rsmpl[,i,j]>0] * WQ_Cyclone[1])
-    # CoralCover[COTS.rsmpl[,,i]>0] <- CoralCover[COTS.rsmpl[,,i]>0] + 
-    #   COTS.rsmpl[,,i][COTS.rsmpl[,,i]>0] * (B.COTS[j] + WQ[COTS.rsmpl[,,i]>0] * WQ_CoTS[1])
-    #CoralCover[data.COTS[,,i]>0] <- CoralCover[data.COTS[,i,j]>0] + data.COTS[,i,j][data.COTS[,i,j]>0] * B.COTS[j]
+    if (COTS == TRUE) {
+      CoralCover[COTS.rsmpl[,i,j]>0] <- CoralCover[COTS.rsmpl[,i,j]>0] +
+      COTS.rsmpl[,i,j][COTS.rsmpl[,i,j]>0] * (B.COTS[j] + WQ[COTS.rsmpl[,i,j]>0] * WQ_CoTS[1])
+    }
     CoralCover[bleaching.rsmpl[,i,j]>0] <- CoralCover[bleaching.rsmpl[,i,j]>0] + 
       bleaching.rsmpl[,i,j][bleaching.rsmpl[,i,j]>0] * (B.BLEACHING[j] + WQ[bleaching.rsmpl[,i,j]>0] * WQ_bleach[1])
     CoralCover[disease.rsmpl[,i,j]>0] <- CoralCover[disease.rsmpl[,i,j]>0] + B.DISEASE[j] 
@@ -684,7 +685,7 @@ masterDF = data.frame("SexRatio" = 5,
                       "p" = 0.25,
                       "Crash" = 3)
 
-runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep, Pred, p, Crash, nsimul, j) {
+runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep, Pred, p, Crash, nsimul, j, COTS=FALSE, browse = FALSE, inityear = 1995) {
   # browser()
   ## MAKE THESE FIXED FOR NOW
   SexRatio = masterDF[rep, "SexRatio"]
@@ -717,7 +718,7 @@ runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep,
   # # HC.asym=data.grid$pred.HCmax.mean[1:npops]
   # # WQ <- data.grid$Primary + data.grid$Secondary + data.grid$Tertiary
 
-  COTSabund = initializeCOTSabund(data.grid, data.COTS, 1995, stagenames, COTS_StableStage, npops)  # initialize the COTS abundance object (for year 0) 
+  COTSabund = initializeCOTSabund(data.grid, data.COTS, inityear, stagenames, COTS_StableStage, npops)  # initialize the COTS abundance object (for year 0) 
   print(length(COTSabund[,3]))
   Results = data.frame(sapply(PopData[1:4], rep, times=NYEARS*NSEASONS),
                        sapply(PopData[5:7], rep, times=NYEARS*NSEASONS),
@@ -734,15 +735,17 @@ runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep,
   # year Loop
   for(i in 1:length(Years)){  
     print(i + 1995)# loop through years
-    for(season in seasons){             # loop through seasons
-      # browser()
+    for(season in seasons){ 
+      if(browse == TRUE) {
+      browser()
+      }
       COTSabund = doPredPreyDynamics(COTSabund, CoralCover, p, Crash)
       COTSabund = doCOTSDispersal(season,COTSabund,SexRatio,ConnMat, PCFParams, Pred, FvDParams) #Pruducing NAS
       COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
       Consumption = doCoralConsumption(season, COTSabund, CoralCover, ConsRate) 
       CoralCover = Consumption[,'CRemaining']
       CoralConsum = round(Consumption[,'CChange'],4)
-      CoralCover.Dist = doCoralDisturbance(i, j, season, CoralCover)           
+      CoralCover.Dist = doCoralDisturbance(i, j, season, CoralCover, COTS = COTS)           
       Disturbance = CoralCover.Dist - CoralCover
       CoralCover = CoralCover.Dist
       Growth = doCoralGrowth(season, CoralCover)
@@ -767,16 +770,24 @@ runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep,
 # Testing Arena
  
 ```{r, eval=F}
+library(dplyr)
 for (j in 1:nsimul){
 runModel(masterDF=masterDF, Years = 1996:2015, PopData=PopData[1:npops,],data.COTS = data.COTS[1:npops,],
-         data.grid = data.grid[1:npops,], rep=1, Pred=0.98, p=0.25, Crash = 3, nsimul = 100, j=j)
+         data.grid = data.grid[1:npops,], rep=1, Pred=0.98, p=0.25, Crash = 3, 
+         nsimul = 100, j=j, COTS = TRUE, browse = F, inityear = 1996)
 }
 NREPS = 100
 DataHarvest.NoCOTS = HarvestData(RESULTS_DIRECTORY)
+for (j in 1:nsimul){
+runModel(masterDF=masterDF, Years = 1996:2015, PopData=PopData[1:npops,],data.COTS = data.COTS[1:npops,],
+         data.grid = data.grid[1:npops,], rep=1, Pred=0.98, p=0.25, Crash = 3, 
+         nsimul = 100, j=j, COTS = FALSE, browse = F, inityear = 1995)
+}
+NREPS = 100
 DataHarvest.wCOTS = HarvestData(RESULTS_DIRECTORY)
 CC.NoCOTS = as.data.frame(DataHarvest.NoCOTS[[2]]) %>%
   tidyr::gather(key = "Simulation", value = "CoralCover", 4:103) %>%
-  group_by(PIXEL_ID, Year, Season) %>%
+  group_by(PIXEL_ID, Year, Season) %>% 
   summarise(Avg.CC = mean(CoralCover),
             Serr.CC = sd(CoralCover)/sqrt(n()))
 CC.wCOTS = as.data.frame(DataHarvest.wCOTS[[2]]) %>%
@@ -787,11 +798,24 @@ CC.wCOTS = as.data.frame(DataHarvest.wCOTS[[2]]) %>%
 COTS.wCOTS = as.data.frame(DataHarvest.wCOTS[[1]]) %>%
   tidyr::gather(key = "Simulation", value = "COTS", 4:103) %>%
   dplyr::group_by(PIXEL_ID, Year, Season) %>%
+  mutate(COTS = (COTS/100)*0.15) %>%
   dplyr::summarise(Avg.COTS = mean(COTS),
             Serr.COTS = sd(COTS)/sqrt(n())) 
 ForDashboard = bind_cols(CC.NoCOTS, CC.wCOTS[,4:5], COTS.wCOTS[,4:5])
+ForDashboard = dplyr::left_join(ForDashboard, data.grid[,1:7], by="PIXEL_ID") %>% dplyr::select(1,10:15,2:9)
 setwd(RESULTS_DIRECTORY)
-write.csv(ForDashboard, "Dashboard_Sum.csv", row.names = F)
+write.csv(ForDashboard, "ResultsDashboard/Dashboard_Sum.csv", row.names = F)
+# Unsummarised
+# CC.NoCOTS = as.data.frame(DataHarvest.NoCOTS[[2]]) %>%
+#   tidyr::gather(key = "Simulation", value = "CoralCover", 4:103)
+# CC.wCOTS = as.data.frame(DataHarvest.wCOTS[[2]]) %>%
+#   tidyr::gather(key = "Simulation", value = "CoralCover", 4:103)
+# COTS.wCOTS = as.data.frame(DataHarvest.wCOTS[[1]]) %>%
+#   tidyr::gather(key = "Simulation", value = "COTS", 4:103) 
+# ForDashboard = bind_cols(CC.NoCOTS, CC.wCOTS[,4:5], COTS.wCOTS[,4:5])
+# ForDashboard = dplyr::left_join(ForDashboard, data.grid[,1:7], by="PIXEL_ID") %>% dplyr::select(1,10:15,2:9)
+# setwd(RESULTS_DIRECTORY)
+# write.csv(ForDashboard, "ResultsDashboard/Dashboard_Raw.csv", row.names = F)
 
 ```
 
