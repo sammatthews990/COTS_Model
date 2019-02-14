@@ -42,7 +42,7 @@ USER = "SAM_UNI"
 ####
 
 # NREPS <- 10      
-NYEARS <- 20
+NYEARS <- 22
 NSEASONS <- 2
 seasons <- c("summer","winter")
 npops = 15802 #number of reefs we want to test
@@ -296,7 +296,7 @@ initializeCOTSabund <- function(data.grid, data.COTS, Year, stagenames, COTS_Sta
   colname <- paste('COTS_', Year, sep="")
   
   ### Update abundances based from interpolated manta tow data
-  COTSabund[,'A'] <- round(data.COTS[,colname] * 666 * (data.grid$PercentReef/100),0)   # 666 converts manta tow to 1kmx1km
+  COTSabund[,'A'] <- round(data.COTS.bckp[,colname] * 666 * (data.grid$PercentReef/100),0)   # 666 converts manta tow to 1kmx1km
   COTSabund[,'J_2'] <- round(COTSabund[,'A'] * as.numeric(COTS_StableStage[2]/COTS_StableStage[3]),0)
   COTSabund[,'J_1'] <- round(COTSabund[,'A'] * as.numeric(COTS_StableStage[1]/COTS_StableStage[3]),0)
   return(COTSabund)
@@ -409,7 +409,7 @@ doCOTSDemography = function(season, COTSabund, COTSmort, COTSremain){
 + _Major Issues_: Not implemented yet
 
 ```{r doCoralDisturbance}
-doCoralDisturbance = function (i, j, season, CoralCover, COTS = F) {
+doCoralDisturbance = function (i, j, season, CoralCover, COTSfromCoralModel = F) {
   CoralCover = log(CoralCover)
   if (season =="summer"){
     # browser()
@@ -417,7 +417,7 @@ doCoralDisturbance = function (i, j, season, CoralCover, COTS = F) {
     storms.rsmpl[,i,j][WQ > (-1)*B.STORMS[j]/WQ_Cyclone[1]] <- 0
     CoralCover[storms.rsmpl[,i,j]>0] <- CoralCover[storms.rsmpl[,i,j]>0] + 
       storms.rsmpl[,i,j][storms.rsmpl[,i,j]>0] * (B.STORMS[j] + WQ[storms.rsmpl[,i,j]>0] * WQ_Cyclone[1])
-    if (COTS == TRUE) {
+    if (COTSfromCoralModel == TRUE) {
       CoralCover[COTS.rsmpl[,i,j]>0] <- CoralCover[COTS.rsmpl[,i,j]>0] +
       COTS.rsmpl[,i,j][COTS.rsmpl[,i,j]>0] * (B.COTS[j] + WQ[COTS.rsmpl[,i,j]>0] * WQ_CoTS[1])
     }
@@ -685,7 +685,9 @@ masterDF = data.frame("SexRatio" = 5,
                       "p" = 0.25,
                       "Crash" = 3)
 
-runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep, Pred, p, Crash, nsimul, j, COTS=FALSE, browse = FALSE, inityear = 1995) {
+runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep, Pred, p, Crash, nsimul, j, 
+                    COTSfromCoralModel=FALSE, COTSfromSimul=TRUE, browse = FALSE, inityear = 1995) {
+  NYEARS = length(Years)
   # browser()
   ## MAKE THESE FIXED FOR NOW
   SexRatio = masterDF[rep, "SexRatio"]
@@ -699,7 +701,6 @@ runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep,
   Pred = masterDF[,"Pred"]
   p = masterDF[,"p"]
   Crash = masterDF[,"Crash"]
-  
   # Initialize
   npops=npops
   seasons=seasons
@@ -717,16 +718,17 @@ runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep,
   # # B0=data.grid$pred.b0.mean[1:npops]
   # # HC.asym=data.grid$pred.HCmax.mean[1:npops]
   # # WQ <- data.grid$Primary + data.grid$Secondary + data.grid$Tertiary
-
-  COTSabund = initializeCOTSabund(data.grid, data.COTS, inityear, stagenames, COTS_StableStage, npops)  # initialize the COTS abundance object (for year 0) 
+  if(COTSfromSimul==F){
+    COTSabund <- matrix(0,nrow=npops, ncol=3)
+  }
+  COTSabund = initializeCOTSabund(data.grid, data.COTS, inityear, stagenames, COTS_StableStage)  # initialize the COTS abundance object (for year 0) 
   print(length(COTSabund[,3]))
   Results = data.frame(sapply(PopData[1:4], rep, times=NYEARS*NSEASONS),
                        sapply(PopData[5:7], rep, times=NYEARS*NSEASONS),
-                       Year=rep(1996:2015,each=2*npops), Season=rep(c("summer", "winter"),each=npops), 
+                       Year=rep(Years,each=2*npops), Season=rep(c("summer", "winter"),each=npops), 
                        COTSJ1=NA, COTSJ2=NA, COTSA=NA, CoralCover=NA, CoralCover.DistLoss=NA)
   Results$CoralCover.Consum = NA
   Results$CoralCover.Growth = NA
-  
   ######
 
     ##### TURN OFF COTS FUNCTIONS TO RUN CORAL GROWTH AND DISTURBANCE  
@@ -745,46 +747,96 @@ runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep,
       Consumption = doCoralConsumption(season, COTSabund, CoralCover, ConsRate) 
       CoralCover = Consumption[,'CRemaining']
       CoralConsum = round(Consumption[,'CChange'],4)
-      CoralCover.Dist = doCoralDisturbance(i, j, season, CoralCover, COTS = COTS)           
+      CoralCover.Dist = doCoralDisturbance(i, j, season, CoralCover, COTSfromCoralModel = COTSfromCoralModel)           
       Disturbance = CoralCover.Dist - CoralCover
       CoralCover = CoralCover.Dist
       Growth = doCoralGrowth(season, CoralCover)
       CoralCover = Growth[,'CoralCover']
       CoralGrowth = round(Growth[,'CoralGrowth'],4)
-     
+      # Calculate COTS/Manta at Reef Level for 4 years, if its >1 for 4 consecutive years then crash pop
       # browser()
       Results[(Results$Year==i+1995) & (Results$Season==season),
               c("COTSJ1", "COTSJ2", "COTSA", "CoralCover", "CoralCover.DistLoss", "CoralCover.Consum", 'CoralCover.Growth')] = 
         cbind(COTSabund, CoralCover, Disturbance, CoralConsum, CoralGrowth)
-    }
-  }
+      if(i>3 & season =="winter") {
+      OutbreakCrasher = Results %>%
+        filter(Year > (i+1995-4) & Year <= i+1995) %>%
+        group_by(REEF_NAME, Year) %>%
+        summarise(Mean.COTS = mean(COTSA)) %>%
+        mutate(is.outbreak = ifelse(Mean.COTS > 1, 1,0)) %>%
+          group_by(REEF_NAME) %>%
+          summarise(Crash = ifelse(sum(is.outbreak)==4,1,0)) %>%
+        filter(Crash==1)
+      matchit = match(data.grid$REEF_NAME,OutbreakCrasher$REEF_NAME)
+      COTSabund[which(!is.na(matchit)),] = c(0,0,0)
+      
+      } # Close outbreak crasher
+    } # close season loop
+  } # close Year loop
   setwd(RESULTS_DIRECTORY)
   name <- sprintf("Sample_%s.Rdata",j)
   save(Results, file=name)
-  
-  
   print(j)
 }
 ```
 
-# Testing Arena
+# Simulations
+
+## COTS initiated via interpolated manta tow densities
+
+## COTS initiated via Hypothesised initiation locations (Lizard + Green Island)
+
+
+# Power BI Interactive Results Viewer
  
 ```{r, eval=F}
+
+
+##### TESTING ----
+# for (j in 1:10){
+# runModel(masterDF=masterDF, Years = 1996:2017, PopData=PopData[1:npops,],data.COTS = data.COTS[1:npops,],
+#          data.grid = data.grid[1:npops,], rep=1, Pred=0.98, p=0.25, Crash = 3, 
+#          nsimul = 10, j=j, COTSfromCoralModel = FALSE, COTSfromSimul = TRUE, browse = F, inityear = 1996)
+# }
+# NREPS = 10
+# DataHarvest.TEST = HarvestData(RESULTS_DIRECTORY)
+# CC.TEST = as.data.frame(DataHarvest.TEST[[2]]) %>%
+#   tidyr::gather(key = "Simulation", value = "CoralCover", 4:13) %>%
+#   group_by(PIXEL_ID, Year, Season) %>%
+#   summarise(Avg.CC1 = mean(CoralCover),
+#             Serr.CC1 = sd(CoralCover)/sqrt(n())) 
+# COTS.TEST = as.data.frame(DataHarvest.TEST[[1]]) %>%
+#   tidyr::gather(key = "Simulation", value = "COTS", 4:13) %>%
+#   dplyr::group_by(PIXEL_ID, Year, Season) %>%
+#   mutate(COTS = (COTS/100)*0.15) %>%
+#   dplyr::summarise(Avg.COTS = mean(COTS),
+#             Serr.COTS = sd(COTS)/sqrt(n()))
+# ForDashboard.TEST = dplyr::left_join(COTS.TEST, data.grid[,1:7], by="PIXEL_ID") #%>% dplyr::select(1,14:19,2:14)
+#####
+
 library(dplyr)
-for (j in 1:nsimul){
-runModel(masterDF=masterDF, Years = 1996:2015, PopData=PopData[1:npops,],data.COTS = data.COTS[1:npops,],
-         data.grid = data.grid[1:npops,], rep=1, Pred=0.98, p=0.25, Crash = 3, 
-         nsimul = 100, j=j, COTS = TRUE, browse = F, inityear = 1996)
-}
 NREPS = 100
+for (j in 1:nsimul){
+runModel(masterDF=masterDF, Years = 1996:2017, PopData=PopData[1:npops,],data.COTS = data.COTS[1:npops,],
+         data.grid = data.grid[1:npops,], rep=1, Pred=0.98, p=0.25, Crash = 3, 
+         nsimul = 100, j=j, COTSfromCoralModel = TRUE, COTSfromSimul = FALSE, browse = F, inityear = 1996)
+}
 DataHarvest.NoCOTS = HarvestData(RESULTS_DIRECTORY)
 for (j in 1:nsimul){
-runModel(masterDF=masterDF, Years = 1996:2015, PopData=PopData[1:npops,],data.COTS = data.COTS[1:npops,],
+runModel(masterDF=masterDF, Years = 1996:2017, PopData=PopData[1:npops,],data.COTS = data.COTS[1:npops,],
          data.grid = data.grid[1:npops,], rep=1, Pred=0.98, p=0.25, Crash = 3, 
-         nsimul = 100, j=j, COTS = FALSE, browse = F, inityear = 1995)
+         nsimul = 100, j=j, COTSfromCoralModel = FALSE, COTSfromSimul = TRUE, browse = F, inityear = 1996)
 }
-NREPS = 100
 DataHarvest.wCOTS = HarvestData(RESULTS_DIRECTORY)
+nsimul = 100
+for (j in 1:nsimul){
+runModel(masterDF=masterDF, Years = 1996:2017, PopData=PopData[1:npops,],data.COTS = data.COTS[1:npops,],
+         data.grid = data.grid[1:npops,], rep=1, Pred=0.98, p=0.25, Crash = 3, 
+         nsimul = 100, j=j, COTSfromCoralModel = FALSE, COTSfromSimul = TRUE, browse = F, inityear = 1994)
+}
+DataHarvest.wCOTS94 = HarvestData(RESULTS_DIRECTORY)
+
+
 CC.NoCOTS = as.data.frame(DataHarvest.NoCOTS[[2]]) %>%
   tidyr::gather(key = "Simulation", value = "CoralCover", 4:103) %>%
   group_by(PIXEL_ID, Year, Season) %>% 
@@ -801,25 +853,54 @@ COTS.wCOTS = as.data.frame(DataHarvest.wCOTS[[1]]) %>%
   mutate(COTS = (COTS/100)*0.15) %>%
   dplyr::summarise(Avg.COTS = mean(COTS),
             Serr.COTS = sd(COTS)/sqrt(n())) 
-ForDashboard = bind_cols(CC.NoCOTS, CC.wCOTS[,4:5], COTS.wCOTS[,4:5])
-ForDashboard = dplyr::left_join(ForDashboard, data.grid[,1:7], by="PIXEL_ID") %>% dplyr::select(1,10:15,2:9)
+CC.wCOTS94 = as.data.frame(DataHarvest.wCOTS94[[2]]) %>%
+  tidyr::gather(key = "Simulation", value = "CoralCover", 4:103) %>%
+  group_by(PIXEL_ID, Year, Season) %>%
+  summarise(Avg.CC94 = mean(CoralCover),
+            Serr.CC94 = sd(CoralCover)/sqrt(n())) 
+COTS.wCOTS94 = as.data.frame(DataHarvest.wCOTS94[[1]]) %>%
+  tidyr::gather(key = "Simulation", value = "COTS", 4:103) %>%
+  dplyr::group_by(PIXEL_ID, Year, Season) %>%
+  mutate(COTS = (COTS/100)*0.15) %>%
+  dplyr::summarise(Avg.COTS94 = mean(COTS),
+            Serr.COTS94 = sd(COTS)/sqrt(n())) 
+
+ForDashboard = bind_cols(CC.NoCOTS, CC.wCOTS[,4:5], COTS.wCOTS[,4:5], CC.wCOTS94[,4:5], COTS.wCOTS94[,4:5])
+ForDashboard = dplyr::left_join(ForDashboard, data.grid[,1:7], by="PIXEL_ID") %>% dplyr::select(1,14:19,2:14)
 setwd(RESULTS_DIRECTORY)
 write.csv(ForDashboard, "ResultsDashboard/Dashboard_Sum.csv", row.names = F)
-# Unsummarised
-# CC.NoCOTS = as.data.frame(DataHarvest.NoCOTS[[2]]) %>%
-#   tidyr::gather(key = "Simulation", value = "CoralCover", 4:103)
-# CC.wCOTS = as.data.frame(DataHarvest.wCOTS[[2]]) %>%
-#   tidyr::gather(key = "Simulation", value = "CoralCover", 4:103)
-# COTS.wCOTS = as.data.frame(DataHarvest.wCOTS[[1]]) %>%
-#   tidyr::gather(key = "Simulation", value = "COTS", 4:103) 
-# ForDashboard = bind_cols(CC.NoCOTS, CC.wCOTS[,4:5], COTS.wCOTS[,4:5])
-# ForDashboard = dplyr::left_join(ForDashboard, data.grid[,1:7], by="PIXEL_ID") %>% dplyr::select(1,10:15,2:9)
-# setwd(RESULTS_DIRECTORY)
-# write.csv(ForDashboard, "ResultsDashboard/Dashboard_Raw.csv", row.names = F)
+
+
+
 
 ```
 
 ## HarvestData
+
+```{r Harvest Data}
+HarvestData = function(RESULTS_DIRECTORY) {
+  
+setwd(RESULTS_DIRECTORY)
+
+CoralMat = matrix(NA, nrow = (npops*NYEARS*NSEASONS), ncol = NREPS+3)
+COTSMat = matrix(NA, nrow = (npops*NYEARS*NSEASONS), ncol = NREPS+3)
+load("Sample_1.Rdata")
+CoralMat[,1]=COTSMat[,1] = Results[, "PIXEL_ID"]
+CoralMat[,2]=COTSMat[,2] = Results[, "Year"]
+CoralMat[,3]=COTSMat[,3] = Results[, "Season"]
+colnames(CoralMat) = c("PIXEL_ID", "Year", "Season",  1:NREPS)
+colnames(COTSMat) = c("PIXEL_ID", "Year", "Season", 1:NREPS)
+
+for (i in 1:NREPS){
+  load(sprintf("Sample_%s.Rdata", i))
+  CoralMat[,i+3] = Results[,"CoralCover"]
+  COTSMat[,i+3] = Results[,"COTSA"]
+}
+
+return(list(COTSMat, CoralMat))
+}
+```
+
 
 ## PlotResults
 
