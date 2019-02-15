@@ -686,7 +686,7 @@ masterDF = data.frame("SexRatio" = 5,
                       "Crash" = 3)
 
 runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep, Pred, p, Crash, nsimul, j, 
-                    COTSfromCoralModel=FALSE, COTSfromSimul=TRUE, browse = FALSE, inityear = 1995) {
+                    COTSfromCoralModel=FALSE, COTSfromSimul=TRUE, browse = FALSE, inityear = 1995, OutbreakCrash = 4) {
   NYEARS = length(Years)
   # browser()
   ## MAKE THESE FIXED FOR NOW
@@ -760,12 +760,12 @@ runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep,
         cbind(COTSabund, CoralCover, Disturbance, CoralConsum, CoralGrowth)
       if(i>3 & season =="winter") {
       OutbreakCrasher = Results %>%
-        filter(Year > (i+1995-4) & Year <= i+1995) %>%
+        filter(Year > (i+1995-OutbreakCrash) & Year <= i+1995) %>%
         group_by(REEF_NAME, Year) %>%
         summarise(Mean.COTS = mean(COTSA)) %>%
         mutate(is.outbreak = ifelse(Mean.COTS > 1, 1,0)) %>%
           group_by(REEF_NAME) %>%
-          summarise(Crash = ifelse(sum(is.outbreak)==4,1,0)) %>%
+          summarise(Crash = ifelse(sum(is.outbreak)==6,1,0)) %>%
         filter(Crash==1)
       matchit = match(data.grid$REEF_NAME,OutbreakCrasher$REEF_NAME)
       COTSabund[which(!is.na(matchit)),] = c(0,0,0)
@@ -825,9 +825,21 @@ DataHarvest.NoCOTS = HarvestData(RESULTS_DIRECTORY)
 for (j in 1:nsimul){
 runModel(masterDF=masterDF, Years = 1996:2017, PopData=PopData[1:npops,],data.COTS = data.COTS[1:npops,],
          data.grid = data.grid[1:npops,], rep=1, Pred=0.98, p=0.25, Crash = 3, 
-         nsimul = 100, j=j, COTSfromCoralModel = FALSE, COTSfromSimul = TRUE, browse = F, inityear = 1996)
+         nsimul = 100, j=j, COTSfromCoralModel = FALSE, COTSfromSimul = TRUE, browse = F, inityear = 1996, OutbreakCrash = 4)
 }
 DataHarvest.wCOTS = HarvestData(RESULTS_DIRECTORY)
+for (j in 1:nsimul){
+runModel(masterDF=masterDF, Years = 1996:2017, PopData=PopData[1:npops,],data.COTS = data.COTS[1:npops,],
+         data.grid = data.grid[1:npops,], rep=1, Pred=0.98, p=0.25, Crash = 3, 
+         nsimul = 100, j=j, COTSfromCoralModel = FALSE, COTSfromSimul = TRUE, browse = F, inityear = 1996, OutbreakCrash = 5)
+}
+DataHarvest.wCOTS5YearCrash = HarvestData(RESULTS_DIRECTORY)
+for (j in 1:nsimul){
+runModel(masterDF=masterDF, Years = 1996:2017, PopData=PopData[1:npops,],data.COTS = data.COTS[1:npops,],
+         data.grid = data.grid[1:npops,], rep=1, Pred=0.98, p=0.25, Crash = 3, 
+         nsimul = 100, j=j, COTSfromCoralModel = FALSE, COTSfromSimul = TRUE, browse = F, inityear = 1996, OutbreakCrash = 6)
+}
+DataHarvest.wCOTS6YearCrash = HarvestData(RESULTS_DIRECTORY)
 nsimul = 100
 for (j in 1:nsimul){
 runModel(masterDF=masterDF, Years = 1996:2017, PopData=PopData[1:npops,],data.COTS = data.COTS[1:npops,],
@@ -837,36 +849,65 @@ runModel(masterDF=masterDF, Years = 1996:2017, PopData=PopData[1:npops,],data.CO
 DataHarvest.wCOTS94 = HarvestData(RESULTS_DIRECTORY)
 
 
-CC.NoCOTS = as.data.frame(DataHarvest.NoCOTS[[2]]) %>%
-  tidyr::gather(key = "Simulation", value = "CoralCover", 4:103) %>%
-  group_by(PIXEL_ID, Year, Season) %>% 
-  summarise(Avg.CC = mean(CoralCover),
-            Serr.CC = sd(CoralCover)/sqrt(n()))
-CC.wCOTS = as.data.frame(DataHarvest.wCOTS[[2]]) %>%
+# CC.NoCOTS = as.data.frame(DataHarvest.NoCOTS[[2]]) %>%
+#   tidyr::gather(key = "Simulation", value = "CoralCover", 4:103) %>%
+#   group_by(PIXEL_ID, Year, Season) %>% 
+#   summarise(Avg.CC = mean(CoralCover),
+#             Serr.CC = sd(CoralCover)/sqrt(n()))
+# CC.wCOTS = as.data.frame(DataHarvest.wCOTS[[2]]) %>%
+#   tidyr::gather(key = "Simulation", value = "CoralCover", 4:103) %>%
+#   group_by(PIXEL_ID, Year, Season) %>%
+#   summarise(Avg.CC1.4Y = mean(CoralCover),
+#             Serr.CC1.4Y = sd(CoralCover)/sqrt(n())) 
+# COTS.wCOTS = as.data.frame(DataHarvest.wCOTS[[1]]) %>%
+#   tidyr::gather(key = "Simulation", value = "COTS", 4:103) %>%
+#   dplyr::group_by(PIXEL_ID, Year, Season) %>%
+#   mutate(COTS = (COTS/100)*0.15) %>%
+#   dplyr::summarise(Avg.COTS4Y = mean(COTS),
+#             Serr.COTS4Y = sd(COTS)/sqrt(n())) 
+CC.wCOTS5Y = as.data.frame(DataHarvest.wCOTS5YearCrash[[2]]) %>%
   tidyr::gather(key = "Simulation", value = "CoralCover", 4:103) %>%
   group_by(PIXEL_ID, Year, Season) %>%
-  summarise(Avg.CC1 = mean(CoralCover),
-            Serr.CC1 = sd(CoralCover)/sqrt(n())) 
-COTS.wCOTS = as.data.frame(DataHarvest.wCOTS[[1]]) %>%
+  summarise(Avg.CC1.5Y = mean(CoralCover),
+            Serr.CC1.5Y = sd(CoralCover)/sqrt(n())) 
+COTS.wCOTS5Y = as.data.frame(DataHarvest.wCOTS5YearCrash[[1]]) %>%
   tidyr::gather(key = "Simulation", value = "COTS", 4:103) %>%
   dplyr::group_by(PIXEL_ID, Year, Season) %>%
   mutate(COTS = (COTS/100)*0.15) %>%
-  dplyr::summarise(Avg.COTS = mean(COTS),
-            Serr.COTS = sd(COTS)/sqrt(n())) 
-CC.wCOTS94 = as.data.frame(DataHarvest.wCOTS94[[2]]) %>%
+  dplyr::summarise(Avg.COTS5Y = mean(COTS),
+            Serr.COTS5Y = sd(COTS)/sqrt(n()))
+CC.wCOTS6Y = as.data.frame(DataHarvest.wCOTS6YearCrash[[2]]) %>%
   tidyr::gather(key = "Simulation", value = "CoralCover", 4:103) %>%
   group_by(PIXEL_ID, Year, Season) %>%
-  summarise(Avg.CC94 = mean(CoralCover),
-            Serr.CC94 = sd(CoralCover)/sqrt(n())) 
-COTS.wCOTS94 = as.data.frame(DataHarvest.wCOTS94[[1]]) %>%
+  summarise(Avg.CC1.6Y = mean(CoralCover),
+            Serr.CC1.6Y = sd(CoralCover)/sqrt(n())) 
+COTS.wCOTS6Y = as.data.frame(DataHarvest.wCOTS6YearCrash[[1]]) %>%
   tidyr::gather(key = "Simulation", value = "COTS", 4:103) %>%
   dplyr::group_by(PIXEL_ID, Year, Season) %>%
   mutate(COTS = (COTS/100)*0.15) %>%
-  dplyr::summarise(Avg.COTS94 = mean(COTS),
-            Serr.COTS94 = sd(COTS)/sqrt(n())) 
+  dplyr::summarise(Avg.COTS6Y = mean(COTS),
+            Serr.COTS6Y = sd(COTS)/sqrt(n()))
+# CC.wCOTS94 = as.data.frame(DataHarvest.wCOTS94[[2]]) %>%
+#   tidyr::gather(key = "Simulation", value = "CoralCover", 4:103) %>%
+#   group_by(PIXEL_ID, Year, Season) %>%
+#   summarise(Avg.CC94 = mean(CoralCover),
+#             Serr.CC94 = sd(CoralCover)/sqrt(n())) 
+# COTS.wCOTS94 = as.data.frame(DataHarvest.wCOTS94[[1]]) %>%
+#   tidyr::gather(key = "Simulation", value = "COTS", 4:103) %>%
+#   dplyr::group_by(PIXEL_ID, Year, Season) %>%
+#   mutate(COTS = (COTS/100)*0.15) %>%
+#   dplyr::summarise(Avg.COTS94 = mean(COTS),
+#             Serr.COTS94 = sd(COTS)/sqrt(n())) 
 
-ForDashboard = bind_cols(CC.NoCOTS, CC.wCOTS[,4:5], COTS.wCOTS[,4:5], CC.wCOTS94[,4:5], COTS.wCOTS94[,4:5])
-ForDashboard = dplyr::left_join(ForDashboard, data.grid[,1:7], by="PIXEL_ID") %>% dplyr::select(1,14:19,2:14)
+
+# setwd(RESULTS_DIRECTORY)
+# Dashboard_Sum = read.csv("ResultsDashboard/Dashboard_Sum.csv", row.names = F, header = T)
+
+ForDashboard = bind_cols(CC.NoCOTS, CC.wCOTS[,4:5], COTS.wCOTS[,4:5], 
+                         CC.wCOTS5Y[,4:5], COTS.wCOTS5Y[,4:5],
+                         CC.wCOTS6Y[,4:5], COTS.wCOTS6Y[,4:5],
+                         CC.wCOTS94[,4:5], COTS.wCOTS94[,4:5])
+ForDashboard = dplyr::left_join(ForDashboard, data.grid[,1:7], by="PIXEL_ID") %>% dplyr::select(1,22:27,2:21)
 setwd(RESULTS_DIRECTORY)
 write.csv(ForDashboard, "ResultsDashboard/Dashboard_Sum.csv", row.names = F)
 
