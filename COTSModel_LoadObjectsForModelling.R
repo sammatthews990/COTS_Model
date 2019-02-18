@@ -64,6 +64,14 @@ setwd(DATA_DIRECTORY)
 
 data.manta = read.table("CoralModel/Manta.csv", header = TRUE, sep = ",")
 data.manta.env = read.table("CoralModel/Manta_ENV.txt", header = TRUE, sep = "\t")
+data.manta$REEF_ID= gsub("s","",tolower(data.manta$FULLREEF_ID))
+data.manta$REEF_ID = paste(substr(data.manta$REEF_ID,1,2), substr(data.manta$REEF_ID, 3 ,6), sep = "-")
+data.manta$REEF_ID = gsub("22-104","22-104a",data.manta$REEF_ID)
+data.manta$REEF_ID = gsub("23-052","23-052a",data.manta$REEF_ID)
+data.manta$REEF_ID = gsub("17-012a","17-012",data.manta$REEF_ID)
+data.manta$REEF_ID = gsub("23-082","23-082a",data.manta$REEF_ID)
+data.manta$REEF_ID = gsub("23-055","23-055a",data.manta$REEF_ID)
+data.manta = dplyr::left_join(data.manta, unique(data.grid[,4:5]), by="REEF_ID")
 # Modelled Disturbance
 data.bleaching = read.csv("Disturbance/Bleaching_data_98_02_16.csv", header = TRUE) %>%
   dplyr::filter(REEF_NAME %in% ourreefs) %>% dplyr::mutate(REEF_NAME = factor(REEF_NAME))

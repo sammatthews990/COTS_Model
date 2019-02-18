@@ -665,6 +665,14 @@ for (j in 1:nsimul) {
   disease.rsmpl[,,j] <- as.matrix(data.disease[,-(1:16)])
   storms.rsmpl[,,j] <- as.matrix(data.storms[,-(1:16)])
   unknown.rsmpl[,,j] <- as.matrix(data.unknown[,-(1:16)])
+  
+  for (i in 1:nsimul) bleaching.rsmpl[,,i][is.na(bleaching.rsmpl[,,i])] <- 0
+  
+  bleaching.mn <- apply(bleaching.rsmpl, c(1,2), mean, na.rm=T)
+  COTS.mn <- apply(COTS.rsmpl, c(1,2), mean, na.rm=T)
+  disease.mn <- apply(disease.rsmpl, c(1,2), mean, na.rm=T)
+  storms.mn <- apply(storms.rsmpl, c(1,2), mean, na.rm=T)
+  unknown.mn <- apply(unknown.rsmpl, c(1,2), mean, na.rm=T)
 }
   
 masterDF = data.frame("SexRatio" = 5, 
@@ -791,7 +799,6 @@ runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep,
  
 ```{r, eval=F}
 
-
 ##### TESTING ----
 # for (j in 1:10){
 # runModel(masterDF=masterDF, Years = 1996:2017, PopData=PopData[1:npops,],data.COTS = data.COTS[1:npops,],
@@ -848,45 +855,46 @@ runModel(masterDF=masterDF, Years = 1996:2017, PopData=PopData[1:npops,],data.CO
 }
 DataHarvest.wCOTS94 = HarvestData(RESULTS_DIRECTORY)
 
+DataHarvest.TEST = HarvestData(RESULTS_DIRECTORY)
 
 # CC.NoCOTS = as.data.frame(DataHarvest.NoCOTS[[2]]) %>%
 #   tidyr::gather(key = "Simulation", value = "CoralCover", 4:103) %>%
-#   group_by(PIXEL_ID, Year, Season) %>% 
+#   group_by(PIXEL_ID, Year, Season) %>%
 #   summarise(Avg.CC = mean(CoralCover),
 #             Serr.CC = sd(CoralCover)/sqrt(n()))
 # CC.wCOTS = as.data.frame(DataHarvest.wCOTS[[2]]) %>%
 #   tidyr::gather(key = "Simulation", value = "CoralCover", 4:103) %>%
 #   group_by(PIXEL_ID, Year, Season) %>%
 #   summarise(Avg.CC1.4Y = mean(CoralCover),
-#             Serr.CC1.4Y = sd(CoralCover)/sqrt(n())) 
+#             Serr.CC1.4Y = sd(CoralCover)/sqrt(n()))
 # COTS.wCOTS = as.data.frame(DataHarvest.wCOTS[[1]]) %>%
 #   tidyr::gather(key = "Simulation", value = "COTS", 4:103) %>%
 #   dplyr::group_by(PIXEL_ID, Year, Season) %>%
 #   mutate(COTS = (COTS/100)*0.15) %>%
 #   dplyr::summarise(Avg.COTS4Y = mean(COTS),
-#             Serr.COTS4Y = sd(COTS)/sqrt(n())) 
-CC.wCOTS5Y = as.data.frame(DataHarvest.wCOTS5YearCrash[[2]]) %>%
-  tidyr::gather(key = "Simulation", value = "CoralCover", 4:103) %>%
-  group_by(PIXEL_ID, Year, Season) %>%
-  summarise(Avg.CC1.5Y = mean(CoralCover),
-            Serr.CC1.5Y = sd(CoralCover)/sqrt(n())) 
-COTS.wCOTS5Y = as.data.frame(DataHarvest.wCOTS5YearCrash[[1]]) %>%
-  tidyr::gather(key = "Simulation", value = "COTS", 4:103) %>%
-  dplyr::group_by(PIXEL_ID, Year, Season) %>%
-  mutate(COTS = (COTS/100)*0.15) %>%
-  dplyr::summarise(Avg.COTS5Y = mean(COTS),
-            Serr.COTS5Y = sd(COTS)/sqrt(n()))
-CC.wCOTS6Y = as.data.frame(DataHarvest.wCOTS6YearCrash[[2]]) %>%
-  tidyr::gather(key = "Simulation", value = "CoralCover", 4:103) %>%
-  group_by(PIXEL_ID, Year, Season) %>%
-  summarise(Avg.CC1.6Y = mean(CoralCover),
-            Serr.CC1.6Y = sd(CoralCover)/sqrt(n())) 
-COTS.wCOTS6Y = as.data.frame(DataHarvest.wCOTS6YearCrash[[1]]) %>%
-  tidyr::gather(key = "Simulation", value = "COTS", 4:103) %>%
-  dplyr::group_by(PIXEL_ID, Year, Season) %>%
-  mutate(COTS = (COTS/100)*0.15) %>%
-  dplyr::summarise(Avg.COTS6Y = mean(COTS),
-            Serr.COTS6Y = sd(COTS)/sqrt(n()))
+#             Serr.COTS4Y = sd(COTS)/sqrt(n()))
+# CC.wCOTS5Y = as.data.frame(DataHarvest.wCOTS5YearCrash[[2]]) %>%
+#   tidyr::gather(key = "Simulation", value = "CoralCover", 4:103) %>%
+#   group_by(PIXEL_ID, Year, Season) %>%
+#   summarise(Avg.CC1.5Y = mean(CoralCover),
+#             Serr.CC1.5Y = sd(CoralCover)/sqrt(n())) 
+# COTS.wCOTS5Y = as.data.frame(DataHarvest.wCOTS5YearCrash[[1]]) %>%
+#   tidyr::gather(key = "Simulation", value = "COTS", 4:103) %>%
+#   dplyr::group_by(PIXEL_ID, Year, Season) %>%
+#   mutate(COTS = (COTS/100)*0.15) %>%
+#   dplyr::summarise(Avg.COTS5Y = mean(COTS),
+#             Serr.COTS5Y = sd(COTS)/sqrt(n()))
+# CC.wCOTS6Y = as.data.frame(DataHarvest.wCOTS6YearCrash[[2]]) %>%
+#   tidyr::gather(key = "Simulation", value = "CoralCover", 4:103) %>%
+#   group_by(PIXEL_ID, Year, Season) %>%
+#   summarise(Avg.CC1.6Y = mean(CoralCover),
+#             Serr.CC1.6Y = sd(CoralCover)/sqrt(n())) 
+# COTS.wCOTS6Y = as.data.frame(DataHarvest.wCOTS6YearCrash[[1]]) %>%
+#   tidyr::gather(key = "Simulation", value = "COTS", 4:103) %>%
+#   dplyr::group_by(PIXEL_ID, Year, Season) %>%
+#   mutate(COTS = (COTS/100)*0.15) %>%
+#   dplyr::summarise(Avg.COTS6Y = mean(COTS),
+#             Serr.COTS6Y = sd(COTS)/sqrt(n()))
 # CC.wCOTS94 = as.data.frame(DataHarvest.wCOTS94[[2]]) %>%
 #   tidyr::gather(key = "Simulation", value = "CoralCover", 4:103) %>%
 #   group_by(PIXEL_ID, Year, Season) %>%
@@ -929,7 +937,7 @@ load("Sample_1.Rdata")
 CoralMat[,1]=COTSMat[,1] = Results[, "PIXEL_ID"]
 CoralMat[,2]=COTSMat[,2] = Results[, "Year"]
 CoralMat[,3]=COTSMat[,3] = Results[, "Season"]
-colnames(CoralMat) = c("PIXEL_ID", "Year", "Season",  1:NREPS)
+colnames(CoralMat) = c("PIXEL_ID", "Year", "Season", 1:NREPS)
 colnames(COTSMat) = c("PIXEL_ID", "Year", "Season", 1:NREPS)
 
 for (i in 1:NREPS){
@@ -937,9 +945,148 @@ for (i in 1:NREPS){
   CoralMat[,i+3] = Results[,"CoralCover"]
   COTSMat[,i+3] = Results[,"COTSA"]
 }
+# browser()
+# CC.df = as.data.frame(CoralMat) %>%
+#   tidyr::gather(key = "Simulation", value = "CoralCover", 5:(NREPS+4))
+# CC.Pixel = as.data.frame(CoralMat) %>%
+#   tidyr::gather(key = "Simulation", value = "CoralCover", 5:(NREPS+4)) %>%
+#   dplyr::group_by(PIXEL_ID, Year) %>%
+#   dplyr::summarise(Avg.CC = mean(CoralCover, na.rm = T),
+#             Serr.CC = sd(CoralCover, na.rm = T)/sqrt(n()),
+#             Med.CC = median(CoralCover, na.rm = T),
+#             Min.CC = quantile(CoralCover, probs = 0.05, na.rm = T),
+#             Max.CC = quantile(CoralCover, probs = 0.95, na.rm = T),
+#             Q25.CC = quantile(CoralCover, probs = 0.25, na.rm = T),
+#             Q75.CC = quantile(CoralCover, probs = 0.75, na.rm = T))
+CC.Reef = cbind("REEF_NAME" = Results$REEF_NAME, as.data.frame(CoralMat)) %>%
+  tidyr::gather(key = "Simulation", value = "CoralCover", 5:(NREPS+4)) %>%
+  dplyr::group_by(REEF_NAME, Year) %>%
+  dplyr::summarise(Avg.CC = mean(CoralCover, na.rm = T),
+            Serr.CC = sd(CoralCover, na.rm = T)/sqrt(n()),
+            Med.CC = median(CoralCover, na.rm = T),
+            Min.CC = quantile(CoralCover, probs = 0.05, na.rm = T),
+            Max.CC = quantile(CoralCover, probs = 0.95, na.rm = T),
+            Q25.CC = quantile(CoralCover, probs = 0.25, na.rm = T),
+            Q75.CC = quantile(CoralCover, probs = 0.75, na.rm = T))
+CC.Cluster = cbind("REEF_NAME" = Results$REEF_NAME, as.data.frame(CoralMat)) %>%
+  tidyr::gather(key = "Simulation", value = "CoralCover", 5:(NREPS+4)) %>% 
+  dplyr::left_join(dplyr::select(data.grid, PIXEL_ID, bent.clust), by="PIXEL_ID") %>%
+  dplyr::group_by(bent.clust, Year) %>%
+  dplyr::summarise(Avg.CC = mean(CoralCover, na.rm = T),
+            Serr.CC = sd(CoralCover, na.rm = T)/sqrt(n()),
+            Med.CC = median(CoralCover, na.rm = T),
+            Min.CC = quantile(CoralCover, probs = 0.05, na.rm = T),
+            Max.CC = quantile(CoralCover, probs = 0.95, na.rm = T),
+            Q25.CC = quantile(CoralCover, probs = 0.25, na.rm = T),
+            Q75.CC = quantile(CoralCover, probs = 0.75, na.rm = T))
+CC.GBR = cbind("REEF_NAME" = Results$REEF_NAME,as.data.frame(CoralMat)) %>%
+  tidyr::gather(key = "Simulation", value = "CoralCover", 5:(NREPS+4)) %>% 
+  dplyr::group_by(Year) %>%
+  dplyr::summarise(Avg.CC = mean(CoralCover, na.rm = T),
+            Serr.CC = sd(CoralCover, na.rm = T)/sqrt(n()),
+            Med.CC = median(CoralCover, na.rm = T),
+            Min.CC = quantile(CoralCover, probs = 0.05, na.rm = T),
+            Max.CC = quantile(CoralCover, probs = 0.95, na.rm = T),
+            Q25.CC = quantile(CoralCover, probs = 0.25, na.rm = T),
+            Q75.CC = quantile(CoralCover, probs = 0.75, na.rm = T))
+# COTS.Pixel = as.data.frame(COTSMat) %>%
+#   tidyr::gather(key = "Simulation", value = "COTS", 5:(NREPS+4)) %>%
+#   dplyr::group_by(PIXEL_ID, Year) %>%
+#   dplyr::summarise(Avg.COTS = mean(COTS, na.rm = T),
+#             Serr.COTS = sd(COTS, na.rm = T)/sqrt(n()),
+#             Med.COTS = median(COTS, na.rm = T),
+#             Min.COTS = quantile(COTS, probs = 0.05, na.rm = T),
+#             Max.COTS = quantile(COTS, probs = 0.95, na.rm = T),
+#             Q25.COTS = quantile(COTS, probs = 0.25, na.rm = T),
+#             Q75.COTS = quantile(COTS, probs = 0.75, na.rm = T))
+COTS.Reef = cbind("REEF_NAME" = Results$REEF_NAME,as.data.frame(COTSMat)) %>%
+  tidyr::gather(key = "Simulation", value = "COTS", 5:(NREPS+4)) %>%
+  dplyr::group_by(REEF_NAME, Year) %>%
+  dplyr::summarise(Avg.COTS = mean(COTS, na.rm = T),
+            Serr.COTS = sd(COTS, na.rm = T)/sqrt(n()),
+            Med.COTS = median(COTS, na.rm = T),
+            Min.COTS = quantile(COTS, probs = 0.05, na.rm = T),
+            Max.COTS = quantile(COTS, probs = 0.95, na.rm = T),
+            Q25.COTS = quantile(COTS, probs = 0.25, na.rm = T),
+            Q75.COTS = quantile(COTS, probs = 0.75, na.rm = T))
+COTS.Cluster = cbind("REEF_NAME" = Results$REEF_NAME,as.data.frame(COTSMat)) %>%
+  tidyr::gather(key = "Simulation", value = "COTS", 5:(NREPS+4)) %>% 
+  dplyr::left_join(dplyr::select(data.grid, PIXEL_ID, bent.clust), by="PIXEL_ID") %>%
+  dplyr::group_by(bent.clust, Year) %>%
+  dplyr::summarise(Avg.COTS = mean(COTS, na.rm = T),
+            Serr.COTS = sd(COTS, na.rm = T)/sqrt(n()),
+            Med.COTS = median(COTS, na.rm = T),
+            Min.COTS = quantile(COTS, probs = 0.05, na.rm = T),
+            Max.COTS = quantile(COTS, probs = 0.95, na.rm = T),
+            Q25.COTS = quantile(COTS, probs = 0.25, na.rm = T),
+            Q75.COTS = quantile(COTS, probs = 0.75, na.rm = T))
+COTS.GBR = cbind("REEF_NAME" = Results$REEF_NAME,as.data.frame(COTSMat)) %>%
+  tidyr::gather(key = "Simulation", value = "COTS", 5:(NREPS+4)) %>% 
+  dplyr::group_by(Year) %>%
+  dplyr::summarise(Avg.COTS = mean(COTS, na.rm = T),
+            Serr.COTS = sd(COTS, na.rm = T)/sqrt(n()),
+            Med.COTS = median(COTS, na.rm = T),
+            Min.COTS = quantile(COTS, probs = 0.05, na.rm = T),
+            Max.COTS = quantile(COTS, probs = 0.95, na.rm = T),
+            Q25.COTS = quantile(COTS, probs = 0.25, na.rm = T),
+            Q75.COTS = quantile(COTS, probs = 0.75, na.rm = T))
 
-return(list(COTSMat, CoralMat))
+Reef = dplyr::inner_join(CC.Reef, COTS.Reef, by=c("REEF_NAME", "Year"))
+Cluster = dplyr::inner_join(CC.Cluster, COTS.Cluster, by=c("bent.clust", "Year"))
+GBR = dplyr::inner_join(CC.GBR, COTS.GBR, by=c("Year"))
+# Compute Statisctics against manta
+
+return(list(Reef, Cluster, GBR))
+
 }
+```
+
+### Model Validation
+
+```{r Validation}
+Validation = function(DataHarvest, data.manta) {
+  
+  ## Select manta reefs by FULLREEF_ID
+  data.manta <- subset(data.manta, REEF_LAT < (-14)) # Remove norternmost reefs (off the grid)
+  manta.recent <- data.manta[data.manta$REPORT_YEAR>1995,]
+  reef10.ls <- names(table(manta.recent$FULLREEF_ID)[table(manta.recent$FULLREEF_ID)>9]) ## n=54 reefs with at least 10 years of data post 1995
+  reef.calib.ls <- reef10.ls[reef10.ls %in% data.reef$FULLREEF_ID]
+  reef.valid.ls <- reef10.ls[!(reef10.ls %in% data.reef$FULLREEF_ID)]
+
+  ## Link to REEF_ID through data.manta.env and create lists of FID (REEF_ID)
+  obs.manta.tmp <- subset(data.manta, FULLREEF_ID %in% reef10.ls)
+  # obs.manta <- merge.data.frame(obs.manta.tmp, data.manta.env[,c("FULLREEF_ID", "REEF_ID")])
+  obs.manta <- obs.manta.tmp[order(obs.manta.tmp$REEF_ID, obs.manta.tmp$REPORT_YEAR),]
+  obs.fid <- unique(obs.manta$REEF_NAME.y)[order(unique(obs.manta$REEF_NAME.y))]
+  obs.manta = obs.manta %>% dplyr::select(-REEF_NAME.x) %>% dplyr::rename(REEF_NAME = REEF_NAME.y, Year = REPORT_YEAR)
+
+  obs.calib <- obs.manta[obs.manta$FULLREEF_ID %in% reef.calib.ls & obs.manta$REEF_LAT < (-14),]
+  obs.valid <- obs.manta[obs.manta$FULLREEF_ID %in% reef.valid.ls & obs.manta$REEF_LAT < (-14),]
+  obs.calib.fid <- unique(obs.calib$REEF_NAME.y)
+  obs.valid.fid <- unique(obs.valid$REEF_NAME.y)
+
+  ## Select model predictions corresponding to CALIBRATION and VALIDATION reef sets
+  res.reef.fid <- DataHarvest.TEST[[1]]
+  res.calib = dplyr::filter(res.reef.fid, REEF_NAME %in% obs.calib.fid)
+  res.valid = dplyr::filter(res.reef.fid, REEF_NAME %in% obs.valid.fid)
+  res.manta = dplyr::filter(res.reef.fid, REEF_NAME %in% obs.fid)
+
+
+
+  res.manta = dplyr::left_join(res.manta, dplyr::select(obs.manta,REEF_NAME, SAMPLE_DATE, Year, MEAN_LIVE, MEAN_COTS, SE_COTS, TOWS),
+                               by=c("REEF_NAME", "Year"))
+  
+
+  #plot(pred.obs.all$pred, pred.obs.all$obs, xlim=c(10,70), ylim=c(10,70))
+  lm.CC <- lm(Avg.CC ~ MEAN_LIVE, data = res.manta)
+  summary(lm.CC)  ## R2 = 0.637
+  mean(abs(summary(lm.CC)$residuals)) ## Mean prediction error = 7.7 %
+  # lm.COTS <- lm(Avg.COTS ~ MEAN_LIVE, data = res.manta)
+  # summary(lm.CC)  ## R2 = 0.637
+  # mean(abs(summary(lm.CC)$residuals)) ## Mean prediction error = 7.7 %
+}
+
+
 ```
 
 
