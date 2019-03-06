@@ -693,7 +693,10 @@ masterDF = data.frame("SexRatio" = 5,
                       "p" = 0.25,
                       "Crash" = 3)
 
-runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep, Pred, p, Crash, nsimul, j, 
+res.cc = array(NA, dim=c(dim(data.grid)[1], nyears*2, nsimul))
+res.cots = array(NA, dim=c(dim(data.grid)[1], nyears*2, nsimul))
+
+runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep, Pred, p, Crash, nsimul, 
                     COTSfromCoralModel=FALSE, COTSfromSimul=TRUE, browse = FALSE, inityear = 1995, OutbreakCrash = 4) {
   NYEARS = length(Years)
   # browser()
@@ -738,10 +741,14 @@ runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep,
   Results$CoralCover.Consum = NA
   Results$CoralCover.Growth = NA
   ######
+  
+  res.cc = array(NA, dim=c(dim(data.grid)[1], nyears*2, nsimul))
+  res.cots = array(NA, dim=c(dim(data.grid)[1], nyears*2, nsimul))
 
     ##### TURN OFF COTS FUNCTIONS TO RUN CORAL GROWTH AND DISTURBANCE  
   
-  # browser()
+  # Simulation loop
+for (j in 1:nsimul) {
   # year Loop
   for(i in 1:length(Years)){  
     print(i + 1995)# loop through years
@@ -763,12 +770,12 @@ runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep,
       CoralGrowth = round(Growth[,'CoralGrowth'],4)
       # Calculate COTS/Manta at Reef Level for 4 years, if its >1 for 4 consecutive years then crash pop
       # browser()
-      Results[(Results$Year==i+1995) & (Results$Season==season),
-              c("COTSJ1", "COTSJ2", "COTSA", "CoralCover", "CoralCover.DistLoss", "CoralCover.Consum", 'CoralCover.Growth')] = 
-        cbind(COTSabund, CoralCover, Disturbance, CoralConsum, CoralGrowth)
+      # Results[(Results$Year==i+1995) & (Results$Season==season),
+      #         c("COTSJ1", "COTSJ2", "COTSA", "CoralCover", "CoralCover.DistLoss", "CoralCover.Consum", 'CoralCover.Growth')] = 
+      #   cbind(COTSabund, CoralCover, Disturbance, CoralConsum, CoralGrowth)
       if(i>3 & season =="winter") {
       OutbreakCrasher = Results %>%
-        filter(Year > (i+1995-OutbreakCrash) & Year <= i+1995) %>%
+        dplyr::filter(Year > (i+1995-OutbreakCrash) & Year <= i+1995) %>%
         group_by(REEF_NAME, Year) %>%
         summarise(Mean.COTS = mean(COTSA)) %>%
         mutate(is.outbreak = ifelse(Mean.COTS > 1, 1,0)) %>%
@@ -778,13 +785,27 @@ runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep,
       matchit = match(data.grid$REEF_NAME,OutbreakCrasher$REEF_NAME)
       COTSabund[which(!is.na(matchit)),] = c(0,0,0)
       
+     
       } # Close outbreak crasher
+     # Store in array
+      if (season=="summer") {
+      res.cc[,i,j] = CoralCover
+      res.cots[,i,j] = COTSabund[,3]
+      }
+      res.cc[,i+1,j] = CoralCover
+      res.cots[,i+1,j] = COTSabund[,3]
     } # close season loop
   } # close Year loop
-  setwd(RESULTS_DIRECTORY)
-  name <- sprintf("Sample_%s.Rdata",j)
-  save(Results, file=name)
-  print(j)
+  # setwd(RESULTS_DIRECTORY)
+  # name <- sprintf("Sample_%s.Rdata",j)
+  # save(Results, file=name)
+  # print(j)
+}  
+  
+setwd(RESULTS_DIRECTORY)
+name <- sprintf("Results_%s.Rdata",j)
+save(res.cc, res.cots, file=name) 
+  
 }
 ```
 
@@ -821,6 +842,10 @@ runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep,
 # ForDashboard.TEST = dplyr::left_join(COTS.TEST, data.grid[,1:7], by="PIXEL_ID") #%>% dplyr::select(1,14:19,2:14)
 #####
 
+runModel(masterDF=masterDF, Years = 1996:2017, PopData=PopData[1:npops,],data.COTS = data.COTS[1:npops,],
+         data.grid = data.grid[1:npops,], rep=1, Pred=0.98, p=0.25, Crash = 3, 
+         nsimul = 10, COTSfromCoralModel = TRUE, COTSfromSimul = FALSE, browse = F, inityear = 1996,)
+
 library(dplyr)
 NREPS = 100
 for (j in 1:nsimul){
@@ -834,28 +859,27 @@ runModel(masterDF=masterDF, Years = 1996:2017, PopData=PopData[1:npops,],data.CO
          data.grid = data.grid[1:npops,], rep=1, Pred=0.98, p=0.25, Crash = 3, 
          nsimul = 100, j=j, COTSfromCoralModel = FALSE, COTSfromSimul = TRUE, browse = F, inityear = 1996, OutbreakCrash = 4)
 }
-DataHarvest.wCOTS = HarvestData(RESULTS_DIRECTORY)
+DataHarvest.4YearCrash = HarvestData(RESULTS_DIRECTORY)
 for (j in 1:nsimul){
 runModel(masterDF=masterDF, Years = 1996:2017, PopData=PopData[1:npops,],data.COTS = data.COTS[1:npops,],
          data.grid = data.grid[1:npops,], rep=1, Pred=0.98, p=0.25, Crash = 3, 
          nsimul = 100, j=j, COTSfromCoralModel = FALSE, COTSfromSimul = TRUE, browse = F, inityear = 1996, OutbreakCrash = 5)
 }
-DataHarvest.wCOTS5YearCrash = HarvestData(RESULTS_DIRECTORY)
+DataHarvest.5YearCrash = HarvestData(RESULTS_DIRECTORY)
 for (j in 1:nsimul){
 runModel(masterDF=masterDF, Years = 1996:2017, PopData=PopData[1:npops,],data.COTS = data.COTS[1:npops,],
          data.grid = data.grid[1:npops,], rep=1, Pred=0.98, p=0.25, Crash = 3, 
          nsimul = 100, j=j, COTSfromCoralModel = FALSE, COTSfromSimul = TRUE, browse = F, inityear = 1996, OutbreakCrash = 6)
 }
-DataHarvest.wCOTS6YearCrash = HarvestData(RESULTS_DIRECTORY)
-nsimul = 100
-for (j in 1:nsimul){
-runModel(masterDF=masterDF, Years = 1996:2017, PopData=PopData[1:npops,],data.COTS = data.COTS[1:npops,],
-         data.grid = data.grid[1:npops,], rep=1, Pred=0.98, p=0.25, Crash = 3, 
-         nsimul = 100, j=j, COTSfromCoralModel = FALSE, COTSfromSimul = TRUE, browse = F, inityear = 1994)
-}
-DataHarvest.wCOTS94 = HarvestData(RESULTS_DIRECTORY)
+DataHarvest.6YearCrash = HarvestData(RESULTS_DIRECTORY)
+# nsimul = 100
+# for (j in 1:nsimul){
+# runModel(masterDF=masterDF, Years = 1996:2017, PopData=PopData[1:npops,],data.COTS = data.COTS[1:npops,],
+#          data.grid = data.grid[1:npops,], rep=1, Pred=0.98, p=0.25, Crash = 3, 
+#          nsimul = 100, j=j, COTSfromCoralModel = FALSE, COTSfromSimul = TRUE, browse = F, inityear = 1994)
+# }
+# DataHarvest.wCOTS94 = HarvestData(RESULTS_DIRECTORY)
 
-DataHarvest.TEST = HarvestData(RESULTS_DIRECTORY)
 
 # CC.NoCOTS = as.data.frame(DataHarvest.NoCOTS[[2]]) %>%
 #   tidyr::gather(key = "Simulation", value = "CoralCover", 4:103) %>%

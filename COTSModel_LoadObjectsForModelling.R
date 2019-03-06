@@ -108,6 +108,7 @@ data.ltmp.unknown <-  dplyr::inner_join(data.COTS[1:5],
                                                                  header = TRUE, sep = "\t"), -REEF_ID, -PIXEL_ID ), 
                                         by=c("lon", "lat"))
 
+
 # More Gompertz Parameters
 data.WQ <- read.table("CoralModel/pst_grid.txt", header = TRUE, sep = "\t")
 
@@ -145,6 +146,14 @@ WQ_Disease <- c(-0.369621141,0.15480862)
 
 
 WQ <- data.grid$Primary + data.grid$Secondary + data.grid$Tertiary
+
+#### load Predicted chl from eReefs ----
+
+load("eReefsPredictions.Rdata")
+dat.predict.med.Chl = dat.predict.med.Chl %>% inner_join(data.grid[,1:3], by = c("PIXEL_ID","lat", "lon"))
+dat.predict.med.Salt = dat.predict.med.Salt %>% inner_join(data.grid[,1:3], by = c("PIXEL_ID","lat", "lon"))
+dat.predict.med.Temp = dat.predict.med.Temp %>% inner_join(data.grid[,1:3], by = c("PIXEL_ID","lat", "lon"))
+dat.predict.sd = dat.predict.sd %>% inner_join(data.grid[,1:3], by = c("PIXEL_ID","lat", "lon"))
 
 
 # Convert bleaching scores to mid points ------
