@@ -420,11 +420,13 @@ doCOTSDemography = function(season, COTSabund, COTSmort, COTSremain){
 #    - CoralCover: Spatially structured coral cover
 ###################!
 
-doCoralConsumption = function(year, data.grid, season, COTSabund, CoralCover, ConsRateS, ConsRateW) {
+
+doCoralConsumption = function(season, COTSabund, CoralCover, ConsRate) {
   if (season =="summer") {
+    # browser()
     #CoralCover= Results[(Results$Year==year-1) & (Results$Season=="winter"),"CoralCover"]
     CAvailable = (CoralCover*data.grid$PercentReef/10000)*1e6*1e4 # in cm2
-    CConsumed = ConsRateS*COTSabund[,"A"]*182
+    CConsumed = ConsRate[,1]*COTSabund[,"A"]*182
     CRemaining=((CAvailable-CConsumed)/1e10)*(10000/data.grid$PercentReef)
     CChange = CRemaining-CoralCover
     CRemaining[CRemaining < 0.5] <- 0.5
@@ -432,7 +434,7 @@ doCoralConsumption = function(year, data.grid, season, COTSabund, CoralCover, Co
   if (season =="winter") {
     #CoralCover= Results[(Results$Year==year) & (Results$Season=="summer"),"CoralCover"]
     CAvailable = (CoralCover*data.grid$PercentReef/10000)*1e6*1e4 # in cm2
-    CConsumed = ConsRateW*COTSabund[,"A"]*182
+    CConsumed = ConsRate[,2]*COTSabund[,"A"]*182
     CRemaining=((CAvailable-CConsumed)/1e10)*(10000/data.grid$PercentReef)
     CChange = CRemaining-CoralCover
     CRemaining[CRemaining < 0.5] <- 0.5
@@ -484,33 +486,68 @@ return(list=c(as.data.frame(MinK.0.5), data.frame(MinK.10)))
 }
 
 
-doPredPreyDynamics = function(season, year, COTSabund,Results,KC, CoralCover, Crash) {
-  # after 1 year at low levels COTS densities get brought down to levels supported by growth
-  # work out the %CC growth from 0.5% and set that as the number of COTS
-  # MinK is the Maximum CoTS that can be supported at depleted coral cover
-  # Carry is overarching carrying capacity - cannot have more COTS than could eat the reef in 1 year
-  # Carry = CoralCover*COTS_Per_CC
-  COTSabund[,'A'] = ifelse(COTSabund[,'A']> KC, KC, COTSabund[,'A'])
-  if(season=="summer"){
-    # prevCC = dplyr::filter(Results, Year==year-1 & Season=='winter') %>% dplyr::select(CoralCover) %>% as.matrix()
-    # browser()
-    COTSabund[which(CoralCover < Crash & COTSabund[,'A']> KC),] = c(0,0,0)
-    # COTSabund[which(prevCC < 10 & prevCC > 3 & COTSabund[,'A']> K$MinK.10A),] = 
-    #   K$MinK.10A[which(prevCC < 10 & prevCC > 3 & COTSabund[,'A']> K$MinK.10A)]
-  }
-  if(season=="winter"){
-    # prevCC = dplyr::filter(Results, Year==year & Season=='summer') %>% dplyr::select(CoralCover) %>% as.matrix()
-    COTSabund[which(CoralCover < Crash & COTSabund[,'A']> KC),] = c(0,0,0)
-    # COTSabund[which(prevCC < 10 & prevCC > 3 & COTSabund[,'A']> K$MinK.10A),] = 
-    #   K$MinK.10A[which(prevCC < 10 & prevCC > 3 & COTSabund[,'A']> K$MinK.10A)]
-  }
-  
+CoralCOTSMort = function(p,CoralCover) {
+  (1 - (p*CoralCover/(10+CoralCover)))
+}
+
+# plot(CoralCOTSMort(0.2,seq(0,100, 1)))
+
+doPredPreyDynamics = function(COTSabund, CoralCover, p, Crash) {
+  # incroporates natural mortality and coral cover
+  COTSabund[which(CoralCover < Crash),] = c(0,0,0)
+  COTS.m.CC = (1 - (p*CoralCover/(10+CoralCover)))
+  COTSabund[,"A"] = COTSabund[,"A"]*exp(-COTS.m.CC*COTSmort[3])
+  COTSabund[,"J_2"] = COTSabund[,"J_2"]*exp(-COTS.m.CC*COTSmort[2])
+  COTSabund[,"J_1"] = COTSabund[,"J_1"]*exp(-COTS.m.CC*COTSmort[1])
   return(COTSabund)
 } 
 # Results[(Results$Year==1999),"CoralCover"] = rep(2,6000)
 # 
 # CoralCovertest = rep(2,6000)
 # doPredPreyDynamics("summer", 2000, Results = Results, K=K, COTSabund = COTSabund, CoralCover = CoralCovertest )
+
+
+#### Do Coral Distrubance ----
+doCoralDisturbance = function (i, j, season, CoralCover, COTSfromCoralModel = F, 
+                               storms.rsmpl, B.STORMS, WQ_Cyclone, 
+                               COTS.rsmpl, B.COTS, WQ_CoTS,
+                               bleaching.rsmpl, B.BLEACHING, WQ_bleach,
+                               disease.rsmpl, B.DISEASE, unknown.rsmpl, B.UNKNOWN) {
+  CoralCover = log(CoralCover)
+  if (season =="summer"){
+    # browser()
+    ### Apply disturbances (bleaching, CoTS, disease, storms) in year 1994+i (starting from 1996)
+    storms.rsmpl[,i,j][WQ > (-1)*B.STORMS[j]/WQ_Cyclone[1]] <- 0
+    CoralCover[storms.rsmpl[,i,j]>0] <- CoralCover[storms.rsmpl[,i,j]>0] + 
+      storms.rsmpl[,i,j][storms.rsmpl[,i,j]>0] * (B.STORMS[j] + WQ[storms.rsmpl[,i,j]>0] * WQ_Cyclone[1])
+    if (COTSfromCoralModel == TRUE) {
+      CoralCover[COTS.rsmpl[,i,j]>0] <- CoralCover[COTS.rsmpl[,i,j]>0] +
+        COTS.rsmpl[,i,j][COTS.rsmpl[,i,j]>0] * (B.COTS[j] + WQ[COTS.rsmpl[,i,j]>0] * WQ_CoTS[1])
+    }
+    CoralCover[bleaching.rsmpl[,i,j]>0] <- CoralCover[bleaching.rsmpl[,i,j]>0] + 
+      bleaching.rsmpl[,i,j][bleaching.rsmpl[,i,j]>0] * (B.BLEACHING[j] + WQ[bleaching.rsmpl[,i,j]>0] * WQ_bleach[1])
+    CoralCover[disease.rsmpl[,i,j]>0] <- CoralCover[disease.rsmpl[,i,j]>0] + B.DISEASE[j] 
+    CoralCover[unknown.rsmpl[,i,j]>0] <- CoralCover[unknown.rsmpl[,i,j]>0] + B.UNKNOWN[j] 
+    CoralCover[CoralCover < log(0.1)] <- log(0.1) # sets minimal value to 10% (as 0% does not allow for recovery. 10% is the minimum HC cover observed in the LTMP data)
+    # CoralCover <- b0 + (1 - b1)* CoralCover
+  }
+  return(exp(CoralCover))
+  ### Store results
+  #res[,year,j] <- exp(CoralCover)
+  
+}
+
+doCoralGrowth = function(season, CoralCover, b0, b1) {
+  if(season == "summer") {
+    # b0.wq <- B0 + WQ * rnorm(length(WQ), mean=WQ.mn.sd[1], sd=WQ.mn.sd[2])
+    # b1.wq <- b0.wq / log(HC.asym)
+    CoralCover <- log(CoralCover)
+    # CoralCover.t1 <- b0.wq + (1 - b1.wq)*CoralCover
+    CoralCover.t1 = b0 + (1 - b1)*CoralCover
+    return(cbind(CoralCover=exp(CoralCover.t1), CoralGrowth=(exp(CoralCover.t1)-exp(CoralCover))))
+  }
+  return(cbind(CoralCover=CoralCover, CoralGrowth=NA))
+}
 
 ####################
 ### COTS SANDBOX: for testing, etc.

@@ -7,7 +7,43 @@
 #  05 April 2015 -- started scripting
 
 ##########################
+#########################
+# SET PROJECT DIRECTORIES (this should be the only place where local directories should be referenced)
+#########################
 
+USER = "SAM"
+
+if(USER=="KEVIN") BASE_DIRECTORY <- "C:\\Users\\Kevin\\Dropbox\\CoTS_Model"             # NOTE: this should link to the Dropbox folder with shared project resources	                                                                        
+if(USER=="KEVIN") CODE_DIRECTORY <- "C:\\Users\\Kevin\\GIT\\COTS_Model"              # NOTE: code directory should be your local copy of the GitHub repository
+
+if(USER=="SAM") BASE_DIRECTORY <- "C:\\Users\\jc312264\\Dropbox\\CoTS_Model"
+if(USER=="SAM") CODE_DIRECTORY <- "C:\\Users\\jc312264\\OneDrive - James Cook University\\COTS_Model"
+
+if(USER=="SAM_UNI") BASE_DIRECTORY <- "C:\\Users\\jc312264\\Dropbox\\CoTS_Model"
+if(USER=="SAM_UNI") CODE_DIRECTORY <- "C:\\Users\\jc312264\\OneDrive - James Cook University\\GitHub\\COTS_Model"
+
+if(USER=="SAM_RENO") BASE_DIRECTORY <- "C:\\Users\\kshoemaker\\Dropbox\\CoTS_Model"
+if(USER=="SAM_RENO") CODE_DIRECTORY <- "C:\\Users\\kshoemaker\\Documents\\GitHub\\COTS_Model"
+
+SPATIALDATA_DIRECTORY <- paste(BASE_DIRECTORY,"\\Spatial Layers",sep="")                          # directory for storing relevant spatial data (ASC, SHP files)
+if(is.na(file.info(SPATIALDATA_DIRECTORY)[1,"isdir"])) dir.create(SPATIALDATA_DIRECTORY)
+
+DATA_DIRECTORY <- paste(BASE_DIRECTORY,"\\Data",sep="")                                 # directory for storing data (CSV files)
+if(is.na(file.info(DATA_DIRECTORY)[1,"isdir"])) dir.create(DATA_DIRECTORY)
+
+ENVDATA_DIRECTORY <- paste(DATA_DIRECTORY,"\\Environmental",sep="")                                 # directory for storing data (CSV files)
+if(is.na(file.info(ENVDATA_DIRECTORY)[1,"isdir"])) dir.create(ENVDATA_DIRECTORY)
+
+FIGURES_DIRECTORY <- paste(BASE_DIRECTORY,"\\Figures\\RawFigures",sep="")               # directory for storing raw figures generated from R
+if(is.na(file.info(FIGURES_DIRECTORY)[1,"isdir"])) dir.create(FIGURES_DIRECTORY)
+
+RESULTS_DIRECTORY <- paste(BASE_DIRECTORY,"\\results",sep="")                           # directory for storing relevant results
+if(is.na(file.info(RESULTS_DIRECTORY)[1,"isdir"])) dir.create(RESULTS_DIRECTORY)
+
+RDATA_DIRECTORY <- paste(BASE_DIRECTORY,"\\R_Workspaces",sep="")                        # directory for storing .RData files (R workspaces and data objects)
+if(is.na(file.info(RDATA_DIRECTORY)[1,"isdir"])) dir.create(RDATA_DIRECTORY)
+
+cat(sprintf("The current user is %s",USER))
 
 setwd(DATA_DIRECTORY)
 PopData = read.csv("Environmental/Environmental_Data.csv", header = TRUE) # we will just use a subset for testing
@@ -62,6 +98,11 @@ load("Connectivity/COTS.ConnMat.Rdata")
 
 setwd(DATA_DIRECTORY)
 
+# Environmental Data + BRT/MRT Predictions of Coral Growth Parameters
+data.grid = read.table("CoralModel/XYZ_BRTpred_MRTpred_GG.csv", header = TRUE, sep = ",")
+data.grid = data.grid[order(data.grid$LONG, data.grid$LAT),]; colnames(data.grid)[2:3] = c("lon", "lat")
+data.grid = PopData %>% dplyr::inner_join(dplyr::select(data.grid, 2:3, 51:62), by=c("lon", "lat"))
+
 data.manta = read.table("CoralModel/Manta.csv", header = TRUE, sep = ",")
 data.manta.env = read.table("CoralModel/Manta_ENV.txt", header = TRUE, sep = "\t")
 data.manta$REEF_ID= gsub("s","",tolower(data.manta$FULLREEF_ID))
@@ -81,10 +122,7 @@ data.storms =  read.csv("Disturbance/Cyclones_data.csv", header = TRUE) %>%
   dplyr::filter(REEF_NAME %in% ourreefs) %>% dplyr::mutate(REEF_NAME = factor(REEF_NAME))
 data.disease = read.table("CoralModel/Disturb_disease.txt", header = TRUE, sep = "\t")
 
-# Environmental Data + BRT/MRT Predictions of Coral Growth Parameters
-data.grid = read.table("CoralModel/XYZ_BRTpred_MRTpred_GG.csv", header = TRUE, sep = ",")
-data.grid = data.grid[order(data.grid$LONG, data.grid$LAT),]; colnames(data.grid)[2:3] = c("lon", "lat")
-data.grid = PopData %>% dplyr::inner_join(dplyr::select(data.grid, 2:3, 51:62), by=c("lon", "lat"))
+
 
 # Observed Disturbance
 data.ltmp.bleaching <- dplyr::inner_join(data.COTS[1:5], 
