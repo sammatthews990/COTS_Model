@@ -335,6 +335,7 @@ doCOTSDispersal = function(season, COTSabund, SexRatio, ConnMat, PCFParams, Pred
   COTSabund = COTSabund
   if (season=="summer"){
     nEggs = COTSabund[,'A']*rnorm(1, PCFParams[1], PCFParams[2])*((10-SexRatio)/10)
+    # Add in density dependent
     fEggs = FvDParams[SexRatio,"Linf"] * (1 - exp(-FvDParams[SexRatio,"K"] * (COTSabund[,'A'] - FvDParams[SexRatio,"t0"])))
     nLarvae = nEggs * fEggs
     # browser()

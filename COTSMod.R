@@ -9,9 +9,6 @@
   setwd(DIRECTORY)
   source("COTSModel_Utilityfunctions.R")  
   source("COTSModel_COTSfunctions.R")
-  library(dplyr)
-  library(doParallel)
-  library(foreach)
   
   # source("COTSModel_LoadObjectsForModelling.R")
   # save.image(file = "RData/COTSMod_bckp.Rdata")
@@ -26,7 +23,7 @@
   NSEASONS <- 2
   seasons <- c("summer","winter")
   npops <- 15802 #number of reefs we want to test
-  nsimul <- 10
+  nsimul <- 100
   
   VERBOSE <- TRUE        # flag whether functions should return detailed information
   DEBUG <- TRUE          # flag whether to output debug files etc. 
@@ -195,7 +192,11 @@
   
   setwd(DIRECTORY)
   saveWorkspace(filename="ModelWorkspace", dir="Rdata")
-  
+
+# Load wrokspace  START FROM HERE IF USING PRE-DEFINED WORKSPACE ----
+    
+load("RData/ModelWorkspace_2019-03-28_1.RData")
+    
 # Run Model ----  
   
 registerDoParallel(cl=1, cores=3)
@@ -235,7 +236,7 @@ foreach (reps = 1:NREPS) %dopar% {
             browser()
           }
           COTSabund = doPredPreyDynamics(COTSabund, CoralCover, p, Crash)
-          COTSabund = doCOTSDispersal(season,COTSabund,SexRatio,ConnMat, PCFParams, Pred, FvDParams) #Pruducing NAS
+          COTSabund = doCOTSDispersal(season,COTSabund,SexRatio,COTS.ConnMat, PCFParams, Pred, FvDParams) #Pruducing NAS
           COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
           Consumption = doCoralConsumption(season, COTSabund, CoralCover, ConsRate) 
           CoralCover = Consumption[,'CRemaining']
@@ -330,7 +331,7 @@ foreach (reps = 1:NREPS) %dopar% {
     setwd(DIRECTORY)
     setwd("Results")
     name <- sprintf("Sample_%s.Rdata", reps)
-    save(res.cc, res.cots, ResultsDash, bleaching.mn, storms.mn, disease.mn, unknown.mn, COTS.mn, file = name) 
+    save(res.cc, res.cots, ResultsDash, file = name) 
 
 }
    
