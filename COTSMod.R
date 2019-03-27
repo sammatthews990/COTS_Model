@@ -178,7 +178,7 @@
   
   COTSabund = initializeCOTSabund(data.grid, data.COTS, inityear, stagenames, COTS_StableStage, npops)
   if(COTSfromSimul==F){
-    COTSabund <- matrix(0,nrow=npops, ncol=3)
+    COTSabund <- matrix(0,nrow=npops, ncol=3, dimnames = list(NULL, c("J_1", "J_2", "A")))
   }
   
   # initialize the COTS abundance object (for year 0) 
