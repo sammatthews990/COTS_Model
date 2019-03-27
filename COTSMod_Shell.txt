@@ -8,11 +8,11 @@
 ## #PBS -A  smatthew
  
 ### - job basename ---------------------------------------------------------
-jobname="COTS_SDM"
+jobname="COTS_SDM_NoCOTS"
 ### ----
 
 cd $PBS_O_WORKDIR
 
 module load R/3.4.1
 
-R --vanilla < COTSMod_HPC.R
+R --vanilla < COTSMod_HPC_NoCOTS.R
