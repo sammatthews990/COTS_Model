@@ -265,7 +265,7 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
           browser()
         }
         COTSabund = doPredPreyDynamics(COTSabund, CoralCover, p, Crash)
-        COTSabund = doCOTSDispersal(season,COTSabund,SexRatio,COTS.ConnMat, PCFParams, Pred, FvDParams) #Pruducing NAS
+        COTSabund = doCOTSDispersal(season,COTSabund,CoralCover,SexRatio,COTS.ConnMat, PCFParams, Pred, FvDParams) #Pruducing NAS
         COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
         Consumption = doCoralConsumption(season, COTSabund, CoralCover, ConsRate) 
         CoralCover = Consumption[,'CRemaining']
@@ -355,9 +355,9 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
                            # CC.Q05=as.vector(resCC.reef.min), 
                            # CC.Q95=as.vector(resCC.reef.max), 
                            CC.Q25=as.vector(resCC.reef.25), 
-                           CC.Q75=as.vector(resCC.reef.75)) %>%
-                  dplyr::left_join(ResultsDash, data.grid[5:7], by="REEF_NAME") %>%
-                  dplyr::select(REEF_ID:Season, SECTOR:CROSS_SHELF, 5:12)
+                           CC.Q75=as.vector(resCC.reef.75)) 
+  ResultsDash = dplyr::left_join(ResultsDash, data.grid[5:7], by="REEF_NAME") %>%
+                dplyr::select(REEF_ID:Season, SECTOR:CROSS_SHELF, 5:12)
   
   setwd(DIRECTORY)
   setwd("Results")

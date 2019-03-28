@@ -236,7 +236,7 @@ foreach (reps = 1:NREPS) %dopar% {
             browser()
           }
           COTSabund = doPredPreyDynamics(COTSabund, CoralCover, p, Crash)
-          COTSabund = doCOTSDispersal(season,COTSabund,SexRatio,COTS.ConnMat, PCFParams, Pred, FvDParams) #Pruducing NAS
+          COTSabund = doCOTSDispersal(season,COTSabund,CoralCover,SexRatio,COTS.ConnMat, PCFParams, Pred, FvDParams) #Pruducing NAS
           COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
           Consumption = doCoralConsumption(season, COTSabund, CoralCover, ConsRate) 
           CoralCover = Consumption[,'CRemaining']
