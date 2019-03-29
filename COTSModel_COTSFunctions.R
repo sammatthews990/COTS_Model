@@ -79,7 +79,8 @@ COTS_FecFromMass <- function(Mass){
 ###################!
 
 
-initializeCOTSabund <- function(data.grid, data.COTS, Year, stagenames, COTS_StableStage, npops){
+initializeCOTSabund <- function(data.grid, COTS.rsmpl, Year, stagenames, 
+                                COTS_StableStage, npops, j){
   # browser()
   ### set NA Values in interpolation CoTS.init to 0
   data.COTS[is.na(data.COTS)] <- 0
@@ -94,7 +95,7 @@ initializeCOTSabund <- function(data.grid, data.COTS, Year, stagenames, COTS_Sta
   colname <- paste('COTS_', Year, sep="")
   
   ### Update abundances based from interpolated manta tow data
-  COTSabund[,'A'] <- round(data.COTS[,colname] * 666 * (data.grid$PercentReef/100),0)   # 666 converts manta tow to 1kmx1km
+  COTSabund[,'A'] <- round(COTS.rsmpl[,1,j] * 666 * (data.grid$PercentReef/100),0)   # 666 converts manta tow to 1kmx1km
   COTSabund[,'J_2'] <- round(COTSabund[,'A'] * as.numeric(COTS_StableStage[2]/COTS_StableStage[3]),0)
   COTSabund[,'J_1'] <- round(COTSabund[,'A'] * as.numeric(COTS_StableStage[1]/COTS_StableStage[3]),0)
   return(COTSabund)
@@ -330,21 +331,23 @@ CoTS_Dispersal_Conn <- function(COTSConnMat, COTSabund, nLarvae, CoralCover, Los
 
 # This is the master fucntion that incorporates the above functions
 
-doCOTSDispersal = function(season, COTSabund, CoralCover, SexRatio, ConnMat, PCFParams, Pred, FvDParams){
+doCOTSDispersal = function(season, COTSabund, CoralCover, SexRatio, ConnMat, PCFParams, Pred, 
+                           FvDParams, Fbase, CCRatioThresh){
   #browser()
   COTSabund = COTSabund
+  b = (1-Fbase)/CCRatioThresh # Make Ratio a parameter for tuning
   Ratio = (CoralCover*data.grid$PercentReef/100)/(COTSabund[,3]/667) # Do i need % Reef here?
   if (season=="summer"){
     # Per Capita Fecundity
     nEggs = COTSabund[,'A']*rnorm(1, PCFParams[1], PCFParams[2])*((10-SexRatio)/10)
     # Add in density dependent fecundity
-    nEggs[which(Ratio<25)] = (nEggs*(0.2 + (0.032*Ratio)))[which(Ratio<25)]
+    nEggs[which(Ratio<25)] = (nEggs*(Fbase + (b*Ratio)))[which(Ratio<25)]
     # Fertilisation by Density
     fEggs = FvDParams[SexRatio,"Linf"] * (1 - exp(-FvDParams[SexRatio,"K"] * (COTSabund[,'A'] - FvDParams[SexRatio,"t0"])))
     nLarvae = nEggs * fEggs
     # Do Dispersal ----
     nLarvae = ifelse(nLarvae < 0 , 0, nLarvae) ### FIx this
-    nLarvae = as.matrix((1-Pred)*nLarvae) # assume 80% lost to the sea
+    nLarvae = as.matrix((1-Pred)*nLarvae) # assume 98% Larval Mortlality
     # Add in Larval Nutrition at home reef
     
     row.names(nLarvae) = data.grid$REEF_NAME
@@ -432,6 +435,7 @@ doCoralConsumption = function(season, COTSabund, CoralCover, ConsRate) {
     # browser()
     #CoralCover= Results[(Results$Year==year-1) & (Results$Season=="winter"),"CoralCover"]
     CAvailable = (CoralCover*data.grid$PercentReef/10000)*1e6*1e4 # in cm2
+    # Do I want consumption to be density related?
     CConsumed = ConsRate[,1]*COTSabund[,"A"]*182
     CRemaining=((CAvailable-CConsumed)/1e10)*(10000/data.grid$PercentReef)
     CChange = CRemaining-CoralCover
@@ -498,12 +502,16 @@ CoralCOTSMort = function(p,CoralCover) {
 
 # plot(CoralCOTSMort(0.2,seq(0,100, 1)))
 
-doPredPreyDynamics = function(COTSabund, CoralCover, p, Crash) {
+doPredPreyDynamics = function(COTSabund, CoralCover, p, Crash, CCRatioThresh) {
   # Implement ratio dependent mortality on Adults and J_2
-  b = (COTSmort[3]-1)/25 # Make Ratio a parameter for tuning
+  b = (COTSmort[3]-1)/CCRatioThresh # Make Ratio a parameter for tuning
+  b2 = (COTSmort[2]-1)/CCRatioThresh
   Ratio = (CoralCover*data.grid$PercentReef/100)/(COTSabund[,3]/667)
   COTSabund[which(CoralCover < Crash),] = c(0,0,0)
-  COTSabund[,"A"][which(Ratio<25)] = (COTSabund[,"A"]*(COTSmort[3] + (b*Ratio)))[which(Ratio<25)]
+  COTSabund[,"A"][which(Ratio<25)] = (COTSabund[,"A"]*(1 + (b*Ratio)))[which(Ratio<25)]
+  COTSabund[,"A"][which(Ratio>=25)] = (COTSabund[,"A"]*COTSmort[3])[which(Ratio>=25)]
+  COTSabund[,"J_2"][which(Ratio<25)] = (COTSabund[,"J_2"]*(1 + (b2*Ratio)))[which(Ratio<25)]
+  COTSabund[,"J_2"][which(Ratio>=25)] = (COTSabund[,"J_2"]*COTSmort[2])[which(Ratio>=25)]
   # COTS.m.CC = (1 - (p*CoralCover/(10+CoralCover)))
   # COTSabund[,"A"] = COTSabund[,"A"]*exp(-COTS.m.CC*COTSmort[3])
   # COTSabund[,"J_2"] = COTSabund[,"J_2"]*exp(-COTS.m.CC*COTSmort[2])
@@ -511,17 +519,17 @@ doPredPreyDynamics = function(COTSabund, CoralCover, p, Crash) {
   return(COTSabund)
 } 
 
-# Exponential Model of NAtural Mortality for Juveniles Keesing and Halford
-df = data.frame(size = c(1,3,5), M = c(6.5,1.24,0.45))
-mortlm = lm(log(M)~size, df)
-juv_growth = function(days){
-  7.08*exp(0.0045*days) - 6.60
-}
-size = juv_growth(1:365)
-mort = exp(predict(mortlm,newdata = data.frame(size = size))) + 0.13 # 0.13 is fish pred
-
-mortdf = data.frame(Day = 1:365, size = size, mort = 1 -(mort/100))
-prod(mortdf$mort)
+# Exponential Model of NAtural Mortality for Juveniles Keesing and Halford ----
+# df = data.frame(size = c(1,3,5), M = c(6.5,1.24,0.45))
+# mortlm = lm(log(M)~size, df)
+# juv_growth = function(days){
+#   7.08*exp(0.0045*days) - 6.60
+# }
+# size = juv_growth(1:365)
+# mort = exp(predict(mortlm,newdata = data.frame(size = size))) + 0.13 # 0.13 is fish pred
+# 
+# mortdf = data.frame(Day = 1:365, size = size, mort = 1 -(mort/100))
+# prod(mortdf$mort)
 
 # Results[(Results$Year==1999),"CoralCover"] = rep(2,6000)
 # 

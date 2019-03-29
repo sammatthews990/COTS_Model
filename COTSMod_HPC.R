@@ -13,41 +13,33 @@ DIRECTORY = getwd()
 PRELOAD = T
 
 if (PRELOAD == T) {
-  load("RData/ModelWorkspace_2019-03-28_1.RData") # Choose an older workspace
+  load("RData/ModelWorkspace_2019-03-29_1.RData") # Choose an older workspace with pre run disturbance samples
+  # Write Parameter Data Frame And Results Containers ----
+  # Write Parameter Data Frame And Results Containers ----
   # Write Parameter Data Frame And Results Containers ----
   masterDF = data.frame("SexRatio" = 5, 
                         "ConsRateW" = 150, 
                         "ConsRateS" = 250,
-                        "avgPCF" = 10000000,
-                        "sdPCF" = 1000000,
+                        "avgPCF" = 20000000,
+                        "sdPCF" = 10000000,
                         "mortJ1" =  0.99,
                         "mortJ2" = 0.95,
-                        "mortA" = 0.6,
+                        "mortA" = 0.9,
                         "remJ1" = 0,
                         "remJ2" = 0,
                         "remA" = 1,
                         "cssJ1" = 0.9803,
                         "cssJ2" = 0.0171,
                         "cssA" = 0.0026,
-                        "Pred" = 0.98,
-                        "p" = seq(0.1,0.3,by = 0.04),
-                        "Crash" = 3,
-                        "OutbreakCrash" = 6)
-  
+                        "Pred" = 0.99,
+                        "p" = 0.2,
+                        "Crash" = 0,
+                        "OutbreakCrash" = Inf,
+                        "Fbase" = seq(0.05, 0.25, 0.05),
+                        "CCRatioThresh" = 25)
   NREPS = length(masterDF$OutbreakCrash)
-  
-  # Initialize Model ----
-  
-  COTSfromCoralModel=FALSE 
-  COTSfromSimul=TRUE 
-  browse = FALSE 
-  inityear = 1995
-  
-  COTSabund = initializeCOTSabund(data.grid, data.COTS, inityear, stagenames, COTS_StableStage, npops)
-  if(COTSfromSimul==F){
-    COTSabund <- matrix(0,nrow=npops, ncol=3, dimnames = list(NULL, c("J_1", "J_2", "A")))
-  }
-  
+  masterDF$RUNNOCOTS = c(T, rep(F, NREPS-1))
+
 } else {
   
   setwd(DIRECTORY)
@@ -67,7 +59,7 @@ if (PRELOAD == T) {
   NSEASONS <- 2
   seasons <- c("summer","winter")
   npops <- 15802 #number of reefs we want to test
-  nsimul <- 100
+  nsimul <- 10
   
   VERBOSE <- TRUE        # flag whether functions should return detailed information
   DEBUG <- TRUE          # flag whether to output debug files etc. 
@@ -153,7 +145,7 @@ if (PRELOAD == T) {
     
     # Add known disturbance for LTMP reefs
     data.bleaching[,-(1:16)][!is.na(data.ltmp.bleaching[,-(1:5)])] <- data.ltmp.bleaching[,-(1:5)][!is.na(data.ltmp.bleaching[,-(1:5)])]
-    data.COTS[,-(1:16)][!is.na(data.ltmp.COTS[,-(1:5)])] <- data.ltmp.COTS[,-(1:5)][!is.na(data.ltmp.COTS[,-(1:5)])]
+    data.COTS[,-(1:17)][!is.na(data.ltmp.COTS[,-(1:6)])] <- data.ltmp.COTS[,-(1:6)][!is.na(data.ltmp.COTS[,-(1:6)])]
     data.storms[,-(1:16)][!is.na(data.ltmp.storms[,-(1:5)])] <- data.ltmp.storms[,-(1:5)][!is.na(data.ltmp.storms[,-(1:5)])]
     data.disease[,-(1:16)][!is.na(data.ltmp.disease[,-(1:5)])] <- data.ltmp.disease[,-(1:5)][!is.na(data.ltmp.disease[,-(1:5)])]
     data.unknown[,-(1:16)][!is.na(data.ltmp.unknown[,-(1:5)])] <- data.ltmp.unknown[,-(1:5)][!is.na(data.ltmp.unknown[,-(1:5)])]
@@ -177,39 +169,30 @@ if (PRELOAD == T) {
   masterDF = data.frame("SexRatio" = 5, 
                         "ConsRateW" = 150, 
                         "ConsRateS" = 250,
-                        "avgPCF" = 10000000,
-                        "sdPCF" = 1000000,
+                        "avgPCF" = 20000000,
+                        "sdPCF" = 10000000,
                         "mortJ1" =  0.99,
                         "mortJ2" = 0.95,
-                        "mortA" = 0.6,
+                        "mortA" = 0.9,
                         "remJ1" = 0,
                         "remJ2" = 0,
                         "remA" = 1,
                         "cssJ1" = 0.9803,
                         "cssJ2" = 0.0171,
                         "cssA" = 0.0026,
-                        "Pred" = 0.98,
-                        "p" = seq(0.1,0.3,by = 0.04),
-                        "Crash" = 3,
-                        "OutbreakCrash" = 6)
+                        "Pred" = 0.99,
+                        "p" = 0.2,
+                        "Crash" = 0,
+                        "OutbreakCrash" = Inf,
+                        "Fbase" = seq(0.05, 0.25, 0.05),
+                        "CCRatioThresh" = 25)
   
   NREPS = length(masterDF$OutbreakCrash)
+  masterDF$RUNNOCOTS = c(T, rep(F, NREPS-1))
   
   # Results storage arrays (Pixel, Year/Season, Simulation)
   res.cc = array(NA, dim=c(dim(data.grid)[1], nyears*2, nsimul))
   res.cots = array(NA, dim=c(dim(data.grid)[1], nyears*2, nsimul))
-  
-  # Initialize Model ----
-  
-  COTSfromCoralModel=FALSE 
-  COTSfromSimul=TRUE 
-  browse = FALSE 
-  inityear = 1995
-  
-  COTSabund = initializeCOTSabund(data.grid, data.COTS, inityear, stagenames, COTS_StableStage, npops)
-  if(COTSfromSimul==F){
-    COTSabund <- matrix(0,nrow=npops, ncol=3, dimnames = list(NULL, c("J_1", "J_2", "A")))
-  }
   
   Results = data.frame(sapply(PopData[1:4], rep, times=nyears*NSEASONS),
                        sapply(PopData[5:7], rep, times=nyears*NSEASONS),
@@ -223,9 +206,6 @@ if (PRELOAD == T) {
   nruns = length(list.files(path = "RData")[grep(Sys.Date(),list.files(path = "RData"))]) + 1
   save.image(file = paste0("RData/ModelWorkspace_", Sys.Date(),"_", nruns,".RData"))
 }
-
-
-
 
 # Run Model ----  
 
@@ -247,9 +227,26 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
   p = masterDF[reps,"p"]
   Crash = masterDF[reps,"Crash"]
   OutbreakCrash = masterDF[reps,"OutbreakCrash"]
+  Fbase = masterDF[reps,"Fbase"]
+  CCRatioThresh = masterDF[reps,"CCRatioThresh"]
+  RUNNOCOTS = masterDF[reps, "RUNNOCOTS"]
+  # Initialize Model ----
   
+  
+  browse = FALSE 
+  inityear = 1995
+  COTSfromCoralModel=FALSE 
+  COTSfromSimul=TRUE
+ 
   # Simulation loop
   for (j in 1:nsimul) {
+    COTSabund = initializeCOTSabund(data.grid, COTS.rsmpl, inityear, 
+                                    stagenames, COTS_StableStage, npops, j)
+    if (RUNNOCOTS == T) {
+      COTSfromCoralModel=T 
+      COTSfromSimul=F
+      COTSabund <- matrix(0,nrow=npops, ncol=3, dimnames = list(NULL, c("J_1", "J_2", "A")))
+    }
     print(j)
     HC.1996 <- HCINI[,j]
     b0 <- B0[,j]
@@ -264,8 +261,9 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
         if(browse == TRUE) {
           browser()
         }
-        COTSabund = doPredPreyDynamics(COTSabund, CoralCover, p, Crash)
-        COTSabund = doCOTSDispersal(season,COTSabund,CoralCover,SexRatio,COTS.ConnMat, PCFParams, Pred, FvDParams) #Pruducing NAS
+        COTSabund = doPredPreyDynamics(COTSabund, CoralCover, p, Crash, CCRatioThresh)
+        COTSabund = doCOTSDispersal(season,COTSabund,CoralCover,SexRatio,COTS.ConnMat, 
+                                    PCFParams, Pred, FvDParams, Fbase, CCRatioThresh) #Pruducing NAS
         COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
         Consumption = doCoralConsumption(season, COTSabund, CoralCover, ConsRate) 
         CoralCover = Consumption[,'CRemaining']
@@ -344,19 +342,19 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
   ResultsDash = data.frame(sapply(unique(data.grid[4:5]), rep, times=nyears*NSEASONS),
                            Year=rep(Years,each=2*nReefs), 
                            Season=rep(c("summer", "winter"),each=nReefs), 
-                           COTS.mn=(as.vector(resCOTS.reef.mn)/100)*15, 
-                           COTS.Q50=(as.vector(resCOTS.reef.med)/100)*15, 
-                           # COTS.Q05=(as.vector(resCOTS.reef.min)/100)*15, 
-                           # COTS.Q95=(as.vector(resCOTS.reef.max)/100)*15, 
-                           COTS.Q25=(as.vector(resCOTS.reef.25)/100)*15, 
-                           COTS.Q75=(as.vector(resCOTS.reef.75)/100)*15,
+                           COTS.mn=(as.vector(resCOTS.reef.mn)/667), 
+                           COTS.Q50=(as.vector(resCOTS.reef.med)/667), 
+                           # COTS.Q05=(as.vector(resCOTS.reef.min)/667), 
+                           # COTS.Q95=(as.vector(resCOTS.reef.max)/667), 
+                           COTS.Q25=(as.vector(resCOTS.reef.25)/667), 
+                           COTS.Q75=(as.vector(resCOTS.reef.75)/667),
                            CC.mn=as.vector(resCC.reef.mn), 
                            CC.Q50=as.vector(resCC.reef.med), 
                            # CC.Q05=as.vector(resCC.reef.min), 
                            # CC.Q95=as.vector(resCC.reef.max), 
                            CC.Q25=as.vector(resCC.reef.25), 
                            CC.Q75=as.vector(resCC.reef.75)) 
-  ResultsDash = dplyr::left_join(ResultsDash, data.grid[5:7], by="REEF_NAME") %>%
+  ResultsDash = dplyr::left_join(ResultsDash, unique(data.grid[5:7]), by="REEF_NAME") %>%
                 dplyr::select(REEF_ID:Season, SECTOR:CROSS_SHELF, 5:12)
   
   setwd(DIRECTORY)
@@ -377,12 +375,12 @@ files = files[grep("Sample",files)]
 
 for (i in 2:NREPS) {
   load(sprintf("Sample_%s.Rdata", i))
-  ForDashboard = cbind(ForDashboard, ResultsDash[5:12])
+  ForDashboard = cbind(ForDashboard, ResultsDash[7:14])
 }
 
-colnames(ForDashboard)[7:length(colnames(ForDashboard))] = paste0(rep(1:NREPS, each=8),"_", colnames(ResultsDash[7:12]))
+colnames(ForDashboard)[7:length(colnames(ForDashboard))] = paste0(rep(1:NREPS, each=8),"_", colnames(ResultsDash[7:14]))
 
-nruns = length(list.files(path = "Archive")[grep(Sys.Date(),list.files(path = "Archive"))]) + 1
+nruns = length(list.files(path = "Archive")[grep(paste0("ForDashboard_",Sys.Date()),list.files(path = "Archive"))]) + 1
 write.csv(ForDashboard, paste0("Archive/ForDashboard_", Sys.Date(),"_", nruns, ".csv"))
 write.csv(masterDF, paste0("Archive/masterDF_", Sys.Date(),"_", nruns, ".csv"))
 

@@ -117,7 +117,7 @@
     
     # Add known disturbance for LTMP reefs
     data.bleaching[,-(1:16)][!is.na(data.ltmp.bleaching[,-(1:5)])] <- data.ltmp.bleaching[,-(1:5)][!is.na(data.ltmp.bleaching[,-(1:5)])]
-    data.COTS[,-(1:16)][!is.na(data.ltmp.COTS[,-(1:5)])] <- data.ltmp.COTS[,-(1:5)][!is.na(data.ltmp.COTS[,-(1:5)])]
+    data.COTS[,-(1:17)][!is.na(data.ltmp.COTS[,-(1:5)])] <- data.ltmp.COTS[,-(1:5)][!is.na(data.ltmp.COTS[,-(1:5)])]
     data.storms[,-(1:16)][!is.na(data.ltmp.storms[,-(1:5)])] <- data.ltmp.storms[,-(1:5)][!is.na(data.ltmp.storms[,-(1:5)])]
     data.disease[,-(1:16)][!is.na(data.ltmp.disease[,-(1:5)])] <- data.ltmp.disease[,-(1:5)][!is.na(data.ltmp.disease[,-(1:5)])]
     data.unknown[,-(1:16)][!is.na(data.ltmp.unknown[,-(1:5)])] <- data.ltmp.unknown[,-(1:5)][!is.na(data.ltmp.unknown[,-(1:5)])]
@@ -173,11 +173,6 @@
   Pixels = Pixels[1:length(colnames(ConnMat)),]
   FvDParams=FvDParams
   
-  COTSabund = initializeCOTSabund(data.grid, data.COTS, inityear, stagenames, COTS_StableStage, npops)
-  if(COTSfromSimul==F){
-    COTSabund <- matrix(0,nrow=npops, ncol=3, dimnames = list(NULL, c("J_1", "J_2", "A")))
-  }
-  
   # initialize the COTS abundance object (for year 0) 
  
   
@@ -205,8 +200,8 @@ foreach (reps = 1:NREPS) %dopar% {
     
     `%>%` <- magrittr::`%>%`
     DIRECTORY = "C:/Users/jc312264/OneDrive - James Cook University/COTS_Model"
-    # setwd(DIRECTORY)
-    # load(paste0("Rdata/ModelWorkspace_", Sys.Date(), ".Rdata"))
+    setwd(DIRECTORY)
+    load("Rdata/ModelWorkspace_2019-03-26.RData")
     # Replicate Loop
     SexRatio = masterDF[reps, "SexRatio"]
     ConsRate = as.vector(masterDF[reps, 2:3])
@@ -221,6 +216,14 @@ foreach (reps = 1:NREPS) %dopar% {
     
     # Simulation loop
     for (j in 1:nsimul) {
+        
+      COTSabund = initializeCOTSabund(data.grid, COTS.rsmpl, inityear, 
+                                        stagenames, COTS_StableStage, npops, j)
+      if (RUNNOCOTS == T) {
+          COTSfromCoralModel=T 
+          COTSfromSimul=F
+          COTSabund <- matrix(0,nrow=npops, ncol=3, dimnames = list(NULL, c("J_1", "J_2", "A")))
+      }
       print(j)
       HC.1996 <- HCINI[,j]
       b0 <- B0[,j]
@@ -235,8 +238,9 @@ foreach (reps = 1:NREPS) %dopar% {
           if(browse == TRUE) {
             browser()
           }
-          COTSabund = doPredPreyDynamics(COTSabund, CoralCover, p, Crash)
-          COTSabund = doCOTSDispersal(season,COTSabund,CoralCover,SexRatio,COTS.ConnMat, PCFParams, Pred, FvDParams) #Pruducing NAS
+          COTSabund = doPredPreyDynamics(COTSabund, CoralCover, p, Crash, CCRatioThresh)
+          COTSabund = doCOTSDispersal(season,COTSabund,CoralCover,SexRatio,COTS.ConnMat, 
+                                      PCFParams, Pred, FvDParams, Fbase, CCRatioThresh)
           COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
           Consumption = doCoralConsumption(season, COTSabund, CoralCover, ConsRate) 
           CoralCover = Consumption[,'CRemaining']
@@ -326,7 +330,9 @@ foreach (reps = 1:NREPS) %dopar% {
                              # CC.Q05=as.vector(resCC.reef.min), 
                              # CC.Q95=as.vector(resCC.reef.max), 
                              CC.Q25=as.vector(resCC.reef.25), 
-                             CC.Q75=as.vector(resCC.reef.75))
+                             CC.Q75=as.vector(resCC.reef.75)) 
+      ResultsDash = dplyr::left_join(ResultsDash, unique(data.grid[5:7]), by="REEF_NAME") %>%
+                    dplyr::select(REEF_ID:Season, SECTOR:CROSS_SHELF, 5:12)
     
     setwd(DIRECTORY)
     setwd("Results")
