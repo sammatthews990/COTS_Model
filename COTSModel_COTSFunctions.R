@@ -79,7 +79,7 @@ COTS_FecFromMass <- function(Mass){
 ###################!
 
 
-initializeCOTSabund <- function(data.grid, COTS.rsmpl, Year, stagenames, 
+initializeCOTSabund <- function(data.grid, data.COTS, Year, stagenames, 
                                 COTS_StableStage, npops, j){
   # browser()
   ### set NA Values in interpolation CoTS.init to 0
@@ -95,7 +95,7 @@ initializeCOTSabund <- function(data.grid, COTS.rsmpl, Year, stagenames,
   colname <- paste('COTS_', Year, sep="")
   
   ### Update abundances based from interpolated manta tow data
-  COTSabund[,'A'] <- round(COTS.rsmpl[,1,j] * 666 * (data.grid$PercentReef/100),0)   # 666 converts manta tow to 1kmx1km
+  COTSabund[,'A'] <- round(data.COTS[,colname] * 666 * (data.grid$PercentReef/100),0)   # 666 converts manta tow to 1kmx1km
   COTSabund[,'J_2'] <- round(COTSabund[,'A'] * as.numeric(COTS_StableStage[2]/COTS_StableStage[3]),0)
   COTSabund[,'J_1'] <- round(COTSabund[,'A'] * as.numeric(COTS_StableStage[1]/COTS_StableStage[3]),0)
   return(COTSabund)
@@ -134,7 +134,8 @@ COTS_StageTransition <- function(COTSabund, COTSmort, COTSremain) {
   # apply mortality
   COTS_Mort <- sweep(COTSabund,MARGIN=2,COTSmort,`*`)
   # update abundance
-  newCOTSabund <- COTSabund - COTS_Mort
+  # newCOTSabund <- COTSabund - COTS_Mort
+  newCOTSabund <- COTSabund # this removes the mortality from this function so it is all handled in the pred prey dynamics
   
   # number of COTS remaining and transitioning for each stage based on post-mortality abundaces
   COTS_Remain <- sweep(newCOTSabund,MARGIN=2,COTSremain,`*`)
@@ -508,10 +509,10 @@ doPredPreyDynamics = function(COTSabund, CoralCover, p, Crash, CCRatioThresh) {
   b2 = (COTSmort[2]-1)/CCRatioThresh
   Ratio = (CoralCover*data.grid$PercentReef/100)/(COTSabund[,3]/667)
   COTSabund[which(CoralCover < Crash),] = c(0,0,0)
-  COTSabund[,"A"][which(Ratio<25)] = (COTSabund[,"A"]*(1 + (b*Ratio)))[which(Ratio<25)]
-  COTSabund[,"A"][which(Ratio>=25)] = (COTSabund[,"A"]*COTSmort[3])[which(Ratio>=25)]
-  COTSabund[,"J_2"][which(Ratio<25)] = (COTSabund[,"J_2"]*(1 + (b2*Ratio)))[which(Ratio<25)]
-  COTSabund[,"J_2"][which(Ratio>=25)] = (COTSabund[,"J_2"]*COTSmort[2])[which(Ratio>=25)]
+  COTSabund[,"A"][which(Ratio<CCRatioThresh)] = (COTSabund[,"A"]*(1 + (b*Ratio)))[which(Ratio<CCRatioThresh)]
+  COTSabund[,"A"][which(Ratio>=CCRatioThresh)] = (COTSabund[,"A"]*COTSmort[3])[which(Ratio>=CCRatioThresh)]
+  COTSabund[,"J_2"][which(Ratio<CCRatioThresh)] = (COTSabund[,"J_2"]*(1 + (b2*Ratio)))[which(Ratio<CCRatioThresh)]
+  COTSabund[,"J_2"][which(Ratio>=CCRatioThresh)] = (COTSabund[,"J_2"]*COTSmort[2])[which(Ratio>=CCRatioThresh)]
   # COTS.m.CC = (1 - (p*CoralCover/(10+CoralCover)))
   # COTSabund[,"A"] = COTSabund[,"A"]*exp(-COTS.m.CC*COTSmort[3])
   # COTSabund[,"J_2"] = COTSabund[,"J_2"]*exp(-COTS.m.CC*COTSmort[2])

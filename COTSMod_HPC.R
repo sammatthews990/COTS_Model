@@ -10,7 +10,7 @@ library(foreach)
 library(doParallel)
 DIRECTORY = getwd()
 
-PRELOAD = T
+PRELOAD = F
 
 if (PRELOAD == T) {
   load("RData/ModelWorkspace_2019-03-29_1.RData") # Choose an older workspace with pre run disturbance samples
@@ -240,7 +240,7 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
  
   # Simulation loop
   for (j in 1:nsimul) {
-    COTSabund = initializeCOTSabund(data.grid, COTS.rsmpl, inityear, 
+    COTSabund = initializeCOTSabund(data.grid, data.COTS, inityear, 
                                     stagenames, COTS_StableStage, npops, j)
     if (RUNNOCOTS == T) {
       COTSfromCoralModel=T 
