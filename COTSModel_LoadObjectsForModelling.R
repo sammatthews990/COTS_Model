@@ -124,6 +124,7 @@ data.disease = read.table("CoralModel/Disturb_disease.txt", header = TRUE, sep =
 
 
 
+
 # Observed Disturbance
 data.ltmp.bleaching <- dplyr::inner_join(data.COTS[1:5], 
                                          dplyr::select(read.table("CoralModel/LTMP_B_XYZ_updated.txt", 
@@ -188,11 +189,14 @@ WQ <- data.grid$Primary + data.grid$Secondary + data.grid$Tertiary
 #### load Predicted chl from eReefs ----
 
 load("eReefsPredictions.Rdata")
-dat.predict.med.Chl = dat.predict.med.Chl %>% inner_join(data.grid[,1:3], by = c("PIXEL_ID","lat", "lon"))
-dat.predict.med.Salt = dat.predict.med.Salt %>% inner_join(data.grid[,1:3], by = c("PIXEL_ID","lat", "lon"))
-dat.predict.med.Temp = dat.predict.med.Temp %>% inner_join(data.grid[,1:3], by = c("PIXEL_ID","lat", "lon"))
-dat.predict.sd = dat.predict.sd %>% inner_join(data.grid[,1:3], by = c("PIXEL_ID","lat", "lon"))
+data.Chl = dat.predict.med.Chl %>% dplyr::inner_join(data.grid[,1:3], by = c("PIXEL_ID","lat", "lon"))
+data.Salt = dat.predict.med.Salt %>% dplyr::inner_join(data.grid[,1:3], by = c("PIXEL_ID","lat", "lon"))
+data.Temp = dat.predict.med.Temp %>% dplyr::inner_join(data.grid[,1:3], by = c("PIXEL_ID","lat", "lon"))
 
+notin = dplyr::anti_join(dat.predict.med.Chl[,1:3], data.grid[,1:3])
+
+data.chl.resid = dat.resid.chl[-notin$PIXEL_ID,,]
+rm(dat.resid.chl, dat.predict.med.Chl, dat.predict.med.Salt, dat.predict.med.Temp, notin)
 
 # Convert bleaching scores to mid points ------
 
