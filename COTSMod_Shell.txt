@@ -1,0 +1,18 @@
+#!/bin/bash
+#PBS -S /bin/bash
+#PBS -m abe
+#PBS -M sammatthews990@gmail.com
+
+#PBS -l nodes=1:ppn=10
+#PBS -l walltime=24:0:0
+## #PBS -A  smatthew
+ 
+### - job basename ---------------------------------------------------------
+jobname="COTS_SDM_NoCOTS"
+### ----
+
+cd $PBS_O_WORKDIR
+
+module load R/3.4.1
+
+R --vanilla < COTSMod_HPC_NoCOTS.R

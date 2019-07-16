@@ -476,6 +476,7 @@ CoralCOTSMort = function(p,CoralCover) {
 plot(CoralCOTSMort(0.2,seq(0,100, 1)))
 
 doPredPreyDynamics = function(COTSabund, CoralCover, p, Crash) {
+  # incroporates natural mortality and coral cover
   COTSabund[which(CoralCover < Crash),] = c(0,0,0)
   COTS.m.CC = CoralCOTSMort(p, CoralCover)
   COTSabund[,"A"] = COTSabund[,"A"]*exp(-COTS.m.CC*COTSmort[3])
@@ -696,7 +697,9 @@ masterDF = data.frame("SexRatio" = 5,
 res.cc = array(NA, dim=c(dim(data.grid)[1], nyears*2, nsimul))
 res.cots = array(NA, dim=c(dim(data.grid)[1], nyears*2, nsimul))
 
-runModel = function(masterDF, PopData, data.COTS, Years = Years, data.grid, rep, Pred, p, Crash, nsimul, 
+runModel = function(masterDF, PopData, data.COTS, Years = Years, 
+                    data.grid, rep, Pred, p, 
+                    Crash, nsimul, 
                     COTSfromCoralModel=FALSE, COTSfromSimul=TRUE, browse = FALSE, inityear = 1995, OutbreakCrash = 4) {
   NYEARS = length(Years)
   # browser()
@@ -762,7 +765,8 @@ for (j in 1:nsimul) {
       Consumption = doCoralConsumption(season, COTSabund, CoralCover, ConsRate) 
       CoralCover = Consumption[,'CRemaining']
       CoralConsum = round(Consumption[,'CChange'],4)
-      CoralCover.Dist = doCoralDisturbance(i, j, season, CoralCover, COTSfromCoralModel = COTSfromCoralModel)           
+      CoralCover.Dist = doCoralDisturbance(i, j, season, CoralCover, 
+                                           COTSfromCoralModel = COTSfromCoralModel)           
       Disturbance = CoralCover.Dist - CoralCover
       CoralCover = CoralCover.Dist
       Growth = doCoralGrowth(season, CoralCover)
@@ -802,9 +806,117 @@ for (j in 1:nsimul) {
   # print(j)
 }  
   
+# Summarise Results Array  
+
+### Compute HC stats at reef, cluster and bioregion levels in each year {
+  resCC.reef <- array(0, dim=c(length(unique(data.grid$REEF_ID)), nyears*2, nsimul))  
+  resCC.cluster <- array(0, dim=c(length(unique(data.grid$bent.clust)), nyears*2, nsimul))
+  resCOTS.reef <- array(0, dim=c(length(unique(data.grid$REEF_ID)), nyears*2, nsimul))  
+  resCOTS.cluster <- array(0, dim=c(length(unique(data.grid$bent.clust)), nyears*2, nsimul))
+  # res.bioregion <- array(0, dim=c(length(unique(data.grid$BIOREGION)), nyears, nsimul))
+  
+  for (i in 1:dim(res.cc)[3]) {
+    resCC.reef[,,i] <- as.matrix(aggregate(res.cc[,,i], by=list(data.grid$REEF_ID), 
+                                           FUN=mean, na.rm=T)[-1])
+    resCC.cluster[,,i] <- as.matrix(aggregate(res.cc[,,i], by=list(data.grid$bent.clust), 
+                                             FUN=mean, na.rm=T)[-1])
+    resCOTS.reef[,,i] <- as.matrix(aggregate(res.cots[,,i], by=list(data.grid$REEF_ID), 
+                                           FUN=mean, na.rm=T)[-1])
+    resCOTS.cluster[,,i] <- as.matrix(aggregate(res.cots[,,i], by=list(data.grid$bent.clust), 
+                                             FUN=mean, na.rm=T)[-1])
+  #   res.bioregion[,,i] <- as.matrix(aggregate(res[,,i], by=list(data.grid$BIOREGION), FUN=mean, na.rm=T)[-1])
+   }
+  
+  ### Compute HC stats for each grid cell and reef/cluster/bioregion and in each year 
+  # (e.g. median, quartiles, 95% CI) and store them each in a matrix
+  
+  # resCC.mn <- apply(res.cc, c(1,2), mean, na.rm=T)
+  # resCC.med <- apply(res.cc, c(1,2), median, na.rm=T)
+  # resCC.min <- apply(res.cc, c(1,2), quantile, probs=0.05, na.rm=T)
+  # resCC.max <- apply(res.cc, c(1,2), quantile, probs=0.95, na.rm=T)
+  # resCC.25 <- apply(res.cc, c(1,2), quantile, probs=0.25, na.rm=T)
+  # resCC.75 <- apply(res.cc, c(1,2), quantile, probs=0.75, na.rm=T)
+  # 
+  # resCOTS.mn <- apply(res.cots, c(1,2), mean, na.rm=T)
+  # resCOTS.med <- apply(res.cots, c(1,2), median, na.rm=T)
+  # resCOTS.min <- apply(res.cots, c(1,2), quantile, probs=0.05, na.rm=T)
+  # resCOTS.max <- apply(res.cots, c(1,2), quantile, probs=0.95, na.rm=T)
+  # resCOTS.25 <- apply(res.cots, c(1,2), quantile, probs=0.25, na.rm=T)
+  # resCOTS.75 <- apply(res.cots, c(1,2), quantile, probs=0.75, na.rm=T)
+  # 
+  # resCC.gbr.mn <- colMeans(resCC.mn, na.rm=T)
+  # resCC.gbr.med <- colMeans(resCC.med, na.rm=T)
+  # resCC.gbr.min <- colMeans(resCC.min, na.rm=T)
+  # resCC.gbr.max <- colMeans(resCC.max, na.rm=T)
+  # resCC.gbr.25 <- colMeans(resCC.25, na.rm=T)
+  # resCC.gbr.75 <- colMeans(resCC.75, na.rm=T)
+  # 
+  # resCOTS.gbr.mn <- colMeans(resCOTS.mn, na.rm=T)
+  # resCOTS.gbr.med <- colMeans(resCOTS.med, na.rm=T)
+  # resCOTS.gbr.min <- colMeans(resCOTS.min, na.rm=T)
+  # resCOTS.gbr.max <- colMeans(resCOTS.max, na.rm=T)
+  # resCOTS.gbr.25 <- colMeans(resCOTS.25, na.rm=T)
+  # resCOTS.gbr.75 <- colMeans(resCOTS.75, na.rm=T)
+  resCC.reef.mn <- apply(resCC.reef, c(1,2), mean, na.rm=T)
+  resCC.reef.med <- apply(resCC.reef, c(1,2), median, na.rm=T)
+  resCC.reef.min <- apply(resCC.reef, c(1,2), quantile, probs=0.05, na.rm=T)
+  resCC.reef.max <- apply(resCC.reef, c(1,2), quantile, probs=0.95, na.rm=T)
+  resCC.reef.25 <- apply(resCC.reef, c(1,2), quantile, probs=0.25, na.rm=T)
+  resCC.reef.75 <- apply(resCC.reef, c(1,2), quantile, probs=0.75, na.rm=T)
+  
+  
+  resCOTS.reef.mn <- apply(resCOTS.reef, c(1,2), mean, na.rm=T)
+  resCOTS.reef.med <- apply(resCOTS.reef, c(1,2), median, na.rm=T)
+  resCOTS.reef.min <- apply(resCOTS.reef, c(1,2), quantile, probs=0.05, na.rm=T)
+  resCOTS.reef.max <- apply(resCOTS.reef, c(1,2), quantile, probs=0.95, na.rm=T)
+  resCOTS.reef.25 <- apply(resCOTS.reef, c(1,2), quantile, probs=0.25, na.rm=T)
+  resCOTS.reef.75 <- apply(resCOTS.reef, c(1,2), quantile, probs=0.75, na.rm=T)
+  
+  # resCC.cluster.med <- apply(resCC.cluster, c(1,2), median, na.rm=T)
+  # resCC.cluster.mn <- apply(resCC.cluster, c(1,2), mean, na.rm=T)
+  # resCC.cluster.min <- apply(resCC.cluster, c(1,2), quantile, probs=0.05, na.rm=T)
+  # resCC.cluster.max <- apply(resCC.cluster, c(1,2), quantile, probs=0.95, na.rm=T)
+  # resCC.cluster.25 <- apply(resCC.cluster, c(1,2), quantile, probs=0.25, na.rm=T)
+  # resCC.cluster.75 <- apply(resCC.cluster, c(1,2), quantile, probs=0.75, na.rm=T)
+  # 
+  # resCOTS.cluster.med <- apply(resCOTS.cluster, c(1,2), median, na.rm=T)
+  # resCOTS.cluster.mn <- apply(resCOTS.cluster, c(1,2), mean, na.rm=T)
+  # resCOTS.cluster.min <- apply(resCOTS.cluster, c(1,2), quantile, probs=0.05, na.rm=T)
+  # resCOTS.cluster.max <- apply(resCOTS.cluster, c(1,2), quantile, probs=0.95, na.rm=T)
+  # resCOTS.cluster.25 <- apply(resCOTS.cluster, c(1,2), quantile, probs=0.25, na.rm=T)
+  # resCOTS.cluster.75 <- apply(resCOTS.cluster, c(1,2), quantile, probs=0.75, na.rm=T)
+  nReefs = length(unique(data.grid$REEF_ID))
+  # Results df for Dashboard -- Reef Level
+  ResultsDash = data.frame(sapply(unique(data.grid[4:5]), rep, times=NYEARS*NSEASONS),
+                       Year=rep(Years,each=2*nReefs), 
+                       Season=rep(c("summer", "winter"),each=nReefs), 
+                       COTS.mn=(as.vector(resCOTS.reef.mn)/100)*15, 
+                       COTS.Q50=(as.vector(resCOTS.reef.med)/100)*15, 
+                       COTS.Q05=(as.vector(resCOTS.reef.min)/100)*15, 
+                       COTS.Q95=(as.vector(resCOTS.reef.max)/100)*15, 
+                       COTS.Q25=(as.vector(resCOTS.reef.25)/100)*15, 
+                       COTS.Q75=(as.vector(resCOTS.reef.75)/100)*15,
+                       CC.mn=as.vector(resCC.reef.mn), 
+                       CC.Q50=as.vector(resCC.reef.med), 
+                       CC.Q05=as.vector(resCC.reef.min), 
+                       CC.Q95=as.vector(resCC.reef.max), 
+                       CC.Q25=as.vector(resCC.reef.25), 
+                       CC.Q75=as.vector(resCC.reef.75))
+
+  # Compute mean disturbance impact across simulations
+  for (i in 1:nsimul) bleaching.rsmpl[,,i][is.na(bleaching.rsmpl[,,i])] <- 0
+  
+  bleaching.mn <- apply(bleaching.rsmpl, c(1,2), mean, na.rm=T)
+  COTS.mn <- apply(COTS.rsmpl, c(1,2), mean, na.rm=T)
+  disease.mn <- apply(disease.rsmpl, c(1,2), mean, na.rm=T)
+  storms.mn <- apply(storms.rsmpl, c(1,2), mean, na.rm=T)
+  unknown.mn <- apply(unknown.rsmpl, c(1,2), mean, na.rm=T)
+  
+# Make list of objects to save --> all results and disturbances
+  
 setwd(RESULTS_DIRECTORY)
 name <- sprintf("Results_%s.Rdata",j)
-save(res.cc, res.cots, file=name) 
+save(res.cc, res.cots, ResultsDash, file=name) 
   
 }
 ```
@@ -1063,6 +1175,8 @@ GBR = dplyr::inner_join(CC.GBR, COTS.GBR, by=c("Year"))
 return(list(Reef, Cluster, GBR))
 
 }
+
+
 ```
 
 ### Model Validation
