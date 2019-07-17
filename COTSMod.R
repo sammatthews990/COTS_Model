@@ -3,20 +3,58 @@
 
 # Load Functions and Modelling objects ----
 
-  rm(list=ls())
+rm(list=ls())
+source("COTSModel_Utilityfunctions.R")
+loadPackages()
+# library(dplyr)
+# library(foreach)
+# library(doParallel)
+DIRECTORY = getwd()
+
+PRELOAD = T
+
+if (PRELOAD == T) {
+  load("RData/ModelWorkspace_2019-07-17_4.RData") # Choose an older workspace with pre run disturbance samples
+  # Write Parameter Data Frame And Results Containers ----
+  # Write Parameter Data Frame And Results Containers ----
+  # Write Parameter Data Frame And Results Containers ----
+  source("COTSModel_COTSFunctions.R")
+  masterDF = data.frame("SexRatio" = 5, 
+                        "ConsRateW" = 150, 
+                        "ConsRateS" = 250,
+                        "avgPCF" = 20000000,
+                        "sdPCF" = 10000000,
+                        "mortJ1" =  0.98,
+                        "mortJ2" = 0.9,
+                        "mortA" = 0.8,
+                        "remJ1" = 0,
+                        "remJ2" = 0,
+                        "remA" = 1,
+                        "cssJ1" = 0.9803,
+                        "cssJ2" = 0.0171,
+                        "cssA" = 0.0026,
+                        "Pred" = seq(0.9, 0.99, 0.01),
+                        "p" = 0.2,
+                        "Crash" = 0,
+                        "OutbreakCrash" = Inf,
+                        "Fbase" = 0.2,
+                        "CCRatioThresh" = 25)
+  NREPS = length(masterDF$OutbreakCrash)
+  masterDF$RUNNOCOTS = c(T, rep(F, NREPS-1))
   
-  DIRECTORY <- "C:/Users/jc312264/OneDrive - James Cook University/COTS_Model"
+} else {
+  
   setwd(DIRECTORY)
-  source("COTSModel_Utilityfunctions.R")
-  # source("COTSModel_COTSfunctions.R")
-  # 
+  
   # source("COTSModel_LoadObjectsForModelling.R")
   # setwd(DIRECTORY)
   # save.image(file = "RData/COTSMod_bckp.Rdata")
-  load("RData/COTSMod_bckp.Rdata")
-  source("COTSModel_COTSfunctions.R")
-
-# Set Global Parameters ----
+  load("RData/COTSMod_bckp.RData")
+  source("COTSModel_Utilityfunctions.R")  
+  source("COTSModel_COTSFunctions.R")
+  
+  
+  # Set Global Parameters ----
   
   set.seed(123)
   NREPS <- 10 # How many rows from master DF    
@@ -25,7 +63,7 @@
   NSEASONS <- 2
   seasons <- c("summer","winter")
   npops <- 15802 #number of reefs we want to test
-  nsimul <- 100
+  nsimul <- 10
   
   VERBOSE <- TRUE        # flag whether functions should return detailed information
   DEBUG <- TRUE          # flag whether to output debug files etc. 
@@ -33,14 +71,14 @@
   projection <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"   
   
   stagenames <- c('J_1', 'J_2', 'A')
-  COTSmort <- c(0.8,0.7,0.2)
-  names(COTSmort) <- stagenames
-  COTSremain <- c(0.02,0.2,1) 
-  names(COTSremain) <- stagenames
-  COTS_StableStage <- c(0.9803, 0.0171, 0.0026)   
-
-# Resample Disturbance ----
-
+  # COTSmort <- c(0.8,0.7,0.2)
+  # names(COTSmort) <- stagenames
+  # COTSremain <- c(0.02,0.2,1) 
+  # names(COTSremain) <- stagenames
+  # COTS_StableStage <- c(0.9803, 0.0171, 0.0026)   
+  
+  # Resample Disturbance ----
+  
   LHS <- lhs::randomLHS(nsimul,9)
   B.BLEACHING <- qnorm(LHS[,1], mean=bleaching.mn.sd[1], sd=bleaching.mn.sd[2])
   B.COTS <- qnorm(LHS[,2], mean=COTS.mn.sd[1], sd=COTS.mn.sd[2])
@@ -76,14 +114,6 @@
   
   # Resample Distrubances for each simulation    
   for (j in 1:nsimul) {
-    # HC.1996 <- HCINI[,j]
-    # b0 <- B0[,j]
-    # #b1 <- A[,j]
-    # b1 <- B0[,j]/log(HCMAX[,j])
-    # res.cc[,1,j] <- as.numeric(HC.1996)
-    # #CoralCover <- log(HC.1996)
-    # CoralCover = HC.1996
-    
     
     # Re-initialize disturbance data
     data.bleaching <- data.bleaching.bckp
@@ -119,7 +149,7 @@
     
     # Add known disturbance for LTMP reefs
     data.bleaching[,-(1:16)][!is.na(data.ltmp.bleaching[,-(1:5)])] <- data.ltmp.bleaching[,-(1:5)][!is.na(data.ltmp.bleaching[,-(1:5)])]
-    data.COTS[,-(1:17)][!is.na(data.ltmp.COTS[,-(1:5)])] <- data.ltmp.COTS[,-(1:5)][!is.na(data.ltmp.COTS[,-(1:5)])]
+    data.COTS[,-(1:17)][!is.na(data.ltmp.COTS[,-(1:6)])] <- data.ltmp.COTS[,-(1:6)][!is.na(data.ltmp.COTS[,-(1:6)])]
     data.storms[,-(1:16)][!is.na(data.ltmp.storms[,-(1:5)])] <- data.ltmp.storms[,-(1:5)][!is.na(data.ltmp.storms[,-(1:5)])]
     data.disease[,-(1:16)][!is.na(data.ltmp.disease[,-(1:5)])] <- data.ltmp.disease[,-(1:5)][!is.na(data.ltmp.disease[,-(1:5)])]
     data.unknown[,-(1:16)][!is.na(data.ltmp.unknown[,-(1:5)])] <- data.ltmp.unknown[,-(1:5)][!is.na(data.ltmp.unknown[,-(1:5)])]
@@ -139,44 +169,34 @@
     storms.mn <- apply(storms.rsmpl, c(1,2), mean, na.rm=T)
     unknown.mn <- apply(unknown.rsmpl, c(1,2), mean, na.rm=T)
   }
-  
+  # Write Parameter Data Frame And Results Containers ----
   masterDF = data.frame("SexRatio" = 5, 
                         "ConsRateW" = 150, 
                         "ConsRateS" = 250,
-                        "avgPCF" = 10000000,
-                        "sdPCF" = 1000000,
+                        "avgPCF" = 20000000,
+                        "sdPCF" = 10000000,
                         "mortJ1" =  0.99,
                         "mortJ2" = 0.95,
-                        "mortA" = 0.6,
+                        "mortA" = 0.8,
                         "remJ1" = 0,
                         "remJ2" = 0,
                         "remA" = 1,
                         "cssJ1" = 0.9803,
                         "cssJ2" = 0.0171,
                         "cssA" = 0.0026,
-                        "Pred" = 0.98,
-                        "p" = 0.25,
-                        "Crash" = 3,
-                        "OutbreakCrash" = 4:8)
+                        "Pred" = 0.99,
+                        "p" = 0.2,
+                        "Crash" = 0,
+                        "OutbreakCrash" = Inf,
+                        "Fbase" = seq(0.05, 0.15, 0.02),
+                        "CCRatioThresh" = 25)
+  
+  NREPS = length(masterDF$OutbreakCrash)
+  masterDF$RUNNOCOTS = c(T, rep(F, NREPS-1))
   
   # Results storage arrays (Pixel, Year/Season, Simulation)
   res.cc = array(NA, dim=c(dim(data.grid)[1], nyears*2, nsimul))
   res.cots = array(NA, dim=c(dim(data.grid)[1], nyears*2, nsimul))
-  
-# Initialize Model ----
-  
-  COTSfromCoralModel=FALSE 
-  COTSfromSimul=TRUE 
-  browse = FALSE 
-  inityear = 1995
-
-  whichreefs = unique(data.grid$REEF_NAME[1:npops])
-  ConnMat = COTS.ConnMat[1:length(whichreefs), 1:length(whichreefs)]
-  Pixels = Pixels[1:length(colnames(ConnMat)),]
-  FvDParams=FvDParams
-  
-  # initialize the COTS abundance object (for year 0) 
- 
   
   Results = data.frame(sapply(PopData[1:4], rep, times=nyears*NSEASONS),
                        sapply(PopData[5:7], rep, times=nyears*NSEASONS),
@@ -184,170 +204,219 @@
                        COTSJ1=NA, COTSJ2=NA, COTSA=NA, CoralCover=NA, CoralCover.DistLoss=NA)
   Results$CoralCover.Consum = NA
   Results$CoralCover.Growth = NA
+  
+  # Save Model Workspace for Prosperity ----
+  setwd(DIRECTORY)
+  nruns = length(list.files(path = "RData")[grep(Sys.Date(),list.files(path = "RData"))]) + 1
+  save.image(file = paste0("RData/ModelWorkspace_", Sys.Date(),"_", nruns,".RData"))
+}
 
-# Save Global Parameters for import into each core ----
+# Run Model ----  
+
+cl = parallel::makeCluster(1)
+doParallel::registerDoParallel(cores = 3)
+
+foreach::foreach (reps = 1:NREPS) %dopar% {
+  
+  `%>%` <- magrittr::`%>%`
+  DIRECTORY = getwd()
+  # DIRECTORY = "C:/Users/jc312264/OneDrive - James Cook University/GitHub/COTS_Model"
+  
+  SexRatio = masterDF[reps, "SexRatio"]
+  ConsRate = as.vector(masterDF[reps, 2:3])
+  PCFParams = c(masterDF[reps, "avgPCF"], masterDF[reps,"sdPCF"])
+  COTSmort = as.numeric(masterDF[reps, c("mortJ1", "mortJ2", "mortA")])
+  COTSremain = as.numeric(masterDF[reps, c("remJ1", "remJ2", "remA")])
+  COTS_StableStage = as.numeric(masterDF[reps, c("cssJ1", "cssJ2", "cssA")])
+  Pred = masterDF[reps,"Pred"]
+  p = masterDF[reps,"p"]
+  Crash = masterDF[reps,"Crash"]
+  OutbreakCrash = masterDF[reps,"OutbreakCrash"]
+  Fbase = masterDF[reps,"Fbase"]
+  CCRatioThresh = masterDF[reps,"CCRatioThresh"]
+  RUNNOCOTS = masterDF[reps, "RUNNOCOTS"]
+  # Initialize Model ----
+  
+  
+  browse = FALSE 
+  inityear = 1995
+  COTSfromCoralModel=FALSE 
+  COTSfromSimul=TRUE
+  
+  # Simulation loop
+  for (j in 1:nsimul) {
+    COTSabund = initializeCOTSabund(data.grid, data.COTS, inityear, 
+                                    stagenames, COTS_StableStage, npops, j)
+    if (RUNNOCOTS == T) {
+      COTSfromCoralModel=T 
+      COTSfromSimul=F
+      COTSabund <- matrix(0,nrow=npops, ncol=3, dimnames = list(NULL, c("J_1", "J_2", "A")))
+    }
+    print(j)
+    HC.1996 <- HCINI[,j]
+    b0 <- B0[,j]
+    b1 <- B0[,j]/log(HCMAX[,j])
+    res.cc[,1,j] <- as.numeric(HC.1996)
+    CoralCover = HC.1996
+    # Year Loop
+    for(i in 1:length(Years)){  
+      (Year = i + 1995) # loop through years
+      # Season Loop
+      for(season in seasons){ 
+        if(browse == TRUE) {
+          browser()
+        }
+        COTSabund = doPredPreyDynamics(COTSabund, CoralCover, p, Crash, CCRatioThresh)
+        COTSabund = doCOTSDispersal(season,COTSabund,CoralCover,SexRatio,COTS.ConnMat, 
+                                    PCFParams, Pred, FvDParams, Fbase, CCRatioThresh,Year, data.chl, data.chl.resid, j) #Pruducing NAS
+        COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
+        Consumption = doCoralConsumption(season, COTSabund, CoralCover, ConsRate) 
+        CoralCover = Consumption[,'CRemaining']
+        CoralConsum = round(Consumption[,'CChange'],4)
+        CoralCover.Dist = doCoralDisturbance(i, j, season, CoralCover, 
+                                             COTSfromCoralModel = COTSfromCoralModel, 
+                                             storms.rsmpl, B.STORMS, WQ_Cyclone, 
+                                             COTS.rsmpl, B.COTS, WQ_CoTS,
+                                             bleaching.rsmpl, B.BLEACHING, WQ_bleach,
+                                             disease.rsmpl, B.DISEASE, unknown.rsmpl, B.UNKNOWN)                                                    
+        Disturbance = CoralCover.Dist - CoralCover
+        CoralCover = CoralCover.Dist
+        Growth = doCoralGrowth(season, CoralCover, b0, b1)
+        CoralCover = Growth[,'CoralCover']
+        CoralGrowth = round(Growth[,'CoralGrowth'],4)
+        Results[(Results$Year==i+1995) & (Results$Season==season),
+                c("COTSJ1", "COTSJ2", "COTSA", "CoralCover", "CoralCover.DistLoss", "CoralCover.Consum", 'CoralCover.Growth')] =
+          cbind(COTSabund, CoralCover, Disturbance, CoralConsum, CoralGrowth)
+        if(i>OutbreakCrash & season =="winter") {
+          OutbreakCrasher = Results %>%
+            dplyr::filter(Year > (i+1995-OutbreakCrash) & Year <= i+1995) %>%
+            dplyr::group_by(REEF_NAME, Year) %>%
+            dplyr::mutate(COTSA = (COTSA/100)*0.15) %>% # need to allow for detection
+            dplyr::summarise(Mean.COTS = mean(COTSA)) %>%
+            dplyr::mutate(is.outbreak = ifelse(Mean.COTS > 1, 1,0)) %>%
+            dplyr::group_by(REEF_NAME) %>%
+            dplyr::summarise(Crash = ifelse(sum(is.outbreak)==OutbreakCrash,1,0)) %>%
+            dplyr::filter(Crash==1)
+          matchit = match(data.grid$REEF_NAME,OutbreakCrasher$REEF_NAME)
+          COTSabund[which(!is.na(matchit)),] = c(0,0,0)
+        } # Close outbreak crasher
+        if (season=="summer") {
+          res.cc[,2*i-1,j] = CoralCover
+          res.cots[,2*i-1,j] = COTSabund[,3]
+        }
+        res.cc[,2*i,j] = CoralCover
+        res.cots[,2*i,j] = COTSabund[,3]
+      } # close season loop
+    } # close Year loop
+    
+  } # Close simulation loop
+  
+  
+  
+  # Reef Level Summaries
+  resCC.reef <- array(0, dim=c(length(unique(data.grid$REEF_ID)), nyears*2, nsimul))  
+  resCC.cluster <- array(0, dim=c(length(unique(data.grid$bent.clust)), nyears*2, nsimul))
+  resCOTS.reef <- array(0, dim=c(length(unique(data.grid$REEF_ID)), nyears*2, nsimul))  
+  resCOTS.cluster <- array(0, dim=c(length(unique(data.grid$bent.clust)), nyears*2, nsimul))  
+  for (i in 1:dim(res.cc)[3]) {
+    resCC.reef[,,i] <- as.matrix(aggregate(res.cc[,,i], by=list(data.grid$REEF_ID),
+                                           FUN=mean, na.rm=T)[-1])
+    resCC.cluster[,,i] <- as.matrix(aggregate(res.cc[,,i], by=list(data.grid$bent.clust),
+                                              FUN=mean, na.rm=T)[-1])
+    resCOTS.reef[,,i] <- as.matrix(aggregate(res.cots[,,i], by=list(data.grid$REEF_ID),
+                                             FUN=mean, na.rm=T)[-1])
+    resCOTS.cluster[,,i] <- as.matrix(aggregate(res.cots[,,i], by=list(data.grid$bent.clust),
+                                                FUN=mean, na.rm=T)[-1])
+  }
+  
+  resCC.reef.mn <- apply(resCC.reef, c(1,2), mean, na.rm=T)
+  resCC.reef.med <- apply(resCC.reef, c(1,2), median, na.rm=T)
+  # resCC.reef.min <- apply(resCC.reef, c(1,2), quantile, probs=0.05, na.rm=T)
+  # resCC.reef.max <- apply(resCC.reef, c(1,2), quantile, probs=0.95, na.rm=T)
+  resCC.reef.25 <- apply(resCC.reef, c(1,2), quantile, probs=0.25, na.rm=T)
+  resCC.reef.75 <- apply(resCC.reef, c(1,2), quantile, probs=0.75, na.rm=T)
+  
+  resCOTS.reef.mn <- apply(resCOTS.reef, c(1,2), mean, na.rm=T)
+  resCOTS.reef.med <- apply(resCOTS.reef, c(1,2), median, na.rm=T)
+  # resCOTS.reef.min <- apply(resCOTS.reef, c(1,2), quantile, probs=0.05, na.rm=T)
+  # resCOTS.reef.max <- apply(resCOTS.reef, c(1,2), quantile, probs=0.95, na.rm=T)
+  resCOTS.reef.25 <- apply(resCOTS.reef, c(1,2), quantile, probs=0.25, na.rm=T)
+  resCOTS.reef.75 <- apply(resCOTS.reef, c(1,2), quantile, probs=0.75, na.rm=T)
+  
+  nReefs = length(unique(data.grid$REEF_ID))
+  # Results df for Dashboard -- Reef Level
+  ResultsDash = data.frame(sapply(unique(data.grid[4:5]), rep, times=nyears*NSEASONS),
+                           Year=rep(Years,each=2*nReefs), 
+                           Season=rep(c("summer", "winter"),each=nReefs), 
+                           COTS.mn=(as.vector(resCOTS.reef.mn)/667), 
+                           COTS.Q50=(as.vector(resCOTS.reef.med)/667), 
+                           # COTS.Q05=(as.vector(resCOTS.reef.min)/667), 
+                           # COTS.Q95=(as.vector(resCOTS.reef.max)/667), 
+                           COTS.Q25=(as.vector(resCOTS.reef.25)/667), 
+                           COTS.Q75=(as.vector(resCOTS.reef.75)/667),
+                           CC.mn=as.vector(resCC.reef.mn), 
+                           CC.Q50=as.vector(resCC.reef.med), 
+                           # CC.Q05=as.vector(resCC.reef.min), 
+                           # CC.Q95=as.vector(resCC.reef.max), 
+                           CC.Q25=as.vector(resCC.reef.25), 
+                           CC.Q75=as.vector(resCC.reef.75)) 
+  ResultsDash = dplyr::left_join(ResultsDash, unique(data.grid[5:7]), by="REEF_NAME") %>%
+    dplyr::select(REEF_ID:Season, SECTOR:CROSS_SHELF, 5:12)
+  
+  # Make FACET GRID PLOT FOR EACH SECTOR/SHELF COMBO
+  library(dplyr)
+  library(ggplot2)
+  res.plot = ResultsDash %>% dplyr::group_by(Year,SECTOR, CROSS_SHELF) %>%
+    dplyr::summarise(COTS.md = median(COTS.mn),
+                     COTS.25 = quantile(COTS.mn, probs=0.25),
+                     COTS.75 = quantile(COTS.mn, probs=0.75))
+  g = ggplot(res.plot,aes(x=Year, COTS.md)) + geom_line() + geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75), alpha=0.2) + ylim(c(0,1)) +
+    facet_grid(rows=vars(SECTOR), cols = vars(CROSS_SHELF))
   
   setwd(DIRECTORY)
-  saveWorkspace(filename="ModelWorkspace", dir="Rdata")
-
-# Load wrokspace  START FROM HERE IF USING PRE-DEFINED WORKSPACE ----
-    
-load("RData/ModelWorkspace_2019-03-28_1.RData")
-    
-# Run Model ----  
+  namefig <- sprintf("Results/Figures/Sample_%s.png", reps)
+  ggplot2::ggsave(namefig, device="png", height = 10, width=8, dpi=300)
   
-registerDoParallel(cl=1, cores=3)
+  # setwd("Results")
+  name <- sprintf("Results/Sample_%s.Rdata", reps)
+  save(res.cc, res.cots, ResultsDash, file = name) 
   
-foreach (reps = 1:NREPS) %dopar% {
-    
-    `%>%` <- magrittr::`%>%`
-    DIRECTORY = "C:/Users/jc312264/OneDrive - James Cook University/COTS_Model"
-    setwd(DIRECTORY)
-    load("Rdata/ModelWorkspace_2019-03-26.RData")
-    # Replicate Loop
-    SexRatio = masterDF[reps, "SexRatio"]
-    ConsRate = as.vector(masterDF[reps, 2:3])
-    PCFParams = c(masterDF[reps, "avgPCF"], masterDF[reps,"sdPCF"])
-    COTSmort = as.numeric(masterDF[reps, c("mortJ1", "mortJ2", "mortA")])
-    COTSremain = as.numeric(masterDF[reps, c("remJ1", "remJ2", "remA")])
-    COTS_StableStage = as.numeric(masterDF[reps, c("cssJ1", "cssJ2", "cssA")])
-    Pred = masterDF[reps,"Pred"]
-    p = masterDF[reps,"p"]
-    Crash = masterDF[reps,"Crash"]
-    OutbreakCrash = masterDF[reps,"OutbreakCrash"]
-    
-    # Simulation loop
-    for (j in 1:nsimul) {
-        
-      COTSabund = initializeCOTSabund(data.grid, COTS.rsmpl, inityear, 
-                                        stagenames, COTS_StableStage, npops, j)
-      if (RUNNOCOTS == T) {
-          COTSfromCoralModel=T 
-          COTSfromSimul=F
-          COTSabund <- matrix(0,nrow=npops, ncol=3, dimnames = list(NULL, c("J_1", "J_2", "A")))
-      }
-      print(j)
-      HC.1996 <- HCINI[,j]
-      b0 <- B0[,j]
-      b1 <- B0[,j]/log(HCMAX[,j])
-      res.cc[,1,j] <- as.numeric(HC.1996)
-      CoralCover = HC.1996
-      # Year Loop
-      for(i in 1:length(Years)){  
-        print(i + 1995) # loop through years
-        # Season Loop
-        for(season in seasons){ 
-          if(browse == TRUE) {
-            browser()
-          }
-          COTSabund = doPredPreyDynamics(COTSabund, CoralCover, p, Crash, CCRatioThresh)
-          COTSabund = doCOTSDispersal(season,COTSabund,CoralCover,SexRatio,COTS.ConnMat, 
-                                      PCFParams, Pred, FvDParams, Fbase, CCRatioThresh)
-          COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
-          Consumption = doCoralConsumption(season, COTSabund, CoralCover, ConsRate) 
-          CoralCover = Consumption[,'CRemaining']
-          CoralConsum = round(Consumption[,'CChange'],4)
-          CoralCover.Dist = doCoralDisturbance(i, j, season, CoralCover, 
-                                               COTSfromCoralModel = COTSfromCoralModel, 
-                                               storms.rsmpl, B.STORMS, WQ_Cyclone, 
-                                               COTS.rsmpl, B.COTS, WQ_CoTS,
-                                               bleaching.rsmpl, B.BLEACHING, WQ_bleach,
-                                               disease.rsmpl, B.DISEASE, unknown.rsmpl, B.UNKNOWN)                                                    
-          Disturbance = CoralCover.Dist - CoralCover
-          CoralCover = CoralCover.Dist
-          Growth = doCoralGrowth(season, CoralCover, b0, b1)
-          CoralCover = Growth[,'CoralCover']
-          CoralGrowth = round(Growth[,'CoralGrowth'],4)
-          Results[(Results$Year==i+1995) & (Results$Season==season),
-                  c("COTSJ1", "COTSJ2", "COTSA", "CoralCover", "CoralCover.DistLoss", "CoralCover.Consum", 'CoralCover.Growth')] =
-            cbind(COTSabund, CoralCover, Disturbance, CoralConsum, CoralGrowth)
-          if(i>OutbreakCrash & season =="winter") {
-            OutbreakCrasher = Results %>%
-              dplyr::filter(Year > (i+1995-OutbreakCrash) & Year <= i+1995) %>%
-              dplyr::group_by(REEF_NAME, Year) %>%
-              dplyr::mutate(COTSA = (COTSA/100)*0.15) %>% # need to allow for detection
-              dplyr::summarise(Mean.COTS = mean(COTSA)) %>%
-              dplyr::mutate(is.outbreak = ifelse(Mean.COTS > 1, 1,0)) %>%
-              dplyr::group_by(REEF_NAME) %>%
-              dplyr::summarise(Crash = ifelse(sum(is.outbreak)==OutbreakCrash,1,0)) %>%
-              dplyr::filter(Crash==1)
-            matchit = match(data.grid$REEF_NAME,OutbreakCrasher$REEF_NAME)
-            COTSabund[which(!is.na(matchit)),] = c(0,0,0)
-          } # Close outbreak crasher
-          if (season=="summer") {
-            res.cc[,2*i-1,j] = CoralCover
-            res.cots[,2*i-1,j] = COTSabund[,3]
-          }
-          res.cc[,2*i,j] = CoralCover
-          res.cots[,2*i,j] = COTSabund[,3]
-        } # close season loop
-      } # close Year loop
-      
-    } # Close simulation loop
-    
-    
-    # Reef Level Summaries
-    resCC.reef <- array(0, dim=c(length(unique(data.grid$REEF_ID)), nyears*2, nsimul))  
-    resCC.cluster <- array(0, dim=c(length(unique(data.grid$bent.clust)), nyears*2, nsimul))
-    resCOTS.reef <- array(0, dim=c(length(unique(data.grid$REEF_ID)), nyears*2, nsimul))  
-    resCOTS.cluster <- array(0, dim=c(length(unique(data.grid$bent.clust)), nyears*2, nsimul))  
-    for (i in 1:dim(res.cc)[3]) {
-      resCC.reef[,,i] <- as.matrix(aggregate(res.cc[,,i], by=list(data.grid$REEF_ID), 
-                                             FUN=mean, na.rm=T)[-1])
-      resCC.cluster[,,i] <- as.matrix(aggregate(res.cc[,,i], by=list(data.grid$bent.clust), 
-                                                FUN=mean, na.rm=T)[-1])
-      resCOTS.reef[,,i] <- as.matrix(aggregate(res.cots[,,i], by=list(data.grid$REEF_ID), 
-                                               FUN=mean, na.rm=T)[-1])
-      resCOTS.cluster[,,i] <- as.matrix(aggregate(res.cots[,,i], by=list(data.grid$bent.clust), 
-                                                  FUN=mean, na.rm=T)[-1])
-    }
-    
-    resCC.reef.mn <- apply(resCC.reef, c(1,2), mean, na.rm=T)
-    resCC.reef.med <- apply(resCC.reef, c(1,2), median, na.rm=T)
-    # resCC.reef.min <- apply(resCC.reef, c(1,2), quantile, probs=0.05, na.rm=T)
-    # resCC.reef.max <- apply(resCC.reef, c(1,2), quantile, probs=0.95, na.rm=T)
-    resCC.reef.25 <- apply(resCC.reef, c(1,2), quantile, probs=0.25, na.rm=T)
-    resCC.reef.75 <- apply(resCC.reef, c(1,2), quantile, probs=0.75, na.rm=T)
-    
-    resCOTS.reef.mn <- apply(resCOTS.reef, c(1,2), mean, na.rm=T)
-    resCOTS.reef.med <- apply(resCOTS.reef, c(1,2), median, na.rm=T)
-    # resCOTS.reef.min <- apply(resCOTS.reef, c(1,2), quantile, probs=0.05, na.rm=T)
-    # resCOTS.reef.max <- apply(resCOTS.reef, c(1,2), quantile, probs=0.95, na.rm=T)
-    resCOTS.reef.25 <- apply(resCOTS.reef, c(1,2), quantile, probs=0.25, na.rm=T)
-    resCOTS.reef.75 <- apply(resCOTS.reef, c(1,2), quantile, probs=0.75, na.rm=T)
-    
-    nReefs = length(unique(data.grid$REEF_ID))
-    # Results df for Dashboard -- Reef Level
-    ResultsDash = data.frame(sapply(unique(data.grid[4:5]), rep, times=nyears*NSEASONS),
-                             Year=rep(Years,each=2*nReefs), 
-                             Season=rep(c("summer", "winter"),each=nReefs), 
-                             COTS.mn=(as.vector(resCOTS.reef.mn)/100)*15, 
-                             COTS.Q50=(as.vector(resCOTS.reef.med)/100)*15, 
-                             # COTS.Q05=(as.vector(resCOTS.reef.min)/100)*15, 
-                             # COTS.Q95=(as.vector(resCOTS.reef.max)/100)*15, 
-                             COTS.Q25=(as.vector(resCOTS.reef.25)/100)*15, 
-                             COTS.Q75=(as.vector(resCOTS.reef.75)/100)*15,
-                             CC.mn=as.vector(resCC.reef.mn), 
-                             CC.Q50=as.vector(resCC.reef.med), 
-                             # CC.Q05=as.vector(resCC.reef.min), 
-                             # CC.Q95=as.vector(resCC.reef.max), 
-                             CC.Q25=as.vector(resCC.reef.25), 
-                             CC.Q75=as.vector(resCC.reef.75)) 
-      ResultsDash = dplyr::left_join(ResultsDash, unique(data.grid[5:7]), by="REEF_NAME") %>%
-                    dplyr::select(REEF_ID:Season, SECTOR:CROSS_SHELF, 5:12)
-    
-    setwd(DIRECTORY)
-    setwd("Results")
-    name <- sprintf("Sample_%s.Rdata", reps)
-    save(res.cc, res.cots, ResultsDash, file = name) 
-
 }
-   
 
-  
-  
-    
-  
+parallel::stopCluster(cl)
+
+# Combine Files into summary 
+setwd(DIRECTORY)
+setwd("Results")
+load("Sample_1.Rdata")
+
+ForDashboard = ForGraph = ResultsDash
+ForGraph$REP=1
+files = list.files()
+files = files[grep("Sample",files)]
+
+for (i in 2:NREPS) {
+  load(sprintf("Sample_%s.Rdata", i))
+  ResultsDash$REP=i
+  ForDashboard = cbind(ForDashboard, ResultsDash[7:14])
+  ForGraph = rbind(ForGraph, ResultsDash)
+}
+
+res.plot = ForGraph %>% dplyr::group_by(Year,SECTOR, CROSS_SHELF) %>%
+  dplyr::summarise(COTS.md = median(COTS.mn),
+                   COTS.25 = quantile(COTS.mn, probs=0.25),
+                   COTS.75 = quantile(COTS.mn, probs=0.75))
+g = ggplot(res.plot,aes(x=Year, COTS.md)) + geom_line() + geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75), alpha=0.2) + ylim(c(0,1)) +
+  facet_grid(rows=vars(SECTOR), cols = vars(CROSS_SHELF))
+colnames(ForDashboard)[7:length(colnames(ForDashboard))] = paste0(rep(1:NREPS, each=8),"_", colnames(ResultsDash[7:14]))
+
+nruns = length(list.files(path = "Archive")[grep(paste0("ForDashboard_",Sys.Date()),list.files(path = "Archive"))]) + 1
+write.csv(ForDashboard, paste0("Archive/ForDashboard_", Sys.Date(),"_", nruns, ".csv"))
+write.csv(masterDF, paste0("Archive/masterDF_", Sys.Date(),"_", nruns, ".csv"))
+
+
+
+
 
 
 

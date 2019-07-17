@@ -352,7 +352,7 @@ doCOTSDispersal = function(season, COTSabund, CoralCover, SexRatio, ConnMat, PCF
     nLarvae = as.matrix((1-Pred)*nLarvae) # assume 98% Larval Mortlality
     
     # Add in Chlorophyll relationship
-    chl = data.Chl[,as.character(Year)] + data.chl.resid[,(Year-1990+8),j]
+    chl = data.Chl[,as.character(Year)] + data.chl.resid[,(Year-1990+1),j]
     
     # Add in Larval Nutrition at home reef
     
@@ -515,9 +515,9 @@ doPredPreyDynamics = function(COTSabund, CoralCover, p, Crash, CCRatioThresh) {
   Ratio = (CoralCover*data.grid$PercentReef/100)/(COTSabund[,3]/667)
   COTSabund[which(CoralCover < Crash),] = c(0,0,0)
   COTSabund[,"A"][which(Ratio<CCRatioThresh)] = (COTSabund[,"A"]*(1 + (b*Ratio)))[which(Ratio<CCRatioThresh)]
-  COTSabund[,"A"][which(Ratio>=CCRatioThresh)] = (COTSabund[,"A"]*COTSmort[3])[which(Ratio>=CCRatioThresh)]
+  COTSabund[,"A"][which(Ratio>=CCRatioThresh)] = (COTSabund[,"A"]*(1-COTSmort[3]))[which(Ratio>=CCRatioThresh)]
   COTSabund[,"J_2"][which(Ratio<CCRatioThresh)] = (COTSabund[,"J_2"]*(1 + (b2*Ratio)))[which(Ratio<CCRatioThresh)]
-  COTSabund[,"J_2"][which(Ratio>=CCRatioThresh)] = (COTSabund[,"J_2"]*COTSmort[2])[which(Ratio>=CCRatioThresh)]
+  COTSabund[,"J_2"][which(Ratio>=CCRatioThresh)] = (COTSabund[,"J_2"]*(1-COTSmort[2]))[which(Ratio>=CCRatioThresh)]
   # COTS.m.CC = (1 - (p*CoralCover/(10+CoralCover)))
   # COTSabund[,"A"] = COTSabund[,"A"]*exp(-COTS.m.CC*COTSmort[3])
   # COTSabund[,"J_2"] = COTSabund[,"J_2"]*exp(-COTS.m.CC*COTSmort[2])

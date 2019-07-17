@@ -24,7 +24,7 @@ if (PRELOAD == T) {
                         "sdPCF" = 10000000,
                         "mortJ1" =  0.99,
                         "mortJ2" = 0.95,
-                        "mortA" = 0.9,
+                        "mortA" = 0.8,
                         "remJ1" = 0,
                         "remJ2" = 0,
                         "remA" = 1,
@@ -35,7 +35,7 @@ if (PRELOAD == T) {
                         "p" = 0.2,
                         "Crash" = 0,
                         "OutbreakCrash" = Inf,
-                        "Fbase" = seq(0.05, 0.25, 0.05),
+                        "Fbase" = seq(0.05, 0.15, 0.02),
                         "CCRatioThresh" = 25)
   NREPS = length(masterDF$OutbreakCrash)
   masterDF$RUNNOCOTS = c(T, rep(F, NREPS-1))
@@ -173,7 +173,7 @@ if (PRELOAD == T) {
                         "sdPCF" = 10000000,
                         "mortJ1" =  0.99,
                         "mortJ2" = 0.95,
-                        "mortA" = 0.9,
+                        "mortA" = 0.8,
                         "remJ1" = 0,
                         "remJ2" = 0,
                         "remA" = 1,
@@ -184,7 +184,7 @@ if (PRELOAD == T) {
                         "p" = 0.2,
                         "Crash" = 0,
                         "OutbreakCrash" = Inf,
-                        "Fbase" = seq(0.05, 0.25, 0.05),
+                        "Fbase" = seq(0.05, 0.15, 0.02),
                         "CCRatioThresh" = 25)
   
   NREPS = length(masterDF$OutbreakCrash)
@@ -209,7 +209,7 @@ if (PRELOAD == T) {
 
 # Run Model ----  
 
-doParallel::registerDoParallel(cores=10)
+doParallel::registerDoParallel(cores=20)
 
 foreach::foreach (reps = 1:NREPS) %dopar% {
   

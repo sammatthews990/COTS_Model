@@ -59,6 +59,8 @@ loadPackages <- function(){
   loadPackage("sampling")
   loadPackage("psych")
   loadPackage("dismo")
+  loadPackage("foreach")
+  loadPackage("doParallel")
   #loadPackage("mbcv")
   #loadPackage("gbm")
   loadPackage("MASS")

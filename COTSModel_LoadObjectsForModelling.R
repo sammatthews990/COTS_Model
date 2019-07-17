@@ -11,7 +11,7 @@
 # SET PROJECT DIRECTORIES (this should be the only place where local directories should be referenced)
 #########################
 
-USER = "SAM"
+USER = "SAM_UNI"
 
 if(USER=="KEVIN") BASE_DIRECTORY <- "C:\\Users\\Kevin\\Dropbox\\CoTS_Model"             # NOTE: this should link to the Dropbox folder with shared project resources	                                                                        
 if(USER=="KEVIN") CODE_DIRECTORY <- "C:\\Users\\Kevin\\GIT\\COTS_Model"              # NOTE: code directory should be your local copy of the GitHub repository
