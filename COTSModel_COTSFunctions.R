@@ -101,7 +101,8 @@ initializeCOTSabund <- function(data.grid, data.COTS, Year, stagenames,
   return(COTSabund)
 }
 
-# initCOTS <- initializeCOTSabund(PopData, COTS.data, 1996, stagenames, COTS_StableStage, npops)
+# COTSabund <- initializeCOTSabund(data.grid, data.COTS, 1995, stagenames, 
+#                                  COTS_StableStage, npops, 1)
 
     
 ###################!
@@ -333,7 +334,7 @@ CoTS_Dispersal_Conn <- function(COTSConnMat, COTSabund, nLarvae, CoralCover, Los
 # This is the master fucntion that incorporates the above functions
 
 doCOTSDispersal = function(season, COTSabund, CoralCover, SexRatio, ConnMat, PCFParams, Pred, 
-                           FvDParams, Fbase, CCRatioThresh){
+                           FvDParams, Fbase, CCRatioThresh, Year, data.chl, data.chl.resid, j){
   #browser()
   COTSabund = COTSabund
   b = (1-Fbase)/CCRatioThresh # Make Ratio a parameter for tuning
@@ -349,6 +350,10 @@ doCOTSDispersal = function(season, COTSabund, CoralCover, SexRatio, ConnMat, PCF
     # Do Dispersal ----
     nLarvae = ifelse(nLarvae < 0 , 0, nLarvae) ### FIx this
     nLarvae = as.matrix((1-Pred)*nLarvae) # assume 98% Larval Mortlality
+    
+    # Add in Chlorophyll relationship
+    chl = data.Chl[,as.character(Year)] + data.chl.resid[,(Year-1990+8),j]
+    
     # Add in Larval Nutrition at home reef
     
     row.names(nLarvae) = data.grid$REEF_NAME
@@ -372,7 +377,7 @@ doCOTSDispersal = function(season, COTSabund, CoralCover, SexRatio, ConnMat, PCF
   return(COTSabund)
 }
 
-# test.summer = doCOTSDispersal("summer", initCOTS, SR=5, ConnMat = Pdist.test)
+
 # test.winter = doCOTSDispersal("winter", initCOTS, SR=5, ConnMat = Pdist.test)
 
 ##############!

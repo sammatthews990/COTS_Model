@@ -7,12 +7,14 @@
   
   DIRECTORY <- "C:/Users/jc312264/OneDrive - James Cook University/COTS_Model"
   setwd(DIRECTORY)
-  source("COTSModel_Utilityfunctions.R")  
-  source("COTSModel_COTSfunctions.R")
-  
+  source("COTSModel_Utilityfunctions.R")
+  # source("COTSModel_COTSfunctions.R")
+  # 
   # source("COTSModel_LoadObjectsForModelling.R")
+  # setwd(DIRECTORY)
   # save.image(file = "RData/COTSMod_bckp.Rdata")
   load("RData/COTSMod_bckp.Rdata")
+  source("COTSModel_COTSfunctions.R")
 
 # Set Global Parameters ----
   

@@ -44,7 +44,7 @@ RDATA_DIRECTORY <- paste(BASE_DIRECTORY,"\\R_Workspaces",sep="")                
 if(is.na(file.info(RDATA_DIRECTORY)[1,"isdir"])) dir.create(RDATA_DIRECTORY)
 
 cat(sprintf("The current user is %s",USER))
-
+`%>%` <- magrittr::`%>%`
 setwd(DATA_DIRECTORY)
 PopData = read.csv("Environmental/Environmental_Data.csv", header = TRUE) # we will just use a subset for testing
 # COTS.data = read.csv("Disturbance/CoTS_data.csv", header = TRUE)
@@ -93,6 +93,10 @@ Pixels = Pixels[match(ourreefs,Pixels$REEF_NAME),]
 
 load("Connectivity/COTS.ConnMat.Rdata")
 
+# LOAD CHLOROPHYLL PARAMS ---
+
+setwd(CODE_DIRECTORY)
+load("Data/ChlorophyllModel/ChlModelParams.RData")
 
 # LOAD DISTURBANCE DATA ----
 
