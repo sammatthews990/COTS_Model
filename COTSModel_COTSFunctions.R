@@ -335,7 +335,7 @@ CoTS_Dispersal_Conn <- function(COTSConnMat, COTSabund, nLarvae, CoralCover, Los
 
 doCOTSDispersal = function(season, COTSabund, CoralCover, SexRatio, ConnMat, PCFParams, Pred, 
                            FvDParams, Fbase, CCRatioThresh, Year, data.chl, data.chl.resid, j){
-  #browser()
+  # browser()
   COTSabund = COTSabund
   b = (1-Fbase)/CCRatioThresh # Make Ratio a parameter for tuning
   Ratio = (CoralCover*data.grid$PercentReef/100)/(COTSabund[,3]/667) # Do i need % Reef here?
@@ -343,13 +343,13 @@ doCOTSDispersal = function(season, COTSabund, CoralCover, SexRatio, ConnMat, PCF
     # Per Capita Fecundity
     nEggs = COTSabund[,'A']*rnorm(1, PCFParams[1], PCFParams[2])*((10-SexRatio)/10)
     # Add in density dependent fecundity
-    nEggs[which(Ratio<25)] = (nEggs*(Fbase + (b*Ratio)))[which(Ratio<25)]
+    nEggs[which(Ratio<CCRatioThresh)] = (nEggs*(Fbase + (b*Ratio)))[which(Ratio<CCRatioThresh)]
     # Fertilisation by Density
-    fEggs = FvDParams[SexRatio,"Linf"] * (1 - exp(-FvDParams[SexRatio,"K"] * (COTSabund[,'A'] - FvDParams[SexRatio,"t0"])))
-    nLarvae = nEggs * fEggs
+    fEggs = 0.8 * (1 - exp(-7e-04 * (COTSabund[,'A'] - 0)))
+    nLarvae = round(nEggs * fEggs,0)
     # Do Dispersal ----
     nLarvae = ifelse(nLarvae < 0 , 0, nLarvae) ### FIx this
-    nLarvae = as.matrix((1-Pred)*nLarvae) # assume 98% Larval Mortlality
+    nLarvae = round(as.matrix((1-Pred)*nLarvae),0) # assume 98% Larval Mortlality
     
     # Add in Chlorophyll relationship
     chl = data.Chl[,as.character(Year)] + data.chl.resid[,(Year-1990+1),j]
@@ -362,10 +362,11 @@ doCOTSDispersal = function(season, COTSabund, CoralCover, SexRatio, ConnMat, PCF
     nArriving_Reef[nArriving_Reef > 0] = 0
     
     for (i in 1:length(nLarvae_Reef)) {
-      nArriving_Reef[i,] = signif(nLarvae_Reef[i]*(ConnMat[i,]),3)
+      nArriving_Reef[i,] = round(nLarvae_Reef[i]*(ConnMat[i,]),0)
     }
+    # browser()
     nArriving_Reef = base::colSums(nArriving_Reef, na.rm = T) # create total juveniles arriving at a reef
-    nArriving_Reef_PerPix = nArriving_Reef/Pixels$Pixels
+    nArriving_Reef_PerPix = round(nArriving_Reef/Pixels$Pixels,0)
     names(nArriving_Reef_PerPix) = colnames(ConnMat)
     # match(data.grid$REEF_NAME, colnames(ConnMat))
     nArriving = nArriving_Reef_PerPix[match(data.grid$REEF_NAME, colnames(ConnMat))]
@@ -508,16 +509,20 @@ CoralCOTSMort = function(p,CoralCover) {
 
 # plot(CoralCOTSMort(0.2,seq(0,100, 1)))
 
-doPredPreyDynamics = function(COTSabund, CoralCover, p, Crash, CCRatioThresh) {
+doPredPreyDynamics = function(COTSabund, CoralCover, Crash, CCRatioThresh, CCRatioThresh2, maxmort) {
   # Implement ratio dependent mortality on Adults and J_2
-  b = (COTSmort[3]-1)/CCRatioThresh # Make Ratio a parameter for tuning
-  b2 = (COTSmort[2]-1)/CCRatioThresh
+  b = (COTSmort[3]-1)/(CCRatioThresh-CCRatioThresh2) # Make Ratio a parameter for tuning
+  b2 = (COTSmort[2]-1)/(CCRatioThresh-CCRatioThresh2)
   Ratio = (CoralCover*data.grid$PercentReef/100)/(COTSabund[,3]/667)
   COTSabund[which(CoralCover < Crash),] = c(0,0,0)
-  COTSabund[,"A"][which(Ratio<CCRatioThresh)] = (COTSabund[,"A"]*(1 + (b*Ratio)))[which(Ratio<CCRatioThresh)]
-  COTSabund[,"A"][which(Ratio>=CCRatioThresh)] = (COTSabund[,"A"]*(1-COTSmort[3]))[which(Ratio>=CCRatioThresh)]
-  COTSabund[,"J_2"][which(Ratio<CCRatioThresh)] = (COTSabund[,"J_2"]*(1 + (b2*Ratio)))[which(Ratio<CCRatioThresh)]
-  COTSabund[,"J_2"][which(Ratio>=CCRatioThresh)] = (COTSabund[,"J_2"]*(1-COTSmort[2]))[which(Ratio>=CCRatioThresh)]
+  COTSabund[,"A"][which(Ratio<CCRatioThresh2)] = round((COTSabund[,"A"]*(1-maxmort))[which(Ratio<CCRatioThresh2)],0)
+  COTSabund[,"A"][which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)] = 
+    round((COTSabund[,"A"]*(1 + (b*Ratio)))[which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)],0)
+  COTSabund[,"A"][which(Ratio>=CCRatioThresh)] = round((COTSabund[,"A"]*(1-COTSmort[3]))[which(Ratio>=CCRatioThresh)],0)
+  COTSabund[,"J_2"][which(Ratio<CCRatioThresh2)] = round((COTSabund[,"J_2"]*(1-maxmort))[which(Ratio<CCRatioThresh2)],0)
+  COTSabund[,"J_2"][which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)] = 
+    round((COTSabund[,"J_2"]*(1 + (b2*Ratio)))[which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)],0)
+  COTSabund[,"J_2"][which(Ratio>=CCRatioThresh)] = round((COTSabund[,"J_2"]*(1-COTSmort[2]))[which(Ratio>=CCRatioThresh)],0)
   # COTS.m.CC = (1 - (p*CoralCover/(10+CoralCover)))
   # COTSabund[,"A"] = COTSabund[,"A"]*exp(-COTS.m.CC*COTSmort[3])
   # COTSabund[,"J_2"] = COTSabund[,"J_2"]*exp(-COTS.m.CC*COTSmort[2])

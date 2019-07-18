@@ -238,7 +238,7 @@ setwd(ENVDATA_DIRECTORY)
 PercentReef = read.csv("data.grid.csv", header=T)[,c(2,3,5)] %>% dplyr::inner_join(PopData[,2:3], by = c("lon", "lat"))
 data.grid = dplyr::inner_join(data.grid, PercentReef, by = c("lon", "lat"))
 PopData = data.grid[1:7]
-
+data.grid$PIXEL_ID = PopData$PIXEL_ID = 1:length(data.grid[,1])
 
 
 

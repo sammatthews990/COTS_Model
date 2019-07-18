@@ -13,6 +13,7 @@ DIRECTORY = getwd()
 
 PRELOAD = T
 SUBSET = T
+LHSPARAMS = F
 
 if (PRELOAD == T) {
   setwd(DIRECTORY)
@@ -23,31 +24,36 @@ if (PRELOAD == T) {
   # Write Parameter Data Frame And Results Containers ----
   # Write Parameter Data Frame And Results Containers ----
   source("COTSModel_COTSFunctions.R")
-  masterDF = data.frame("SexRatio" = 5, 
-                        "ConsRateW" = 150, 
-                        "ConsRateS" = 250,
-                        "avgPCF" = 20000000,
-                        "sdPCF" = 10000000,
-                        "mortJ1" =  0.98,
-                        "mortJ2" = 0.9,
-                        "mortA" = seq(0.3,0.7, length.out = 10),
-                        "remJ1" = 0,
-                        "remJ2" = 0,
-                        "remA" = 1,
-                        "cssJ1" = 0.9803,
-                        "cssJ2" = 0.0171,
-                        "cssA" = 0.0026,
-                        "Pred" = 0,
-                        "p" = 0.2,
-                        "Crash" = 0,
-                        "OutbreakCrash" = Inf,
-                        "Fbase" = 0.2,
-                        "CCRatioThresh" = 25,
-                        "CCRatioThresh2" = 5,
-                        "maxmort" = 0.99)
+  source("COTSModel_Utilityfunctions.R")
+  if (LHSPARAMS==T) {
+    masterDF = MakeLHSSamples(100)
+    masterDF$OutbreakCrash = Inf
+    setwd(DIRECTORY)
+  } else {
+    masterDF = data.frame("SexRatio" = 5, 
+                          "ConsRateW" = 150, 
+                          "ConsRateS" = 250,
+                          "avgPCF" = 20000000,
+                          "sdPCF" = 10000000,
+                          "mortJ1" =  0.98,
+                          "mortJ2" = 0.9,
+                          "mortA" = seq(0.3,0.6, length.out = 10),
+                          "remJ1" = 0,
+                          "remJ2" = 0,
+                          "remA" = 1,
+                          "cssJ1" = 0.9803,
+                          "cssJ2" = 0.0171,
+                          "cssA" = 0.0026,
+                          "Pred" = 0,
+                          "Crash" = 0,
+                          "OutbreakCrash" = Inf,
+                          "Fbase" = 0.2,
+                          "CCRatioThresh" = 25,
+                          "CCRatioThresh2" = 5,
+                          "maxmort" = 0.999)
+  }
   NREPS = length(masterDF$OutbreakCrash)
   masterDF$RUNNOCOTS = c(T, rep(F, NREPS-1))
-  
   
   
 } else {
@@ -58,7 +64,8 @@ if (PRELOAD == T) {
   # setwd(DIRECTORY)
   # save.image(file = "RData/COTSMod_bckp.Rdata")
   load("RData/COTSMod_bckp.RData")
-  source("COTSModel_Utilityfunctions.R")  
+  source("COTSModel_Utilityfunctions.R")
+  setwd(DIRECTORY)
   source("COTSModel_COTSFunctions.R")
   data.grid$PIXEL_ID = PopData$PIXEL_ID = 1:length(data.grid[,1])
   
@@ -184,28 +191,33 @@ if (PRELOAD == T) {
     unknown.mn <- apply(unknown.rsmpl, c(1,2), mean, na.rm=T)
   }
   # Write Parameter Data Frame And Results Containers ----
-  masterDF = data.frame("SexRatio" = 5, 
-                        "ConsRateW" = 150, 
-                        "ConsRateS" = 250,
-                        "avgPCF" = 20000000,
-                        "sdPCF" = 10000000,
-                        "mortJ1" =  0.99,
-                        "mortJ2" = 0.95,
-                        "mortA" = 0.8,
-                        "remJ1" = 0,
-                        "remJ2" = 0,
-                        "remA" = 1,
-                        "cssJ1" = 0.9803,
-                        "cssJ2" = 0.0171,
-                        "cssA" = 0.0026,
-                        "Pred" = 0.99,
-                        "p" = 0.2,
-                        "Crash" = 0,
-                        "OutbreakCrash" = Inf,
-                        "Fbase" = seq(0.05, 0.15, 0.02),
-                        "CCRatioThresh" = 25,
-                        "CCRatioThresh2" = 5,
-                        "maxmort" = 0.99)
+  if (LHSPARAMS==T) {
+    masterDF = MakeLHSSamples(100)
+    masterDF$OutbreakCrash = Inf
+    setwd(DIRECTORY)
+  } else {
+    masterDF = data.frame("SexRatio" = 5, 
+                          "ConsRateW" = 150, 
+                          "ConsRateS" = 250,
+                          "avgPCF" = 20000000,
+                          "sdPCF" = 10000000,
+                          "mortJ1" =  0.98,
+                          "mortJ2" = 0.9,
+                          "mortA" = seq(0.3,0.6, length.out = 10),
+                          "remJ1" = 0,
+                          "remJ2" = 0,
+                          "remA" = 1,
+                          "cssJ1" = 0.9803,
+                          "cssJ2" = 0.0171,
+                          "cssA" = 0.0026,
+                          "Pred" = 0,
+                          "Crash" = 0,
+                          "OutbreakCrash" = Inf,
+                          "Fbase" = 0.2,
+                          "CCRatioThresh" = 25,
+                          "CCRatioThresh2" = 5,
+                          "maxmort" = 0.99)
+  }
   
   NREPS = length(masterDF$OutbreakCrash)
   masterDF$RUNNOCOTS = c(T, rep(F, NREPS-1))
@@ -265,7 +277,6 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
   COTSremain = as.numeric(masterDF[reps, c("remJ1", "remJ2", "remA")])
   COTS_StableStage = as.numeric(masterDF[reps, c("cssJ1", "cssJ2", "cssA")])
   Pred = masterDF[reps,"Pred"]
-  p = masterDF[reps,"p"]
   Crash = masterDF[reps,"Crash"]
   OutbreakCrash = masterDF[reps,"OutbreakCrash"]
   Fbase = masterDF[reps,"Fbase"]
@@ -305,7 +316,7 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
           browser()
         }
         # browser()
-        COTSabund = doPredPreyDynamics(COTSabund, CoralCover, p, Crash, CCRatioThresh, CCRatioThresh2, maxmort)
+        COTSabund = doPredPreyDynamics(COTSabund, CoralCover, Crash, CCRatioThresh, CCRatioThresh2, maxmort)
         COTSabund = doCOTSDispersal(season,COTSabund,CoralCover,SexRatio,COTS.ConnMat, 
                                     PCFParams, Pred, FvDParams, Fbase, CCRatioThresh,Year, data.chl, data.chl.resid, j) #Pruducing NAS
         COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
@@ -441,39 +452,23 @@ for (i in 2:NREPS) {
   ForGraph = rbind(ForGraph, ResultsDash)
 }
 setwd(DIRECTORY)
-# res.plot = ForGraph %>% dplyr::group_by(Year,SECTOR, CROSS_SHELF) %>%
-#   dplyr::summarise(COTS.md = median(COTS.mn),
-#                    COTS.25 = quantile(COTS.mn, probs=0.25),
-#                    COTS.75 = quantile(COTS.mn, probs=0.75))
-# g = ggplot(res.plot,aes(x=Year, COTS.md)) + geom_line() + geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75), alpha=0.2) + ylim(c(0,1)) +
-#   facet_grid(rows=vars(SECTOR), cols = vars(CROSS_SHELF))
-# ForGraph$YearDec = as.numeric(ifelse(ForGraph$Season=="summer", ForGraph$Year, c(ForGraph$Year, ".5")))
-# 
-# ggplot(ForGraph, aes(x=YearDec, y=COTS.mn, colour=as.factor(REP))) + geom_line() + ylim(c(0,2)) +
-#   facet_wrap(~REEF_NAME)
-# ggplot(ForGraph, aes(x=YearDec, y=CC.mn, colour=as.factor(REP))) + geom_line() + ylim(c(0,50)) +
-#   facet_wrap(~REEF_NAME)
+res.plot = ForGraph %>% dplyr::group_by(Year,SECTOR, CROSS_SHELF) %>%
+  dplyr::summarise(COTS.md = median(COTS.mn),
+                   COTS.25 = quantile(COTS.mn, probs=0.25),
+                   COTS.75 = quantile(COTS.mn, probs=0.75))
+g = ggplot(res.plot,aes(x=Year, COTS.md)) + geom_line() + geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75), alpha=0.2) + ylim(c(0,1)) +
+  facet_grid(rows=vars(SECTOR), cols = vars(CROSS_SHELF))
+ForGraph$YearDec = as.numeric(ifelse(ForGraph$Season=="summer", ForGraph$Year, c(ForGraph$Year, ".5")))
+
+ggplot(ForGraph, aes(x=YearDec, y=COTS.mn, colour=as.factor(REP))) + geom_line() + ylim(c(0,2)) +
+  facet_wrap(~REEF_NAME)
+ggplot(ForGraph, aes(x=YearDec, y=CC.mn, colour=as.factor(REP))) + geom_line() + ylim(c(0,50)) +
+  facet_wrap(~REEF_NAME)
 
 colnames(ForDashboard)[7:length(colnames(ForDashboard))] = paste0(rep(1:NREPS, each=8),"_", colnames(ResultsDash[7:14]))
 
 nruns = length(list.files(path = "Archive")[grep(paste0("ForDashboard_",Sys.Date()),list.files(path = "Archive"))]) + 1
 write.csv(ForDashboard, paste0("Archive/ForDashboard_", Sys.Date(),"_", nruns, ".csv"))
 write.csv(masterDF, paste0("Archive/masterDF_", Sys.Date(),"_", nruns, ".csv"))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
