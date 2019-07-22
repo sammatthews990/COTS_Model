@@ -288,3 +288,7 @@ MakeWorker = function (masterDF, npops, seasons){
   }
   return(Worker)
 }
+
+inv.logit = function(x) {
+  exp(x)/(1+exp(x))
+}

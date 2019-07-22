@@ -2,7 +2,7 @@
 
 
 # install.packages("DHARMa")
-# install.packages("effects")
+install.packages("effects")
 # install.packages("sjPlot")
 library(ggplot2)
 library(DHARMa)
@@ -88,7 +88,7 @@ ggplot(data = modelfits, aes(y = fit, x = chl)) +
                      labels = scales::number_format(accuracy = 0.01)) +
   facet_wrap(~model, ncol = 2)
 
-
+save(quants, chl.lm, file =  "Data/ChlorophyllModel/ChlModels.RData")
 # Sven Model
 
 data=read.csv("Data/ChlorophyllModel/COTS contour.csv", header=T)

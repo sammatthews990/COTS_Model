@@ -96,7 +96,9 @@ load("Connectivity/COTS.ConnMat.Rdata")
 # LOAD CHLOROPHYLL PARAMS ---
 
 setwd(CODE_DIRECTORY)
-load("Data/ChlorophyllModel/ChlModelParams.RData")
+load("Data/ChlorophyllModel/ChlModels.RData")
+
+
 
 # LOAD DISTURBANCE DATA ----
 
@@ -230,8 +232,10 @@ data.storms.bckp <- data.storms
 
 
 # Load Fertilisation vs Density Models Estimates
-setwd(BASE_DIRECTORY)
-load("R_Objects/FvDParams.Rdata")
+# setwd(BASE_DIRECTORY)
+# load("R_Objects/FvDParams.Rdata")
+FvDParams = c(0.8, 7e-04, 0)
+names(FvDParams) = c("Linf", "K", "t0")
 
 # Add percent Reef
 setwd(ENVDATA_DIRECTORY)

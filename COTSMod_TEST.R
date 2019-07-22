@@ -12,13 +12,13 @@ loadPackages()
 DIRECTORY = getwd()
 
 PRELOAD = T
-SUBSET = T
+SUBSET = F
 LHSPARAMS = F
 
 if (PRELOAD == T) {
   setwd(DIRECTORY)
   if (SUBSET==T) {load("RData/ModelWorkspace_TEST.RData")}
-  else {load("RData/ModelWorkspace_2019-07-17_4.RData")}
+  else {load("RData/ModelWorkspace_2019-07-22_3.RData")}
   # Choose an older workspace with pre run disturbance samples
   # Write Parameter Data Frame And Results Containers ----
   # Write Parameter Data Frame And Results Containers ----
@@ -35,18 +35,18 @@ if (PRELOAD == T) {
                           "ConsRateS" = 250,
                           "avgPCF" = 20000000,
                           "sdPCF" = 10000000,
-                          "mortJ1" =  0.98,
-                          "mortJ2" = 0.9,
-                          "mortA" = seq(0.3,0.6, length.out = 10),
+                          "mortJ1" =  0.99,
+                          "mortJ2" = 0.95,
+                          "mortA" = 0.45,
                           "remJ1" = 0,
                           "remJ2" = 0,
                           "remA" = 1,
                           "cssJ1" = 0.9803,
                           "cssJ2" = 0.0171,
                           "cssA" = 0.0026,
-                          "Pred" = 0,
+                          "Pred" = seq(0.97, 0.995, length.out = 10),
                           "Crash" = 0,
-                          "OutbreakCrash" = Inf,
+                          "OutbreakCrash" = 5,
                           "Fbase" = 0.2,
                           "CCRatioThresh" = 25,
                           "CCRatioThresh2" = 5,
@@ -60,9 +60,9 @@ if (PRELOAD == T) {
   
   setwd(DIRECTORY)
   
-  # source("COTSModel_LoadObjectsForModelling.R")
-  # setwd(DIRECTORY)
-  # save.image(file = "RData/COTSMod_bckp.Rdata")
+  source("COTSModel_LoadObjectsForModelling.R")
+  setwd(DIRECTORY)
+  save.image(file = "RData/COTSMod_bckp.Rdata")
   load("RData/COTSMod_bckp.RData")
   source("COTSModel_Utilityfunctions.R")
   setwd(DIRECTORY)
@@ -201,8 +201,8 @@ if (PRELOAD == T) {
                           "ConsRateS" = 250,
                           "avgPCF" = 20000000,
                           "sdPCF" = 10000000,
-                          "mortJ1" =  0.98,
-                          "mortJ2" = 0.9,
+                          "mortJ1" =  0.99,
+                          "mortJ2" = 0.95,
                           "mortA" = seq(0.3,0.6, length.out = 10),
                           "remJ1" = 0,
                           "remJ2" = 0,
@@ -299,7 +299,7 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
     if (RUNNOCOTS == T) {
       COTSfromCoralModel=T 
       COTSfromSimul=F
-      COTSabund <- matrix(0,nrow=npops, ncol=3, dimnames = list(NULL, c("J_1", "J_2", "A")))
+      #COTSabund <- matrix(0,nrow=npops, ncol=3, dimnames = list(NULL, c("J_1", "J_2", "A")))
     }
     print(j)
     HC.1996 <- HCINI[,j]
@@ -316,10 +316,10 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
           browser()
         }
         # browser()
+        COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
         COTSabund = doPredPreyDynamics(COTSabund, CoralCover, Crash, CCRatioThresh, CCRatioThresh2, maxmort)
         COTSabund = doCOTSDispersal(season,COTSabund,CoralCover,SexRatio,COTS.ConnMat, 
                                     PCFParams, Pred, FvDParams, Fbase, CCRatioThresh,Year, data.chl, data.chl.resid, j) #Pruducing NAS
-        COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
         Consumption = doCoralConsumption(season, COTSabund, CoralCover, ConsRate) 
         CoralCover = Consumption[,'CRemaining']
         CoralConsum = round(Consumption[,'CChange'],4)
@@ -452,16 +452,24 @@ for (i in 2:NREPS) {
   ForGraph = rbind(ForGraph, ResultsDash)
 }
 setwd(DIRECTORY)
-res.plot = ForGraph %>% dplyr::group_by(Year,SECTOR, CROSS_SHELF) %>%
+res.plot = ForGraph %>% dplyr::group_by(REEF_NAME, REP,Year,SECTOR, CROSS_SHELF) %>%
   dplyr::summarise(COTS.md = median(COTS.mn),
                    COTS.25 = quantile(COTS.mn, probs=0.25),
-                   COTS.75 = quantile(COTS.mn, probs=0.75))
-g = ggplot(res.plot,aes(x=Year, COTS.md)) + geom_line() + geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75), alpha=0.2) + ylim(c(0,1)) +
+                   COTS.75 = quantile(COTS.mn, probs=0.75),
+                   CC.md = mean(CC.mn))
+g = ggplot(res.plot,aes(x=Year, COTS.md)) + geom_line(aes(colour=factor(REP))) + 
+  geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75, fill=factor(REP)),alpha=0.2) + ylim(c(0,1)) +
   facet_grid(rows=vars(SECTOR), cols = vars(CROSS_SHELF))
 ForGraph$YearDec = as.numeric(ifelse(ForGraph$Season=="summer", ForGraph$Year, c(ForGraph$Year, ".5")))
-
-ggplot(ForGraph, aes(x=YearDec, y=COTS.mn, colour=as.factor(REP))) + geom_line() + ylim(c(0,2)) +
-  facet_wrap(~REEF_NAME)
+ggplot(res.plot %>% filter(REEF_NAME %in% unique(REEFSUB$REEF_NAME)), aes(x=Year, y=COTS.md)) + 
+  geom_line(aes(colour=as.factor(REP))) +  geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75, fill=factor(REP)),alpha=0.2) +
+  facet_wrap(~REEF_NAME) + ylim(c(0,2))
+ggplot(res.plot %>% filter(REEF_NAME %in% unique(REEFSUB$REEF_NAME)), aes(x=Year, y=CC.md)) + 
+  geom_line(aes(colour=as.factor(REP))) +
+  facet_wrap(~REEF_NAME) + ylim(c(0,50))
+ggplot(ForGraph %>% filter(REEF_NAME %in% unique(REEFSUB$REEF_NAME)), aes(x=YearDec, y=COTS.mn)) + 
+  geom_line(aes(colour=as.factor(REP))) +  geom_ribbon(aes(ymin = COTS.Q25, ymax=COTS.Q75, fill=factor(REP)),alpha=0.2) +
+  facet_wrap(~REEF_NAME) + ylim(c(0,2))
 ggplot(ForGraph, aes(x=YearDec, y=CC.mn, colour=as.factor(REP))) + geom_line() + ylim(c(0,50)) +
   facet_wrap(~REEF_NAME)
 
@@ -469,6 +477,7 @@ colnames(ForDashboard)[7:length(colnames(ForDashboard))] = paste0(rep(1:NREPS, e
 
 nruns = length(list.files(path = "Archive")[grep(paste0("ForDashboard_",Sys.Date()),list.files(path = "Archive"))]) + 1
 write.csv(ForDashboard, paste0("Archive/ForDashboard_", Sys.Date(),"_", nruns, ".csv"))
+write.csv(ForDashboard, "Archive/ForDashboard.csv")
 write.csv(masterDF, paste0("Archive/masterDF_", Sys.Date(),"_", nruns, ".csv"))
-
+write.csv(masterDF, "Archive/masterDF.csv")
 

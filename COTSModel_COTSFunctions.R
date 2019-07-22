@@ -345,15 +345,18 @@ doCOTSDispersal = function(season, COTSabund, CoralCover, SexRatio, ConnMat, PCF
     # Add in density dependent fecundity
     nEggs[which(Ratio<CCRatioThresh)] = (nEggs*(Fbase + (b*Ratio)))[which(Ratio<CCRatioThresh)]
     # Fertilisation by Density
-    fEggs = 0.8 * (1 - exp(-7e-04 * (COTSabund[,'A'] - 0)))
+    fEggs = FvDParams["Linf"] * (1 - exp(-FvDParams["K"] * (COTSabund[,'A'] - FvDParams["t0"])))
     nLarvae = round(nEggs * fEggs,0)
     # Do Dispersal ----
     nLarvae = ifelse(nLarvae < 0 , 0, nLarvae) ### FIx this
-    nLarvae = round(as.matrix((1-Pred)*nLarvae),0) # assume 98% Larval Mortlality
+    nLarvae = round(as.matrix((1-Pred)*nLarvae),0) # assume 98% Larval Predation
     
-    # Add in Chlorophyll relationship
+    # Add in Chlorophyll relationship for survival
     chl = data.Chl[,as.character(Year)] + data.chl.resid[,(Year-1990+1),j]
+    chl = ifelse(chl<0,0,chl)
+    surv.pred = inv.logit(predict(chl.lm, newdata = data.frame(chl=chl)))
     
+    nLarvae = nLarvae*surv.pred
     # Add in Larval Nutrition at home reef
     
     row.names(nLarvae) = data.grid$REEF_NAME
@@ -400,7 +403,7 @@ doCOTSDemography = function(season, COTSabund, COTSmort, COTSremain){
     colnames(COTS_Trans) <- colnames(COTSabund)
     
     # apply mortality
-    COTS_Mort <- sweep(COTSabund,MARGIN=2,COTSmort,`*`)
+    # COTS_Mort <- sweep(COTSabund,MARGIN=2,COTSmort,`*`)
     # update abundance
     newCOTSabund <- COTSabund - COTS_Mort
     
@@ -511,6 +514,7 @@ CoralCOTSMort = function(p,CoralCover) {
 
 doPredPreyDynamics = function(COTSabund, CoralCover, Crash, CCRatioThresh, CCRatioThresh2, maxmort) {
   # Implement ratio dependent mortality on Adults and J_2
+  if (season=="winter") {
   b = (COTSmort[3]-1)/(CCRatioThresh-CCRatioThresh2) # Make Ratio a parameter for tuning
   b2 = (COTSmort[2]-1)/(CCRatioThresh-CCRatioThresh2)
   Ratio = (CoralCover*data.grid$PercentReef/100)/(COTSabund[,3]/667)
@@ -523,6 +527,7 @@ doPredPreyDynamics = function(COTSabund, CoralCover, Crash, CCRatioThresh, CCRat
   COTSabund[,"J_2"][which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)] = 
     round((COTSabund[,"J_2"]*(1 + (b2*Ratio)))[which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)],0)
   COTSabund[,"J_2"][which(Ratio>=CCRatioThresh)] = round((COTSabund[,"J_2"]*(1-COTSmort[2]))[which(Ratio>=CCRatioThresh)],0)
+  }
   # COTS.m.CC = (1 - (p*CoralCover/(10+CoralCover)))
   # COTSabund[,"A"] = COTSabund[,"A"]*exp(-COTS.m.CC*COTSmort[3])
   # COTSabund[,"J_2"] = COTSabund[,"J_2"]*exp(-COTS.m.CC*COTSmort[2])
