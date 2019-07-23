@@ -12,7 +12,7 @@ loadPackages()
 DIRECTORY = getwd()
 
 PRELOAD = T
-SUBSET = F
+SUBSET = T
 LHSPARAMS = F
 
 if (PRELOAD == T) {
@@ -30,13 +30,14 @@ if (PRELOAD == T) {
     masterDF$OutbreakCrash = Inf
     setwd(DIRECTORY)
   } else {
+    nsimul=10
     masterDF = data.frame("SexRatio" = 5, 
                           "ConsRateW" = 150, 
-                          "ConsRateS" = 250,
+                          "ConsRateS" = c(350,450),
                           "avgPCF" = 20000000,
                           "sdPCF" = 10000000,
-                          "mortJ1" =  0.99,
-                          "mortJ2" = 0.95,
+                          "mortJ1" =  0.98,
+                          "mortJ2" = 0.9,
                           "mortA" = 0.45,
                           "remJ1" = 0,
                           "remJ2" = 0,
@@ -44,13 +45,15 @@ if (PRELOAD == T) {
                           "cssJ1" = 0.9803,
                           "cssJ2" = 0.0171,
                           "cssA" = 0.0026,
-                          "Pred" = seq(0.97, 0.995, length.out = 10),
+                          "Pred" = 0.9,
                           "Crash" = 0,
-                          "OutbreakCrash" = 5,
+                          "OutbreakCrash" = Inf,
                           "Fbase" = 0.2,
-                          "CCRatioThresh" = 25,
+                          "CCRatioThresh" = 30,
                           "CCRatioThresh2" = 5,
-                          "maxmort" = 0.999)
+                          "maxmort" = 1,
+                          "selfseed" = 0,
+                          "chl.int" = c(10, -0.484))
   }
   NREPS = length(masterDF$OutbreakCrash)
   masterDF$RUNNOCOTS = c(T, rep(F, NREPS-1))
@@ -197,8 +200,8 @@ if (PRELOAD == T) {
     setwd(DIRECTORY)
   } else {
     masterDF = data.frame("SexRatio" = 5, 
-                          "ConsRateW" = 150, 
-                          "ConsRateS" = 250,
+                          "ConsRateW" = 250, 
+                          "ConsRateS" = 350,
                           "avgPCF" = 20000000,
                           "sdPCF" = 10000000,
                           "mortJ1" =  0.99,
@@ -215,8 +218,10 @@ if (PRELOAD == T) {
                           "OutbreakCrash" = Inf,
                           "Fbase" = 0.2,
                           "CCRatioThresh" = 25,
-                          "CCRatioThresh2" = 5,
-                          "maxmort" = 0.99)
+                          "CCRatioThresh2" = 10,
+                          "maxmort" = 0.99,
+                          "selfseed" = 0.1,
+                          "chl.int" = 1)
   }
   
   NREPS = length(masterDF$OutbreakCrash)
@@ -283,12 +288,14 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
   CCRatioThresh = masterDF[reps,"CCRatioThresh"]
   CCRatioThresh2 = masterDF[reps,"CCRatioThresh2"]
   maxmort = masterDF[reps,"maxmort"]
+  selfseed = masterDF[reps,"selfseed"]
+  chl.int = masterDF[reps, "chl.int"]
   RUNNOCOTS = masterDF[reps, "RUNNOCOTS"]
   # Initialize Model ----
-  
+  chl.lm$coefficients[1] = chl.int
   
   browse = FALSE 
-  inityear = 1995
+  inityear = 1996
   COTSfromCoralModel=FALSE 
   COTSfromSimul=TRUE
   
@@ -319,7 +326,7 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
         COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
         COTSabund = doPredPreyDynamics(COTSabund, CoralCover, Crash, CCRatioThresh, CCRatioThresh2, maxmort)
         COTSabund = doCOTSDispersal(season,COTSabund,CoralCover,SexRatio,COTS.ConnMat, 
-                                    PCFParams, Pred, FvDParams, Fbase, CCRatioThresh,Year, data.chl, data.chl.resid, j) #Pruducing NAS
+                                    PCFParams, Pred, FvDParams, Fbase, CCRatioThresh,Year, data.chl, data.chl.resid, j, selfseed) #Pruducing NAS
         Consumption = doCoralConsumption(season, COTSabund, CoralCover, ConsRate) 
         CoralCover = Consumption[,'CRemaining']
         CoralConsum = round(Consumption[,'CChange'],4)
@@ -338,12 +345,13 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
                 c("COTSJ1", "COTSJ2", "COTSA", "CoralCover", "CoralCover.DistLoss", "CoralCover.Consum", 'CoralCover.Growth')] =
           cbind(COTSabund, CoralCover, Disturbance, CoralConsum, CoralGrowth)
         if(i>OutbreakCrash & season =="winter") {
+          browser()
           OutbreakCrasher = Results %>%
             dplyr::filter(Year > (i+1995-OutbreakCrash) & Year <= i+1995) %>%
             dplyr::group_by(REEF_NAME, Year) %>%
             dplyr::mutate(COTSA = (COTSA/100)*0.15) %>% # need to allow for detection
             dplyr::summarise(Mean.COTS = mean(COTSA)) %>%
-            dplyr::mutate(is.outbreak = ifelse(Mean.COTS > 1, 1,0)) %>%
+            dplyr::mutate(is.outbreak = ifelse(Mean.COTS > 0.2, 1,0)) %>%
             dplyr::group_by(REEF_NAME) %>%
             dplyr::summarise(Crash = ifelse(sum(is.outbreak)==OutbreakCrash,1,0)) %>%
             dplyr::filter(Crash==1)
@@ -452,7 +460,7 @@ for (i in 2:NREPS) {
   ForGraph = rbind(ForGraph, ResultsDash)
 }
 setwd(DIRECTORY)
-res.plot = ForGraph %>% dplyr::group_by(REEF_NAME, REP,Year,SECTOR, CROSS_SHELF) %>%
+res.plot = ForGraph %>% dplyr::group_by(REEF_NAME,REP,Year,SECTOR, CROSS_SHELF) %>%
   dplyr::summarise(COTS.md = median(COTS.mn),
                    COTS.25 = quantile(COTS.mn, probs=0.25),
                    COTS.75 = quantile(COTS.mn, probs=0.75),
@@ -463,7 +471,7 @@ g = ggplot(res.plot,aes(x=Year, COTS.md)) + geom_line(aes(colour=factor(REP))) +
 ForGraph$YearDec = as.numeric(ifelse(ForGraph$Season=="summer", ForGraph$Year, c(ForGraph$Year, ".5")))
 ggplot(res.plot %>% filter(REEF_NAME %in% unique(REEFSUB$REEF_NAME)), aes(x=Year, y=COTS.md)) + 
   geom_line(aes(colour=as.factor(REP))) +  geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75, fill=factor(REP)),alpha=0.2) +
-  facet_wrap(~REEF_NAME) + ylim(c(0,2))
+  facet_wrap(~REEF_NAME)
 ggplot(res.plot %>% filter(REEF_NAME %in% unique(REEFSUB$REEF_NAME)), aes(x=Year, y=CC.md)) + 
   geom_line(aes(colour=as.factor(REP))) +
   facet_wrap(~REEF_NAME) + ylim(c(0,50))
@@ -475,9 +483,9 @@ ggplot(ForGraph, aes(x=YearDec, y=CC.mn, colour=as.factor(REP))) + geom_line() +
 
 colnames(ForDashboard)[7:length(colnames(ForDashboard))] = paste0(rep(1:NREPS, each=8),"_", colnames(ResultsDash[7:14]))
 
-nruns = length(list.files(path = "Archive")[grep(paste0("ForDashboard_",Sys.Date()),list.files(path = "Archive"))]) + 1
-write.csv(ForDashboard, paste0("Archive/ForDashboard_", Sys.Date(),"_", nruns, ".csv"))
-write.csv(ForDashboard, "Archive/ForDashboard.csv")
+nruns = length(list.files(path = "Results/Archive")[grep(paste0("ForDashboard_",Sys.Date()),list.files(path = "Archive"))]) + 1
+write.csv(ForDashboard, paste0("Results/Archive/ForDashboard_", Sys.Date(),"_", nruns, ".csv"))
+write.csv(ForDashboard, "Results/ResultsDashboard/ForDashboard.csv")
 write.csv(masterDF, paste0("Archive/masterDF_", Sys.Date(),"_", nruns, ".csv"))
-write.csv(masterDF, "Archive/masterDF.csv")
+write.csv(masterDF, "Results/Archive/masterDF.csv")
 

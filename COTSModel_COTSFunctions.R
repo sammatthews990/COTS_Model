@@ -95,7 +95,7 @@ initializeCOTSabund <- function(data.grid, data.COTS, Year, stagenames,
   colname <- paste('COTS_', Year, sep="")
   
   ### Update abundances based from interpolated manta tow data
-  COTSabund[,'A'] <- round(data.COTS[,colname] * 666 * (data.grid$PercentReef/100),0)   # 666 converts manta tow to 1kmx1km
+  COTSabund[,'A'] <- round(data.COTS[,colname] * (666/0.7) * (data.grid$PercentReef/100),0)   # 666 converts manta tow to 1kmx1km
   COTSabund[,'J_2'] <- round(COTSabund[,'A'] * as.numeric(COTS_StableStage[2]/COTS_StableStage[3]),0)
   COTSabund[,'J_1'] <- round(COTSabund[,'A'] * as.numeric(COTS_StableStage[1]/COTS_StableStage[3]),0)
   return(COTSabund)
@@ -334,7 +334,7 @@ CoTS_Dispersal_Conn <- function(COTSConnMat, COTSabund, nLarvae, CoralCover, Los
 # This is the master fucntion that incorporates the above functions
 
 doCOTSDispersal = function(season, COTSabund, CoralCover, SexRatio, ConnMat, PCFParams, Pred, 
-                           FvDParams, Fbase, CCRatioThresh, Year, data.chl, data.chl.resid, j){
+                           FvDParams, Fbase, CCRatioThresh, Year, data.chl, data.chl.resid, j, selfseed){
   # browser()
   COTSabund = COTSabund
   b = (1-Fbase)/CCRatioThresh # Make Ratio a parameter for tuning
@@ -368,6 +368,7 @@ doCOTSDispersal = function(season, COTSabund, CoralCover, SexRatio, ConnMat, PCF
       nArriving_Reef[i,] = round(nLarvae_Reef[i]*(ConnMat[i,]),0)
     }
     # browser()
+    diag(nArriving_Reef) = diag(nArriving_Reef)*selfseed
     nArriving_Reef = base::colSums(nArriving_Reef, na.rm = T) # create total juveniles arriving at a reef
     nArriving_Reef_PerPix = round(nArriving_Reef/Pixels$Pixels,0)
     names(nArriving_Reef_PerPix) = colnames(ConnMat)
@@ -517,6 +518,7 @@ doPredPreyDynamics = function(COTSabund, CoralCover, Crash, CCRatioThresh, CCRat
   if (season=="winter") {
   b = (COTSmort[3]-1)/(CCRatioThresh-CCRatioThresh2) # Make Ratio a parameter for tuning
   b2 = (COTSmort[2]-1)/(CCRatioThresh-CCRatioThresh2)
+  b3 = (COTSmort[1]-1)/(CCRatioThresh-CCRatioThresh2)
   Ratio = (CoralCover*data.grid$PercentReef/100)/(COTSabund[,3]/667)
   COTSabund[which(CoralCover < Crash),] = c(0,0,0)
   COTSabund[,"A"][which(Ratio<CCRatioThresh2)] = round((COTSabund[,"A"]*(1-maxmort))[which(Ratio<CCRatioThresh2)],0)
@@ -527,6 +529,10 @@ doPredPreyDynamics = function(COTSabund, CoralCover, Crash, CCRatioThresh, CCRat
   COTSabund[,"J_2"][which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)] = 
     round((COTSabund[,"J_2"]*(1 + (b2*Ratio)))[which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)],0)
   COTSabund[,"J_2"][which(Ratio>=CCRatioThresh)] = round((COTSabund[,"J_2"]*(1-COTSmort[2]))[which(Ratio>=CCRatioThresh)],0)
+  COTSabund[,"J_1"][which(Ratio<CCRatioThresh2)] = round((COTSabund[,"J_1"]*(1-maxmort))[which(Ratio<CCRatioThresh2)],0)
+  COTSabund[,"J_1"][which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)] = 
+    round((COTSabund[,"J_1"]*(1 + (b3*Ratio)))[which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)],0)
+  COTSabund[,"J_1"][which(Ratio>=CCRatioThresh)] = round((COTSabund[,"J_1"]*(1-COTSmort[1]))[which(Ratio>=CCRatioThresh)],0)
   }
   # COTS.m.CC = (1 - (p*CoralCover/(10+CoralCover)))
   # COTSabund[,"A"] = COTSabund[,"A"]*exp(-COTS.m.CC*COTSmort[3])
