@@ -18,10 +18,8 @@ LHSPARAMS = F
 if (PRELOAD == T) {
   setwd(DIRECTORY)
   if (SUBSET==T) {load("RData/ModelWorkspace_TEST.RData")}
-  else {load("RData/ModelWorkspace_2019-07-22_3.RData")}
+  else {load("RData/ModelWorkspace_2019-07-29_2.RData")}
   # Choose an older workspace with pre run disturbance samples
-  # Write Parameter Data Frame And Results Containers ----
-  # Write Parameter Data Frame And Results Containers ----
   # Write Parameter Data Frame And Results Containers ----
   source("COTSModel_COTSFunctions.R")
   source("COTSModel_Utilityfunctions.R")
@@ -32,28 +30,31 @@ if (PRELOAD == T) {
   } else {
     nsimul=10
     masterDF = data.frame("SexRatio" = 5, 
-                          "ConsRateW" = 150, 
-                          "ConsRateS" = c(350,450),
+                          "ConsRateW" = 0, 
+                          "ConsRateS" = 0,
                           "avgPCF" = 20000000,
                           "sdPCF" = 10000000,
-                          "mortJ1" =  0.98,
+                          "mortJ1" =  0.998,
                           "mortJ2" = 0.9,
-                          "mortA" = 0.45,
+                          "mortA" = 0.1,
                           "remJ1" = 0,
                           "remJ2" = 0,
                           "remA" = 1,
                           "cssJ1" = 0.9803,
                           "cssJ2" = 0.0171,
                           "cssA" = 0.0026,
-                          "Pred" = 0.9,
+                          "Pred" = 0.99,
                           "Crash" = 0,
                           "OutbreakCrash" = Inf,
-                          "Fbase" = 0.2,
+                          "Fbase" = 0,
                           "CCRatioThresh" = 30,
-                          "CCRatioThresh2" = 5,
+                          "CCRatioThresh2" = c(2,2,4,5),
                           "maxmort" = 1,
-                          "selfseed" = 0,
-                          "chl.int" = c(10, -0.484))
+                          "selfseed" = 1,
+                          "chl.int" = 1,
+                          "Cbase" = 0.1,
+                          "CMax" = 1000,
+                          "RUNNOCOTS"=F)
   }
   NREPS = length(masterDF$OutbreakCrash)
   masterDF$RUNNOCOTS = c(T, rep(F, NREPS-1))
@@ -63,9 +64,9 @@ if (PRELOAD == T) {
   
   setwd(DIRECTORY)
   
-  source("COTSModel_LoadObjectsForModelling.R")
-  setwd(DIRECTORY)
-  save.image(file = "RData/COTSMod_bckp.Rdata")
+  # source("COTSModel_LoadObjectsForModelling.R")
+  # setwd(DIRECTORY)
+  # save.image(file = "RData/COTSMod_bckp.Rdata")
   load("RData/COTSMod_bckp.RData")
   source("COTSModel_Utilityfunctions.R")
   setwd(DIRECTORY)
@@ -170,7 +171,7 @@ if (PRELOAD == T) {
     data.storms[,"Hs4MW_2013"] <- data.storms[,"Hs4MW_2013"]*.5
     data.storms[,"Hs4MW_2014"] <- data.storms[,"Hs4MW_2014"]*.5
     data.storms[,"Hs4MW_2015"] <- data.storms[,"Hs4MW_2015"]*.5
-    
+    # browser()
     # Add known disturbance for LTMP reefs
     data.bleaching[,-(1:16)][!is.na(data.ltmp.bleaching[,-(1:5)])] <- data.ltmp.bleaching[,-(1:5)][!is.na(data.ltmp.bleaching[,-(1:5)])]
     data.COTS[,-(1:17)][!is.na(data.ltmp.COTS[,-(1:6)])] <- data.ltmp.COTS[,-(1:6)][!is.na(data.ltmp.COTS[,-(1:6)])]
@@ -200,28 +201,31 @@ if (PRELOAD == T) {
     setwd(DIRECTORY)
   } else {
     masterDF = data.frame("SexRatio" = 5, 
-                          "ConsRateW" = 250, 
+                          "ConsRateW" = 150, 
                           "ConsRateS" = 350,
-                          "avgPCF" = 20000000,
-                          "sdPCF" = 10000000,
+                          "avgPCF" = 2000000,
+                          "sdPCF" = 1000000,
                           "mortJ1" =  0.99,
-                          "mortJ2" = 0.95,
-                          "mortA" = seq(0.3,0.6, length.out = 10),
-                          "remJ1" = 0,
-                          "remJ2" = 0,
+                          "mortJ2" = 0.99,
+                          "mortA" = 0.1,
+                          "remJ1" = 0.9,
+                          "remJ2" = 0.9,
                           "remA" = 1,
                           "cssJ1" = 0.9803,
                           "cssJ2" = 0.0171,
                           "cssA" = 0.0026,
-                          "Pred" = 0,
+                          "Pred" = 0.99,
                           "Crash" = 0,
                           "OutbreakCrash" = Inf,
-                          "Fbase" = 0.2,
-                          "CCRatioThresh" = 25,
-                          "CCRatioThresh2" = 10,
+                          "Fbase" = 0,
+                          "CCRatioThresh" = 30,
+                          "CCRatioThresh2" = 2,
                           "maxmort" = 0.99,
                           "selfseed" = 0.1,
-                          "chl.int" = 1)
+                          "chl.int" = 5:15,
+                          "Cbase" = 0.1,
+                          "CMax" = 1000,
+                          "RUNNOCOTS"=F)
   }
   
   NREPS = length(masterDF$OutbreakCrash)
@@ -290,6 +294,8 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
   maxmort = masterDF[reps,"maxmort"]
   selfseed = masterDF[reps,"selfseed"]
   chl.int = masterDF[reps, "chl.int"]
+  Cbase = masterDF[reps, "Cbase"]
+  CMax = masterDF[reps, "CMax"]
   RUNNOCOTS = masterDF[reps, "RUNNOCOTS"]
   # Initialize Model ----
   chl.lm$coefficients[1] = chl.int
@@ -327,7 +333,7 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
         COTSabund = doPredPreyDynamics(COTSabund, CoralCover, Crash, CCRatioThresh, CCRatioThresh2, maxmort)
         COTSabund = doCOTSDispersal(season,COTSabund,CoralCover,SexRatio,COTS.ConnMat, 
                                     PCFParams, Pred, FvDParams, Fbase, CCRatioThresh,Year, data.chl, data.chl.resid, j, selfseed) #Pruducing NAS
-        Consumption = doCoralConsumption(season, COTSabund, CoralCover, ConsRate) 
+        Consumption = doCoralConsumption(season, COTSabund, CoralCover, ConsRate, COTSfromCoralModel, Cbase,CMax) 
         CoralCover = Consumption[,'CRemaining']
         CoralConsum = round(Consumption[,'CChange'],4)
         CoralCover.Dist = doCoralDisturbance(i, j, season, CoralCover, 
@@ -345,7 +351,7 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
                 c("COTSJ1", "COTSJ2", "COTSA", "CoralCover", "CoralCover.DistLoss", "CoralCover.Consum", 'CoralCover.Growth')] =
           cbind(COTSabund, CoralCover, Disturbance, CoralConsum, CoralGrowth)
         if(i>OutbreakCrash & season =="winter") {
-          browser()
+          # browser()
           OutbreakCrasher = Results %>%
             dplyr::filter(Year > (i+1995-OutbreakCrash) & Year <= i+1995) %>%
             dplyr::group_by(REEF_NAME, Year) %>%
@@ -471,13 +477,13 @@ g = ggplot(res.plot,aes(x=Year, COTS.md)) + geom_line(aes(colour=factor(REP))) +
 ForGraph$YearDec = as.numeric(ifelse(ForGraph$Season=="summer", ForGraph$Year, c(ForGraph$Year, ".5")))
 ggplot(res.plot %>% filter(REEF_NAME %in% unique(REEFSUB$REEF_NAME)), aes(x=Year, y=COTS.md)) + 
   geom_line(aes(colour=as.factor(REP))) +  geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75, fill=factor(REP)),alpha=0.2) +
-  facet_wrap(~REEF_NAME)
+  facet_wrap(~REEF_NAME) + ylim(c(0,2))
 ggplot(res.plot %>% filter(REEF_NAME %in% unique(REEFSUB$REEF_NAME)), aes(x=Year, y=CC.md)) + 
   geom_line(aes(colour=as.factor(REP))) +
   facet_wrap(~REEF_NAME) + ylim(c(0,50))
 ggplot(ForGraph %>% filter(REEF_NAME %in% unique(REEFSUB$REEF_NAME)), aes(x=YearDec, y=COTS.mn)) + 
   geom_line(aes(colour=as.factor(REP))) +  geom_ribbon(aes(ymin = COTS.Q25, ymax=COTS.Q75, fill=factor(REP)),alpha=0.2) +
-  facet_wrap(~REEF_NAME) + ylim(c(0,2))
+  facet_wrap(~REEF_NAME) +ylim(c(0,100))
 ggplot(ForGraph, aes(x=YearDec, y=CC.mn, colour=as.factor(REP))) + geom_line() + ylim(c(0,50)) +
   facet_wrap(~REEF_NAME)
 

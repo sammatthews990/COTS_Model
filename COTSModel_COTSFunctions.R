@@ -93,9 +93,10 @@ initializeCOTSabund <- function(data.grid, data.COTS, Year, stagenames,
   
   ### Set up reference for year
   colname <- paste('COTS_', Year, sep="")
-  
+  # browser()
   ### Update abundances based from interpolated manta tow data
   COTSabund[,'A'] <- round(data.COTS[,colname] * (666/0.7) * (data.grid$PercentReef/100),0)   # 666 converts manta tow to 1kmx1km
+  COTSabund[,'A'] <- round(COTS.rsmpl[,1997-Year, j] * (666/0.7) * (data.grid$PercentReef/100),0) 
   COTSabund[,'J_2'] <- round(COTSabund[,'A'] * as.numeric(COTS_StableStage[2]/COTS_StableStage[3]),0)
   COTSabund[,'J_1'] <- round(COTSabund[,'A'] * as.numeric(COTS_StableStage[1]/COTS_StableStage[3]),0)
   return(COTSabund)
@@ -441,13 +442,24 @@ doCOTSDemography = function(season, COTSabund, COTSmort, COTSremain){
 ###################!
 
 
-doCoralConsumption = function(season, COTSabund, CoralCover, ConsRate) {
+doCoralConsumption = function(season, COTSabund, CoralCover, ConsRate, COTSfromCoralModel, Cbase, CMax) {
+  if (COTSfromCoralModel==T) {
+    CRemaining = CoralCover
+    CChange = rep(0, length(CoralCover))
+  } else {
+  browser()  
+  Ratio = (CoralCover*data.grid$PercentReef/100)/(COTSabund[,3]/667)
+  b = (1-Cbase)/CCRatioThresh
+  #######STARRT HERE!!!!!!!!!!!!!!!!
+  ConsRate.D = rep(CMax, length(CoralCover))
+  ConsRate.D[which(Ratio<CCRatioThresh)] = (CMax*(Cbase + (b*Ratio)))[which(Ratio<CCRatioThresh)]
   if (season =="summer") {
     # browser()
     #CoralCover= Results[(Results$Year==year-1) & (Results$Season=="winter"),"CoralCover"]
     CAvailable = (CoralCover*data.grid$PercentReef/10000)*1e6*1e4 # in cm2
     # Do I want consumption to be density related?
-    CConsumed = ConsRate[,1]*COTSabund[,"A"]*182
+    #CConsumed = ConsRate[,1]*COTSabund[,"A"]*182
+    CConsumed = ConsRate.D*COTSabund[,"A"]*182
     CRemaining=((CAvailable-CConsumed)/1e10)*(10000/data.grid$PercentReef)
     CChange = CRemaining-CoralCover
     CRemaining[CRemaining < 0.5] <- 0.5
@@ -455,10 +467,12 @@ doCoralConsumption = function(season, COTSabund, CoralCover, ConsRate) {
   if (season =="winter") {
     #CoralCover= Results[(Results$Year==year) & (Results$Season=="summer"),"CoralCover"]
     CAvailable = (CoralCover*data.grid$PercentReef/10000)*1e6*1e4 # in cm2
-    CConsumed = ConsRate[,2]*COTSabund[,"A"]*182
+    # CConsumed = ConsRate[,2]*COTSabund[,"A"]*182
+    CConsumed = ConsRate.D*COTSabund[,"A"]*182
     CRemaining=((CAvailable-CConsumed)/1e10)*(10000/data.grid$PercentReef)
     CChange = CRemaining-CoralCover
     CRemaining[CRemaining < 0.5] <- 0.5
+  }
   }
   return(cbind(CRemaining, CChange))
 }
@@ -513,14 +527,18 @@ CoralCOTSMort = function(p,CoralCover) {
 
 # plot(CoralCOTSMort(0.2,seq(0,100, 1)))
 
-doPredPreyDynamics = function(COTSabund, CoralCover, Crash, CCRatioThresh, CCRatioThresh2, maxmort) {
+doPredPreyDynamics = function(COTSabund, CoralCover, Crash, CCRatioThresh, CCRatioThresh2, maxmort, WhichPopCrash) {
   # Implement ratio dependent mortality on Adults and J_2
   if (season=="winter") {
+  # for (i in 1:(length(WhichPopCrash)-1)){
+  #   WhichPopCrash[[i+1]] = WhichPopCrash[[i]]
+  # }
   b = (COTSmort[3]-1)/(CCRatioThresh-CCRatioThresh2) # Make Ratio a parameter for tuning
   b2 = (COTSmort[2]-1)/(CCRatioThresh-CCRatioThresh2)
   b3 = (COTSmort[1]-1)/(CCRatioThresh-CCRatioThresh2)
   Ratio = (CoralCover*data.grid$PercentReef/100)/(COTSabund[,3]/667)
-  COTSabund[which(CoralCover < Crash),] = c(0,0,0)
+  # WhichPopCrash[[1]] = which(Ratio<CCRatioThresh2) # find pops to crash
+  # COTSabund[WhichPopCrash[[1]],2:3] = COTSabund[WhichPopCrash[[1]],2:3]*(1-maxmort)
   COTSabund[,"A"][which(Ratio<CCRatioThresh2)] = round((COTSabund[,"A"]*(1-maxmort))[which(Ratio<CCRatioThresh2)],0)
   COTSabund[,"A"][which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)] = 
     round((COTSabund[,"A"]*(1 + (b*Ratio)))[which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)],0)
