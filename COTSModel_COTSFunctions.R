@@ -447,7 +447,7 @@ doCoralConsumption = function(season, COTSabund, CoralCover, ConsRate, COTSfromC
     CRemaining = CoralCover
     CChange = rep(0, length(CoralCover))
   } else {
-  browser()  
+  #browser()  
   Ratio = (CoralCover*data.grid$PercentReef/100)/(COTSabund[,3]/667)
   b = (1-Cbase)/CCRatioThresh
   #######STARRT HERE!!!!!!!!!!!!!!!!
@@ -608,7 +608,7 @@ doCoralDisturbance = function (i, j, season, CoralCover, COTSfromCoralModel = F,
 }
 
 doCoralGrowth = function(season, CoralCover, b0, b1) {
-  if(season == "summer") {
+  if(season == "winter") {
     # b0.wq <- B0 + WQ * rnorm(length(WQ), mean=WQ.mn.sd[1], sd=WQ.mn.sd[2])
     # b1.wq <- b0.wq / log(HC.asym)
     CoralCover <- log(CoralCover)

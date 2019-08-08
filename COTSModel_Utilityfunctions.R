@@ -39,7 +39,7 @@ loadPackages <- function(){
   loadPackage("lhs")            # for latin hypercube sampling
   loadPackage("RCurl")          # for loading source code from github
   loadPackage("raster")         # for managing raster data
-  loadPackage("leaflet")
+  # loadPackage("leaflet")
   loadPackage("rgdal")          # for reading and writing all sorts of spatial data   
   loadPackage("popbio")         # for doing basic matrix population modeling
   loadPackage("tidyverse")      # data manipulation
@@ -153,25 +153,25 @@ MakeLHSSamples <- function(NREPS){
   LHSParms <- specifyLHSParam(paramslist=LHSParms,name="SexRatio",type="CAT",lb=5,ub=5)
   
   ####  WINTER CONSUMPTION RATE
-  LHSParms <- specifyLHSParam(LHSParms,"ConsRateW",type="CONT",lb=100,ub=200)
+  LHSParms <- specifyLHSParam(LHSParms,"ConsRateW",type="CONT",lb=0,ub=0)
   
   #### SUMMER CONSUMPTION RATE
-  LHSParms <- specifyLHSParam(LHSParms,"ConsRateS",type="CONT",lb=150,ub=400)
+  LHSParms <- specifyLHSParam(LHSParms,"ConsRateS",type="CONT",lb=0,ub=0)
   
   ### AVERAGE PER CAPITA FECUNDITY 
-  LHSParms <- specifyLHSParam(LHSParms,"avgPCF",type="CONT",lb=1e6,ub=31e6)       # KTS: changed to 500
+  LHSParms <- specifyLHSParam(LHSParms,"avgPCF",type="CONT",lb=2e7,ub=2e7)       # KTS: changed to 500
   
   ### STD DEV PER CAPITA FECUNDITY
-  LHSParms <- specifyLHSParam(LHSParms,"sdPCF",type="CONT",lb=20e5,ub=1.5e7)     # was 1000 to 40000  
+  LHSParms <- specifyLHSParam(LHSParms,"sdPCF",type="CONT",lb=1e7,ub=1e7)     # was 1000 to 40000  
   
   ### % JUVENILE1 MORTALITY PER TIME STEP
-  LHSParms <- specifyLHSParam(LHSParms,"mortJ1",type="CONT",lb=0.95,ub=0.99)
+  LHSParms <- specifyLHSParam(LHSParms,"mortJ1",type="CONT",lb=0.98,ub=0.995)
   
   ### % JUVENILE2 MORTALITY PER TIME STEP
-  LHSParms <- specifyLHSParam(LHSParms,"mortJ2",type="CONT",lb=0.8,ub=0.99) 
+  LHSParms <- specifyLHSParam(LHSParms,"mortJ2",type="CONT",lb=0.7,ub=0.7) 
   
   ### % ADULT MORTALITY PER TIME STEP
-  LHSParms <- specifyLHSParam(LHSParms,"mortA",type="CONT",lb=0.3,ub=0.8)
+  LHSParms <- specifyLHSParam(LHSParms,"mortA",type="CONT",lb=0.1,ub=0.7)
   
   ### % JUVENILE1 TO REMIAIN during transition
   LHSParms <- specifyLHSParam(LHSParms,"remJ1",type="CONT",lb=0,ub=0)
@@ -192,7 +192,7 @@ MakeLHSSamples <- function(NREPS){
   LHSParms <- specifyLHSParam(LHSParms,"cssA",type="CONT",lb=0.0026,ub=0.0026)
   
   ### PROPORTIONAL Larval Mortality FIXED
-  LHSParms <- specifyLHSParam(LHSParms,"Pred",type="CONT",lb=0,ub=0)
+  LHSParms <- specifyLHSParam(LHSParms,"Pred",type="CONT",lb=0.97,ub=0.995)
   
   ### % Coral Cover at which to crash a COTS population entirely  
   LHSParms <- specifyLHSParam(LHSParms,"Crash",type="CONT",lb=0,ub=0)
@@ -201,16 +201,28 @@ MakeLHSSamples <- function(NREPS){
   LHSParms <- specifyLHSParam(LHSParms,"OutbreakCrash",type="CONT",lb=Inf,ub=Inf)
   
   ### Lowest possible fecundity as a proportion of PCF (Per Capita Fecundity)  
-  LHSParms <- specifyLHSParam(LHSParms,"Fbase",type="CONT",lb=0.1,ub=0.3)
+  LHSParms <- specifyLHSParam(LHSParms,"Fbase",type="CONT",lb=0,ub=0)
   
   ### Coral-COTS Ratio at which COral becomes lmiting resource ~25
-  LHSParms <- specifyLHSParam(LHSParms,"CCRatioThresh",type="CONT",lb=20,ub=30)
+  LHSParms <- specifyLHSParam(LHSParms,"CCRatioThresh",type="CONT",lb=30,ub=30)
   
   ### Coral-COTS Ratio below which COTS mortality reaches its maximum
-  LHSParms <- specifyLHSParam(LHSParms,"CCRatioThresh",type="CONT",lb=20,ub=30)
+  LHSParms <- specifyLHSParam(LHSParms,"CCRatioThresh2",type="CONT",lb=5,ub=15)
   
   ### Maximum mortality experienced by adult COTS under severely resource limited conditions
-  LHSParms <- specifyLHSParam(LHSParms,"maxmort",type="CONT",lb=0.95,ub=1)
+  LHSParms <- specifyLHSParam(LHSParms,"maxmort",type="CONT",lb=0.99,ub=1)
+  
+  ### Proportion of estimated selfseeding larvae to remiain (assuming that KArlo's model overestimates)
+  LHSParms <- specifyLHSParam(LHSParms,"selfseed",type="CONT",lb=0.1,ub=1)
+  
+  ### Intercept for the chlorophyll model, increasing it allows more larve to survive in oligotrophic cond's
+  LHSParms <- specifyLHSParam(LHSParms,"chl.int",type="CONT",lb=-0.4,ub=10)
+  
+  ### Proportion of CMax to be consumed at lowest Coral-COTS Ratio
+  LHSParms <- specifyLHSParam(LHSParms,"Cbase",type="CONT",lb=0.1,ub=0.1)
+  
+  ### Max coral consumed (cm2) per day by COTS
+  LHSParms <- specifyLHSParam(LHSParms,"CMax",type="CONT",lb=350,ub=350)
   
   ### DENSITY DEPENDENCE ON HARVEST (y intercept of the harvest rate/abundance relationship)
   
@@ -245,9 +257,9 @@ MakeLHSSamples <- function(NREPS){
   }
   
   
-  setwd(RESULTS_DIRECTORY)
+  #setwd(RESULTS_DIRECTORY)
   ## name file for LHS parameters 
-  write.csv(masterDF,"masterDF_prelimCOTS.csv",row.names=F)
+  #write.csv(masterDF,"masterDF_prelimCOTS.csv",row.names=F)
   
   return(masterDF)
 }

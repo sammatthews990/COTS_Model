@@ -5,25 +5,34 @@
 
 rm(list=ls())
 source("COTSModel_Utilityfunctions.R")
-loadPackages()
-# library(dplyr)
-# library(foreach)
-# library(doParallel)
+# loadPackages()
+library(dplyr)
+library(foreach)
+library(doParallel)
+library(ggplot2)
+
 DIRECTORY = getwd()
 
 PRELOAD = T
-SUBSET = T
-LHSPARAMS = F
+SUBSET = F
+LHSPARAMS = T
+WHERE = list(c("CA", "CL"), c("M"))
+
 
 if (PRELOAD == T) {
   setwd(DIRECTORY)
   if (SUBSET==T) {load("RData/ModelWorkspace_TEST.RData")}
-  else {load("RData/ModelWorkspace_2019-07-29_2.RData")}
+  else {load("RData/ModelWorkspace_FULL.RData")}
+  DIRECTORY = getwd()
   # Choose an older workspace with pre run disturbance samples
   # Write Parameter Data Frame And Results Containers ----
   source("COTSModel_COTSFunctions.R")
   source("COTSModel_Utilityfunctions.R")
+  
+  LHSPARAMS = T
+  
   if (LHSPARAMS==T) {
+    nsimul=10
     masterDF = MakeLHSSamples(100)
     masterDF$OutbreakCrash = Inf
     setwd(DIRECTORY)
@@ -34,8 +43,8 @@ if (PRELOAD == T) {
                           "ConsRateS" = 0,
                           "avgPCF" = 20000000,
                           "sdPCF" = 10000000,
-                          "mortJ1" =  0.998,
-                          "mortJ2" = 0.9,
+                          "mortJ1" =  0.99,
+                          "mortJ2" = 0.7,
                           "mortA" = 0.1,
                           "remJ1" = 0,
                           "remJ2" = 0,
@@ -43,17 +52,17 @@ if (PRELOAD == T) {
                           "cssJ1" = 0.9803,
                           "cssJ2" = 0.0171,
                           "cssA" = 0.0026,
-                          "Pred" = 0.99,
+                          "Pred" = 0.985, #play with this
                           "Crash" = 0,
                           "OutbreakCrash" = Inf,
                           "Fbase" = 0,
                           "CCRatioThresh" = 30,
-                          "CCRatioThresh2" = c(2,2,4,5),
-                          "maxmort" = 1,
-                          "selfseed" = 1,
-                          "chl.int" = 1,
+                          "CCRatioThresh2" = 10,
+                          "maxmort" = 1, #and this
+                          "selfseed" = 1, # and this
+                          "chl.int" = -0.04, #and this
                           "Cbase" = 0.1,
-                          "CMax" = 1000,
+                          "CMax" = 350,
                           "RUNNOCOTS"=F)
   }
   NREPS = length(masterDF$OutbreakCrash)
@@ -64,10 +73,10 @@ if (PRELOAD == T) {
   
   setwd(DIRECTORY)
   
-  # source("COTSModel_LoadObjectsForModelling.R")
-  # setwd(DIRECTORY)
-  # save.image(file = "RData/COTSMod_bckp.Rdata")
-  load("RData/COTSMod_bckp.RData")
+  source("COTSModel_LoadObjectsForModelling.R")
+  setwd(DIRECTORY)
+  save.image(file = "RData/COTSMod_bckp.Rdata")
+  #load("RData/COTSMod_bckp.RData")
   source("COTSModel_Utilityfunctions.R")
   setwd(DIRECTORY)
   source("COTSModel_COTSFunctions.R")
@@ -85,10 +94,9 @@ if (PRELOAD == T) {
   npops <- 15802 #number of reefs we want to test
   nsimul <- 10
   
-  WHERE = c("CA", "M")
-  
+  # browser()
   REEFSUB = data.grid %>% dplyr::select(1:7) %>% 
-    dplyr::filter(SECTOR %in% WHERE[1] & CROSS_SHELF %in% WHERE[2])
+    dplyr::filter(SECTOR %in% WHERE[[1]] & CROSS_SHELF %in% WHERE[[2]])
   
   VERBOSE <- TRUE        # flag whether functions should return detailed information
   DEBUG <- TRUE          # flag whether to output debug files etc. 
@@ -201,30 +209,30 @@ if (PRELOAD == T) {
     setwd(DIRECTORY)
   } else {
     masterDF = data.frame("SexRatio" = 5, 
-                          "ConsRateW" = 150, 
-                          "ConsRateS" = 350,
-                          "avgPCF" = 2000000,
-                          "sdPCF" = 1000000,
+                          "ConsRateW" = 0, 
+                          "ConsRateS" = 0,
+                          "avgPCF" = 20000000,
+                          "sdPCF" = 10000000,
                           "mortJ1" =  0.99,
-                          "mortJ2" = 0.99,
+                          "mortJ2" = 0.7,
                           "mortA" = 0.1,
-                          "remJ1" = 0.9,
-                          "remJ2" = 0.9,
+                          "remJ1" = 0,
+                          "remJ2" = 0,
                           "remA" = 1,
                           "cssJ1" = 0.9803,
                           "cssJ2" = 0.0171,
                           "cssA" = 0.0026,
-                          "Pred" = 0.99,
+                          "Pred" = 0.985, #play with this
                           "Crash" = 0,
                           "OutbreakCrash" = Inf,
                           "Fbase" = 0,
                           "CCRatioThresh" = 30,
-                          "CCRatioThresh2" = 2,
-                          "maxmort" = 0.99,
-                          "selfseed" = 0.1,
-                          "chl.int" = 5:15,
+                          "CCRatioThresh2" = 10,
+                          "maxmort" = 1, #and this
+                          "selfseed" = 1, # and this
+                          "chl.int" = seq(-0.04, 1, length.out = 4), #and this
                           "Cbase" = 0.1,
-                          "CMax" = 1000,
+                          "CMax" = 350,
                           "RUNNOCOTS"=F)
   }
   
@@ -267,8 +275,13 @@ if (PRELOAD == T) {
   setwd(DIRECTORY)
   nruns = length(list.files(path = "RData")[grep(Sys.Date(),list.files(path = "RData"))]) + 1
   if (SUBSET==T) {save.image(file = "RData/ModelWorkspace_TEST.RData")}
+  save.image(file = "RData/ModelWorkspace_TEST.RData")
   save.image(file = paste0("RData/ModelWorkspace_", Sys.Date(),"_", nruns,".RData"))
 }
+
+
+# Parallel Loop ----
+masterDF$maxmort[seq(2,100, 2)] = 1 # if i'm 
 
 cl = parallel::makeCluster(1)
 doParallel::registerDoParallel(cores = 3)
@@ -299,9 +312,9 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
   RUNNOCOTS = masterDF[reps, "RUNNOCOTS"]
   # Initialize Model ----
   chl.lm$coefficients[1] = chl.int
-  
+  seasons <- c("summer","winter")
   browse = FALSE 
-  inityear = 1996
+  inityear = 1995
   COTSfromCoralModel=FALSE 
   COTSfromSimul=TRUE
   
@@ -329,13 +342,17 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
           browser()
         }
         # browser()
-        COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
         COTSabund = doPredPreyDynamics(COTSabund, CoralCover, Crash, CCRatioThresh, CCRatioThresh2, maxmort)
-        COTSabund = doCOTSDispersal(season,COTSabund,CoralCover,SexRatio,COTS.ConnMat, 
-                                    PCFParams, Pred, FvDParams, Fbase, CCRatioThresh,Year, data.chl, data.chl.resid, j, selfseed) #Pruducing NAS
-        Consumption = doCoralConsumption(season, COTSabund, CoralCover, ConsRate, COTSfromCoralModel, Cbase,CMax) 
+        COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
+        Consumption = doCoralConsumption(season, COTSabund, CoralCover, ConsRate, COTSfromCoralModel, Cbase,CMax)
         CoralCover = Consumption[,'CRemaining']
         CoralConsum = round(Consumption[,'CChange'],4)
+        COTSabund = doCOTSDispersal(season,COTSabund,CoralCover,SexRatio,COTS.ConnMat, 
+                                    PCFParams, Pred, FvDParams, Fbase, CCRatioThresh,Year, data.chl, data.chl.resid, j, selfseed) 
+        
+        #Pruducing NAS
+         
+        
         CoralCover.Dist = doCoralDisturbance(i, j, season, CoralCover, 
                                              COTSfromCoralModel = COTSfromCoralModel, 
                                              storms.rsmpl, B.STORMS, WQ_Cyclone, 
@@ -357,7 +374,7 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
             dplyr::group_by(REEF_NAME, Year) %>%
             dplyr::mutate(COTSA = (COTSA/100)*0.15) %>% # need to allow for detection
             dplyr::summarise(Mean.COTS = mean(COTSA)) %>%
-            dplyr::mutate(is.outbreak = ifelse(Mean.COTS > 0.2, 1,0)) %>%
+            dplyr::mutate(is.outbreak = ifelse(Mean.COTS > 0.1, 1,0)) %>%
             dplyr::group_by(REEF_NAME) %>%
             dplyr::summarise(Crash = ifelse(sum(is.outbreak)==OutbreakCrash,1,0)) %>%
             dplyr::filter(Crash==1)
@@ -427,20 +444,8 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
   ResultsDash = dplyr::left_join(ResultsDash, unique(data.grid[5:7]), by="REEF_NAME") %>%
     dplyr::select(REEF_ID:Season, SECTOR:CROSS_SHELF, 5:12)
   
-  # Make FACET GRID PLOT FOR EACH SECTOR/SHELF COMBO
-  library(dplyr)
-  library(ggplot2)
-  res.plot = ResultsDash %>% dplyr::group_by(Year,SECTOR, CROSS_SHELF) %>%
-    dplyr::summarise(COTS.md = median(COTS.mn),
-                     COTS.25 = quantile(COTS.mn, probs=0.25),
-                     COTS.75 = quantile(COTS.mn, probs=0.75))
-  ggplot(res.plot,aes(x=Year, COTS.md)) + geom_line() + geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75), alpha=0.2) + ylim(c(0,1)) +
-    facet_grid(rows=vars(SECTOR), cols = vars(CROSS_SHELF))
-  
-  setwd(DIRECTORY)
-  namefig <- sprintf("Results/Figures/Sample_%s.png", reps)
-  ggplot2::ggsave(namefig, device="png", height = 10, width=8, dpi=300)
-  
+ 
+  #Save Results ----
   # setwd("Results")
   name <- sprintf("Results/Sample_%s.Rdata", reps)
   save(res.cc, res.cots, ResultsDash, file = name) 
@@ -449,7 +454,7 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
 
 parallel::stopCluster(cl)
 
-# Combine Files into summary 
+# Combine Files into summary ----
 setwd(DIRECTORY)
 setwd("Results")
 load("Sample_1.Rdata")
@@ -458,6 +463,7 @@ ForDashboard = ForGraph = ResultsDash
 ForGraph$REP=1
 files = list.files()
 files = files[grep("Sample",files)]
+NREPS = length(files)
 
 for (i in 2:NREPS) {
   load(sprintf("Sample_%s.Rdata", i))
@@ -465,33 +471,217 @@ for (i in 2:NREPS) {
   ForDashboard = cbind(ForDashboard, ResultsDash[7:14])
   ForGraph = rbind(ForGraph, ResultsDash)
 }
+
 setwd(DIRECTORY)
-res.plot = ForGraph %>% dplyr::group_by(REEF_NAME,REP,Year,SECTOR, CROSS_SHELF) %>%
-  dplyr::summarise(COTS.md = median(COTS.mn),
-                   COTS.25 = quantile(COTS.mn, probs=0.25),
-                   COTS.75 = quantile(COTS.mn, probs=0.75),
-                   CC.md = mean(CC.mn))
-g = ggplot(res.plot,aes(x=Year, COTS.md)) + geom_line(aes(colour=factor(REP))) + 
-  geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75, fill=factor(REP)),alpha=0.2) + ylim(c(0,1)) +
-  facet_grid(rows=vars(SECTOR), cols = vars(CROSS_SHELF))
+
+
+# g = ggplot(res.plot,aes(x=Year, COTS.md)) + geom_line(aes(colour=factor(REP))) + 
+#   geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75, fill=factor(REP)),alpha=0.2) + ylim(c(0,1)) +
+#   facet_grid(rows=vars(SECTOR), cols = vars(CROSS_SHELF))
+# Manta Reefs 
+# data.manta.sub = data.manta %>% filter(REEF_NAME.y %in% unique(REEFSUB$REEF_NAME) & REPORT_YEAR > 1995) %>% 
+#   mutate(REEF_NAME = REEF_NAME.y,
+#          Year = REPORT_YEAR - 1) %>%
+#   dplyr::select(REEF_NAME, Year, MEAN_LIVE.corr, MEAN_COTS, SE_COTS) %>%
+#   right_join(res.plot %>% dplyr::filter(REEF_NAME %in% unique(REEFSUB$REEF_NAME)))
+
+
 ForGraph$YearDec = as.numeric(ifelse(ForGraph$Season=="summer", ForGraph$Year, c(ForGraph$Year, ".5")))
-ggplot(res.plot %>% filter(REEF_NAME %in% unique(REEFSUB$REEF_NAME)), aes(x=Year, y=COTS.md)) + 
-  geom_line(aes(colour=as.factor(REP))) +  geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75, fill=factor(REP)),alpha=0.2) +
-  facet_wrap(~REEF_NAME) + ylim(c(0,2))
-ggplot(res.plot %>% filter(REEF_NAME %in% unique(REEFSUB$REEF_NAME)), aes(x=Year, y=CC.md)) + 
-  geom_line(aes(colour=as.factor(REP))) +
-  facet_wrap(~REEF_NAME) + ylim(c(0,50))
-ggplot(ForGraph %>% filter(REEF_NAME %in% unique(REEFSUB$REEF_NAME)), aes(x=YearDec, y=COTS.mn)) + 
-  geom_line(aes(colour=as.factor(REP))) +  geom_ribbon(aes(ymin = COTS.Q25, ymax=COTS.Q75, fill=factor(REP)),alpha=0.2) +
-  facet_wrap(~REEF_NAME) +ylim(c(0,100))
-ggplot(ForGraph, aes(x=YearDec, y=CC.mn, colour=as.factor(REP))) + geom_line() + ylim(c(0,50)) +
-  facet_wrap(~REEF_NAME)
+# ggplot(res.plot %>% filter(REEF_NAME %in% unique(REEFSUB$REEF_NAME)), aes(x=Year, y=COTS.md)) + 
+#   geom_line(aes(colour=as.factor(REP))) +  geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75, fill=factor(REP)),alpha=0.2) +
+#   facet_wrap(~REEF_NAME) + ylim(c(0,10))
+# ggplot(data.manta.sub %>% filter(REEF_NAME %in% manta.reefs), aes(x=Year, y=COTS.mn)) + 
+#   geom_point(aes(y=MEAN_COTS)) + geom_line(aes(x=Year, y=MEAN_COTS)) +
+#   geom_line(aes(colour=as.factor(REP))) +  geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75, fill=factor(REP)),alpha=0.2) +
+#   facet_wrap(~REEF_NAME) + ylim(c(0,1))
+# 
+# ggplot(data.manta.sub, aes(x=Year, y=CC.mn)) + 
+#   geom_point(aes(y=MEAN_LIVE.corr)) + geom_line(aes(x=REPORT_YEAR-1, y=MEAN_LIVE.corr)) +
+#   geom_line(aes(colour=as.factor(REP))) +
+#   facet_wrap(~REEF_NAME) + ylim(c(0,50))
+#   
+# ggplot(ForGraph %>% filter(REEF_NAME %in% unique(REEFSUB$REEF_NAME)), aes(x=YearDec, y=COTS.mn)) + 
+#   geom_line(aes(colour=as.factor(REP))) +  geom_ribbon(aes(ymin = COTS.Q25, ymax=COTS.Q75, fill=factor(REP)),alpha=0.2) +
+#   facet_wrap(~REEF_NAME) + ylim(c(0,50))
+# ggplot(ForGraph, aes(x=YearDec, y=CC.mn, colour=as.factor(REP))) + geom_line() + ylim(c(0,50)) +
+#   facet_wrap(~REEF_NAME)
 
 colnames(ForDashboard)[7:length(colnames(ForDashboard))] = paste0(rep(1:NREPS, each=8),"_", colnames(ResultsDash[7:14]))
+
+
+
+#### Validation ----
+manta.reefs = data.manta %>% 
+  dplyr::filter(REEF_NAME.y %in% unique(data.grid$REEF_NAME) & REPORT_YEAR > 1995) %>% 
+  mutate(REEF_NAME = as.factor(REEF_NAME.y)) %>%
+  group_by(A_SECTOR, REEF_NAME) %>% 
+  dplyr::summarise(n=length(REPORT_YEAR)) %>% filter(n>8) %>% top_n(3, n) %>%
+  pull(REEF_NAME) %>% as.character()
+
+res.plot = ForGraph %>% filter(REEF_NAME %in% data.grid$REEF_NAME) %>% 
+  dplyr::group_by(REEF_NAME,REP,Year,SECTOR, CROSS_SHELF) %>%
+  dplyr::summarise(COTS.mn = mean(COTS.mn),
+                   COTS.25 = quantile(COTS.mn, probs=0.25),
+                   COTS.75 = quantile(COTS.mn, probs=0.75),
+                   CC.mn = mean(CC.mn))
+res.plot.manta = res.plot[which(res.plot$REEF_NAME %in% manta.reefs),]
+
+data.manta.valid = data.manta %>% filter(REEF_NAME.y %in% manta.reefs & REPORT_YEAR > 1995) %>% 
+  mutate(REEF_NAME = REEF_NAME.y,
+         Year = REPORT_YEAR - 1) %>% 
+  inner_join(res.plot.manta)
+
+
+SECTORS = unique(as.character(data.manta.valid$SECTOR))
+MPE = data.frame(SECTOR= rep(SECTORS, each=NREPS), 
+                 REP = 1:NREPS,
+                 MPE.CC = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 MPE.CC.c = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 MPE.CC.ALL = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 MPE.CC.ALL.c = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 MPE.COTS = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 MPE.COTS.c = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 MPE.COTS.ALL = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 MPE.COTS.ALL.c = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 MPE.COTS.NOZERO = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 MPE.COTS.NOZERO.c = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 MPE.COTS.NOZERO.ALL = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 MPE.COTS.NOZERO.ALL.c = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 MPE.COTS.POST08 = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 MPE.COTS.POST08.c = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 MPE.COTS.POST08.ALL = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 MPE.COTS.POST08.ALL.c = vector(mode = "numeric", NREPS*length(SECTORS)))
+                 
+
+
+#Compute validation table at sector level
+for (i in 1:NREPS) {
+  print(i)
+  manta.i = dplyr::filter(data.manta.valid, REP==i)
+  lm = lm(CC.mn~MEAN_LIVE.corr, data=manta.i)
+  summary(lm)$r.squared  ## R2 = 0.637
+  MPE[MPE$REP==i,"MPE.CC.ALL"] = mean(abs(summary(lm)$residuals)) ## Mean prediction error = 7.7 %
+  MPE[MPE$REP==i,"MPE.CC.ALL.c"] = lm$coefficients[2]
+  lm = lm(sqrt(COTS.mn)~sqrt(MEAN_COTS), data=manta.i)
+  summary(lm)$r.squared  ## R2 = 0.637
+  MPE[MPE$REP==i,"MPE.COTS.ALL"] = mean(abs(summary(lm)$residuals))
+  MPE[MPE$REP==i,"MPE.COTS.ALL.c"] = lm$coefficients[2]
+  if (nrow(manta.i[manta.i$MEAN_COTS>0.11,])>0) {
+  lm = lm(sqrt(COTS.mn)~sqrt(MEAN_COTS), data=manta.i[manta.i$MEAN_COTS>0.11,])
+  summary(lm)$r.squared  ## R2 = 0.637
+  MPE[MPE$REP==i,"MPE.COTS.NOZERO.ALL"] = mean(abs(summary(lm)$residuals))
+  MPE[MPE$REP==i,"MPE.COTS.NOZERO.ALL.c"] = lm$coefficients[2]
+  # lm = lm(sqrt(COTS.mn)~sqrt(MEAN_COTS), data=manta.i[manta.i$MEAN_COTS>0.11 & manta.i$Year>2004,])
+  # summary(lm)$r.squared  ## R2 = 0.637
+  # MPE[MPE$REP==i,"MPE.COTS.POST08.ALL"] = mean(abs(summary(lm)$residuals)) 
+  # MPE[MPE$REP==i,"MPE.COTS.POST08.ALL.c"] = lm$coefficients[2]## 
+  }
+  for (j in 1:length(SECTORS)) {
+  # browser()
+  print(j)
+  manta.i = dplyr::filter(data.manta.valid, REP==i & SECTOR == SECTORS[j])
+  lm = lm(CC.mn~MEAN_LIVE.corr, data=manta.i)
+  summary(lm)$r.squared  ## R2 = 0.637
+  MPE[MPE$SECTOR==SECTORS[j] & MPE$REP==i,"MPE.CC"] = mean(abs(summary(lm)$residuals)) ## Mean prediction error = 7.7 %
+  MPE[MPE$SECTOR==SECTORS[j] & MPE$REP==i,"MPE.CC.c"] = lm$coefficients[2]
+  lm = lm(sqrt(COTS.mn)~sqrt(MEAN_COTS), data=manta.i)
+  summary(lm)$r.squared  ## R2 = 0.637
+  MPE[MPE$SECTOR==SECTORS[j] & MPE$REP==i,"MPE.COTS"] = mean(abs(summary(lm)$residuals)) ##
+  MPE[MPE$SECTOR==SECTORS[j] & MPE$REP==i,"MPE.COTS.c"] = lm$coefficients[2]
+  if (nrow(manta.i[manta.i$MEAN_COTS>0.11,])>0) {
+  lm = lm(sqrt(COTS.mn)~sqrt(MEAN_COTS), data=manta.i[manta.i$MEAN_COTS>0.11,])
+  summary(lm)$r.squared  ## R2 = 0.637
+  MPE[MPE$SECTOR==SECTORS[j] & MPE$REP==i,"MPE.COTS.NOZERO"] = mean(abs(summary(lm)$residuals)) ##
+  MPE[MPE$SECTOR==SECTORS[j] & MPE$REP==i,"MPE.COTS.NOZERO.c"] = lm$coefficients[2]
+  # lm = lm(sqrt(COTS.mn)~sqrt(MEAN_COTS), data=manta.i[manta.i$MEAN_COTS>0.11 & manta.i$Year>2004,])
+  # summary(lm)$r.squared  ## R2 = 0.637
+  # MPE[MPE$SECTOR==SECTORS[j] & MPE$REP==i,"MPE.COTS.POST08"] = mean(abs(summary(lm)$residuals)) ##
+  # MPE[MPE$SECTOR==SECTORS[j] & MPE$REP==i,"MPE.COTS.POST08.c"] = lm$coefficients[2]
+  }
+  }
+  
+}  
+# ggplot(manta.i[manta.i$MEAN_COTS>0.2,], aes(x=sqrt(MEAN_COTS), y=sqrt(COTS.mn))) + geom_point() +
+#   geom_smooth(method="lm")
+
+BESTREPS = unique(MPE[order(MPE$MPE.COTS.NOZERO.ALL)[1:50],"REP"])
+BESTPARAMS = masterDF[BESTREPS,]
+MPE.T = MPE[MPE$SECTOR=="TO",]
+BESTREPS.T = MPE.T[order(MPE.T$MPE.COTS.NOZERO.ALL)[1:5],"REP"]
+BESTPARAMS.T = masterDF[BESTREPS.T,]
+
+GG.COTS = ggplot(data.manta.valid %>% filter(REP %in% BESTREPS & REEF_NAME %in% manta.reefs), aes(x=Year, y=COTS.mn)) + 
+  geom_point(aes(y=MEAN_COTS)) + geom_line(aes(x=Year, y=MEAN_COTS)) +
+  geom_line(aes(colour=as.factor(REP))) +  geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75, fill=factor(REP)),alpha=0.2) +
+  facet_wrap(~SECTOR+REEF_NAME,scales = "free_y")
+GG.COTS
+
+GG.COTS.T = ggplot(data.manta.valid %>% filter(REP %in% BESTREPS.T & REEF_NAME %in% manta.reefs), aes(x=Year, y=COTS.mn)) + 
+  geom_point(aes(y=MEAN_COTS)) + geom_line(aes(x=Year, y=MEAN_COTS)) +
+  geom_line(aes(colour=as.factor(REP))) +  geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75, fill=factor(REP)),alpha=0.2) +
+  facet_wrap(~SECTOR+REEF_NAME,scales = "free_y")
+GG.COTS.T
+
+ggplot(data.manta.valid %>% 
+         filter(REP %in% BESTREPS.T & REEF_NAME %in% c("Chicken Reef (18-086)","John Brewer Reef (18-075)", "Rib Reef (18-032)")), 
+       aes(x=Year, y=COTS.mn)) + 
+  geom_point(aes(y=MEAN_COTS)) + geom_line(aes(x=Year, y=MEAN_COTS)) +
+  geom_line(aes(colour=as.factor(REP))) +  geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75, fill=factor(REP)),alpha=0.2) +
+  facet_wrap(~SECTOR+REEF_NAME,scales = "free_y") + ylim(c(0,10))
+
+
+
+ggsave("Results/Figures/COTS.tiff",GG.COTS, device="tiff", width=14, height=8, dpi = 300)
+ggsave("Results/Figures/COTS.png",GG.COTS, device="png", width=14, height=8, dpi = 300)
+
+GG.CORAL = ggplot(data.manta.valid  %>% filter(REP %in% BESTREPS & REEF_NAME %in% manta.reefs), aes(x=Year, y=CC.mn)) + 
+  geom_point(aes(y=MEAN_LIVE.corr)) + geom_line(aes(x=REPORT_YEAR-1, y=MEAN_LIVE.corr)) +
+  geom_line(aes(colour=as.factor(REP))) +
+  facet_wrap(~SECTOR+REEF_NAME, scales = "free_y") + ylim(c(0,50))
+GG.CORAL
+
+ggsave("Results/Figures/Coral.tiff", GG.CORAL, device="tiff", width=14, height=8, dpi = 300)
+ggsave("Results/Figures/Coral.png", GG.CORAL, device="png", width=14, height=8, dpi = 300)
+
+# Best Model Average
+res.plot.manta.av = res.plot.manta  %>% dplyr::filter(REP %in% BESTREPS & REEF_NAME %in% manta.reefs) %>%
+  dplyr::group_by(REEF_NAME, Year, SECTOR, CROSS_SHELF) %>%
+  dplyr::summarise(COTS.md = median(COTS.mn),
+            COTS.25 = quantile(COTS.mn, probs = 0.25),
+            COTS.75 = quantile(COTS.mn, probs = 0.75),
+            CC.md =  median(CC.mn),
+            CC.25 = quantile(CC.mn, probs = 0.25),
+            CC.75 = quantile(CC.mn, probs = 0.75))
+
+data.manta.valid.av = data.manta %>% filter(REEF_NAME.y %in% manta.reefs & REPORT_YEAR > 1995) %>% 
+  mutate(REEF_NAME = REEF_NAME.y,
+         Year = REPORT_YEAR - 1) %>% 
+  inner_join(res.plot.manta.av)
+
+GG.COTS.AV = ggplot(data.manta.valid.av, aes(x=Year, y=COTS.md)) + 
+  geom_point(aes(y=MEAN_COTS)) + geom_line(aes(x=Year, y=MEAN_COTS)) +
+  geom_line() +  geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75),alpha=0.2) +
+  facet_wrap(~SECTOR+REEF_NAME,scales = "free_y")
+GG.COTS.AV
+
+
+ggsave("Results/Figures/COTS.tiff",GG.COTS.AV, device="tiff", width=14, height=8, dpi = 300)
+ggsave("Results/Figures/COTS.png",GG.COTS.AV, device="png", width=14, height=8, dpi = 300)
+
+GG.CORAL.AV = ggplot(data.manta.valid  %>% filter(REP %in% BESTREPS & REEF_NAME %in% manta.reefs), aes(x=Year, y=CC.mn)) + 
+  geom_point(aes(y=MEAN_LIVE.corr)) + geom_line(aes(x=REPORT_YEAR-1, y=MEAN_LIVE.corr)) +
+  geom_line(aes(colour=as.factor(REP))) +
+  facet_wrap(~SECTOR+REEF_NAME, scales = "free_y") + ylim(c(0,50))
+GG.CORAL.AV
+
+ggsave("Results/Figures/Coral.tiff", GG.CORAL.AV, device="tiff", width=14, height=8, dpi = 300)
+ggsave("Results/Figures/Coral.png", GG.CORAL.AV, device="png", width=14, height=8, dpi = 300)
 
 nruns = length(list.files(path = "Results/Archive")[grep(paste0("ForDashboard_",Sys.Date()),list.files(path = "Archive"))]) + 1
 write.csv(ForDashboard, paste0("Results/Archive/ForDashboard_", Sys.Date(),"_", nruns, ".csv"))
 write.csv(ForDashboard, "Results/ResultsDashboard/ForDashboard.csv")
-write.csv(masterDF, paste0("Archive/masterDF_", Sys.Date(),"_", nruns, ".csv"))
+write.csv(masterDF, paste0("Results/Archive/masterDF_", Sys.Date(),"_", nruns, ".csv"))
 write.csv(masterDF, "Results/Archive/masterDF.csv")
+save(res.plot, ResultsDash,GG.CORAL, GG.COTS, MPE,data.manta.valid,masterDF, 
+     file = paste0("Results/Archive/Validation_", Sys.Date(),"_", nruns, ".RData"))
 
