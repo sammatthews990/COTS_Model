@@ -551,7 +551,9 @@ doPredPreyDynamics = function(COTSabund, CoralCover, Crash, CCRatioThresh, CCRat
   b = (COTSmort[3]-1)/(CCRatioThresh-CCRatioThresh2) # Make Ratio a parameter for tuning
   b2 = (COTSmort[2]-1)/(CCRatioThresh-CCRatioThresh2)
   b3 = (COTSmort[1]-1)/(CCRatioThresh-CCRatioThresh2)
-  Ratio = (CoralCover*data.grid$PercentReef/100)/(COTSabund[,3]/667)
+  COTSMT = predict(MTCalib.gaminv, newdata=data.frame(DENS=COTSabund[,3]))^2
+  COTSMT = ifelse(COTSMT <0.001, 0,COTSMT)
+  Ratio = (CoralCover*data.grid$PercentReef/100)/COTSMT
   # WhichPopCrash[[1]] = which(Ratio<CCRatioThresh2) # find pops to crash
   # COTSabund[WhichPopCrash[[1]],2:3] = COTSabund[WhichPopCrash[[1]],2:3]*(1-maxmort)
   COTSabund[,"A"][which(Ratio<CCRatioThresh2)] = round((COTSabund[,"A"]*(1-maxmort))[which(Ratio<CCRatioThresh2)],0)

@@ -14,9 +14,9 @@ library(ggplot2)
 DIRECTORY = getwd()
 
 PRELOAD = T
-SUBSET = F
+SUBSET = T
 LHSPARAMS = T
-WHERE = list(c("CA", "CL"), c("M"))
+WHERE = list(c("CA", "CL", "TO", "IN"), c("M", "I", "O"))
 
 
 if (PRELOAD == T) {
@@ -282,6 +282,7 @@ if (PRELOAD == T) {
 
 # Parallel Loop ----
 masterDF$maxmort[seq(2,100, 2)] = 1 # if i'm 
+masterDF$OutbreakCrash = rep(c(3,4,5,6,Inf), each=20)
 
 cl = parallel::makeCluster(1)
 doParallel::registerDoParallel(cores = 3)
@@ -486,40 +487,7 @@ ForGraph = ForGraph %>%
          COTS.Q75 = ifelse(COTS.Q75 < 0.0001,0,COTS.Q75))
 
 
-
-
-
-# g = ggplot(res.plot,aes(x=Year, COTS.md)) + geom_line(aes(colour=factor(REP))) + 
-#   geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75, fill=factor(REP)),alpha=0.2) + ylim(c(0,1)) +
-#   facet_grid(rows=vars(SECTOR), cols = vars(CROSS_SHELF))
-# Manta Reefs 
-# data.manta.sub = data.manta %>% filter(REEF_NAME.y %in% unique(REEFSUB$REEF_NAME) & REPORT_YEAR > 1995) %>% 
-#   mutate(REEF_NAME = REEF_NAME.y,
-#          Year = REPORT_YEAR - 1) %>%
-#   dplyr::select(REEF_NAME, Year, MEAN_LIVE.corr, MEAN_COTS, SE_COTS) %>%
-#   right_join(res.plot %>% dplyr::filter(REEF_NAME %in% unique(REEFSUB$REEF_NAME)))
-
-
 ForGraph$YearDec = as.numeric(ifelse(ForGraph$Season=="summer", ForGraph$Year, c(ForGraph$Year, ".5")))
-# ggplot(res.plot %>% filter(REEF_NAME %in% unique(REEFSUB$REEF_NAME)), aes(x=Year, y=COTS.md)) + 
-#   geom_line(aes(colour=as.factor(REP))) +  geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75, fill=factor(REP)),alpha=0.2) +
-#   facet_wrap(~REEF_NAME) + ylim(c(0,10))
-# ggplot(data.manta.sub %>% filter(REEF_NAME %in% manta.reefs), aes(x=Year, y=COTS.mn)) + 
-#   geom_point(aes(y=MEAN_COTS)) + geom_line(aes(x=Year, y=MEAN_COTS)) +
-#   geom_line(aes(colour=as.factor(REP))) +  geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75, fill=factor(REP)),alpha=0.2) +
-#   facet_wrap(~REEF_NAME) + ylim(c(0,1))
-# 
-# ggplot(data.manta.sub, aes(x=Year, y=CC.mn)) + 
-#   geom_point(aes(y=MEAN_LIVE.corr)) + geom_line(aes(x=REPORT_YEAR-1, y=MEAN_LIVE.corr)) +
-#   geom_line(aes(colour=as.factor(REP))) +
-#   facet_wrap(~REEF_NAME) + ylim(c(0,50))
-#   
-# ggplot(ForGraph %>% filter(REEF_NAME %in% unique(REEFSUB$REEF_NAME)), aes(x=YearDec, y=COTS.mn)) + 
-#   geom_line(aes(colour=as.factor(REP))) +  geom_ribbon(aes(ymin = COTS.Q25, ymax=COTS.Q75, fill=factor(REP)),alpha=0.2) +
-#   facet_wrap(~REEF_NAME) + ylim(c(0,50))
-# ggplot(ForGraph, aes(x=YearDec, y=CC.mn, colour=as.factor(REP))) + geom_line() + ylim(c(0,50)) +
-#   facet_wrap(~REEF_NAME)
-
 colnames(ForDashboard)[7:length(colnames(ForDashboard))] = paste0(rep(1:NREPS, each=8),"_", colnames(ResultsDash[7:14]))
 
 
@@ -535,15 +503,17 @@ manta.reefs = data.manta %>%
 res.plot = ForGraph %>% filter(REEF_NAME %in% data.grid$REEF_NAME) %>% 
   dplyr::group_by(REEF_NAME,REP,Year,SECTOR, CROSS_SHELF) %>%
   dplyr::summarise(COTS.mn = mean(COTS.mn), # add in detection
-                   COTS.25 = quantile(COTS.mn, probs=0.25),
-                   COTS.75 = quantile(COTS.mn, probs=0.75),
-                   CC.mn = mean(CC.mn))
+                   COTS.25 = mean(COTS.Q25),
+                   COTS.75 = mean(COTS.Q75),
+                   CC.mn = mean(CC.mn),
+                   CC.25 = mean(CC.Q25),
+                   CC.75 = mean(CC.Q75))
 res.plot.manta = res.plot[which(res.plot$REEF_NAME %in% manta.reefs),]
 
 data.manta.valid = data.manta %>% filter(REEF_NAME.y %in% manta.reefs & REPORT_YEAR > 1995) %>% 
   mutate(REEF_NAME = REEF_NAME.y,
          Year = REPORT_YEAR - 1) %>% 
-  inner_join(res.plot.manta)
+  right_join(res.plot.manta, by=c("REEF_NAME", "Year"))
 
 
 SECTORS = unique(as.character(data.manta.valid$SECTOR))
@@ -644,16 +614,21 @@ for (i in 1:NREPS) {
 # ggplot(manta.i[manta.i$MEAN_COTS>0.2,], aes(x=sqrt(MEAN_COTS), y=sqrt(COTS.mn))) + geom_point() +
 #   geom_smooth(method="lm")
 
-BESTREPS = unique(MPE[order(MPE$MPE.COTS.NOZERO.ALL)[1:50],"REP"])
+BESTREPS = unique(MPE[order(MPE$KAP.Out.ALL),"REP"])[1:5]
+MPE.BEST = MPE %>% filter(REP %in% BESTREPS)
+BESTREPS.CC = unique(MPE[order(MPE$MPE.CC.ALL,decreasing = T),"REP"])[1:5]
 BESTPARAMS = masterDF[BESTREPS,]
+BESTPARAMS.CC = masterDF[BESTREPS.CC,]
 MPE.T = MPE[MPE$SECTOR=="TO",]
-BESTREPS.T = MPE.T[order(MPE.T$MPE.COTS.NOZERO.ALL)[1:5],"REP"]
+BESTREPS.T = MPE.T[order(MPE.T$ACC.Out)[1:5],"REP"]
 BESTPARAMS.T = masterDF[BESTREPS.T,]
 
+
+# Plot Validation Reefs----
 GG.COTS = ggplot(data.manta.valid %>% filter(REP %in% BESTREPS & REEF_NAME %in% manta.reefs), aes(x=Year, y=COTS.mn)) + 
   geom_point(aes(y=MEAN_COTS)) + geom_line(aes(x=Year, y=MEAN_COTS)) +
   geom_line(aes(colour=as.factor(REP))) +  geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75, fill=factor(REP)),alpha=0.2) +
-  facet_wrap(~SECTOR+REEF_NAME) +ylim(c(0,4))
+  facet_wrap(~SECTOR+REEF_NAME) +ylim(c(0,6))
 GG.COTS
 
 GG.COTS.T = ggplot(data.manta.valid %>% filter(REP %in% BESTREPS.T & REEF_NAME %in% manta.reefs), aes(x=Year, y=COTS.mn)) + 
@@ -676,7 +651,7 @@ ggsave("Results/Figures/COTS.png",GG.COTS, device="png", width=14, height=8, dpi
 
 GG.CORAL = ggplot(data.manta.valid  %>% filter(REP %in% BESTREPS & REEF_NAME %in% manta.reefs), aes(x=Year, y=CC.mn)) + 
   geom_point(aes(y=MEAN_LIVE.corr)) + geom_line(aes(x=REPORT_YEAR-1, y=MEAN_LIVE.corr)) +
-  geom_line(aes(colour=as.factor(REP))) +
+  geom_line(aes(colour=as.factor(REP))) + geom_ribbon(aes(ymin = CC.25, ymax=CC.75, fill=factor(REP)),alpha=0.2) +
   facet_wrap(~SECTOR+REEF_NAME, scales = "free_y") + ylim(c(0,50))
 GG.CORAL
 
@@ -684,14 +659,14 @@ ggsave("Results/Figures/Coral.tiff", GG.CORAL, device="tiff", width=14, height=8
 ggsave("Results/Figures/Coral.png", GG.CORAL, device="png", width=14, height=8, dpi = 300)
 
 # Best Model Average
-res.plot.manta.av = res.plot.manta  %>% dplyr::filter(REP %in% BESTREPS & REEF_NAME %in% manta.reefs) %>%
-  dplyr::group_by(REEF_NAME, Year, SECTOR, CROSS_SHELF) %>%
-  dplyr::summarise(COTS.md = median(COTS.mn),
-            COTS.25 = quantile(COTS.mn, probs = 0.25),
-            COTS.75 = quantile(COTS.mn, probs = 0.75),
-            CC.md =  median(CC.mn),
-            CC.25 = quantile(CC.mn, probs = 0.25),
-            CC.75 = quantile(CC.mn, probs = 0.75))
+# res.plot.manta.av = res.plot.manta  %>% dplyr::filter(REP %in% BESTREPS & REEF_NAME %in% manta.reefs) %>%
+#   dplyr::group_by(REEF_NAME, Year, SECTOR, CROSS_SHELF) %>%
+#   dplyr::summarise(COTS.md = median(COTS.mn),
+#             COTS.25 = quantile(COTS.mn, probs = 0.25),
+#             COTS.75 = quantile(COTS.mn, probs = 0.75),
+#             CC.md =  median(CC.mn),
+#             CC.25 = quantile(CC.mn, probs = 0.25),
+#             CC.75 = quantile(CC.mn, probs = 0.75))
 
 data.manta.valid.av = data.manta %>% filter(REEF_NAME.y %in% manta.reefs & REPORT_YEAR > 1995) %>% 
   mutate(REEF_NAME = REEF_NAME.y,
@@ -704,7 +679,7 @@ GG.COTS.AV = ggplot(data.manta.valid.av, aes(x=Year, y=COTS.md)) +
   facet_wrap(~SECTOR+REEF_NAME,scales = "free_y")
 GG.COTS.AV
 
-
+# Save PLots and Results ----
 ggsave("Results/Figures/COTS.tiff",GG.COTS.AV, device="tiff", width=14, height=8, dpi = 300)
 ggsave("Results/Figures/COTS.png",GG.COTS.AV, device="png", width=14, height=8, dpi = 300)
 
@@ -725,3 +700,86 @@ write.csv(masterDF, "Results/Archive/masterDF.csv")
 save(res.plot, ResultsDash,GG.CORAL, GG.COTS, MPE,data.manta.valid,masterDF, 
      file = paste0("Results/Archive/Validation_", Sys.Date(),"_", nruns, ".RData"))
 
+
+# Make Yearly COTS-Coral Graphs ----
+source("COTSMod_PlotSpatial.R")
+dir.create("Results/Figures/YearlyPlots")
+library(grid)
+# Set Up plotting Window ---
+BESTREP=14
+res.fig = res.plot %>% filter(REP %in% BESTREP)
+res.fig.GBR = res.plot %>% filter(REP %in% BESTREP) %>% group_by(Year) %>%
+  summarise(CC.md = median(CC.mn),
+            CC.Q05 = quantile(CC.mn, probs=0.05),
+            CC.Q25 = quantile(CC.mn, probs=0.25),
+            CC.Q75 = quantile(CC.mn, probs=0.75),
+            CC.Q95 = quantile(CC.mn, probs=0.95))
+# Plot map (left panel)
+for(i in 1996:2017){
+  #i=2017
+  res.fig.i = select(data.grid, REEF_NAME, SECTOR, CROSS_SHELF, lat, lon) %>% inner_join(res.fig %>% filter(Year %in% i))
+  
+  dev.off()
+  f = colorRamp(c("yellow", "red"))
+  layout(rbind(c(1,1,2,2),
+                      c(1,1,2,2),
+                      c(1,1,2,2),
+                      c(3,3,3,4)))
+  
+  # PLOT CORAL COVER
+  color = rgb(f(res.fig.i$CC.mn/60)/255)
+  par(mai=c(0,0,0,0))
+  plotPolys(shape45[1:30,], col="gray95", border="gray70", xlim=c(148,157), ylim=c(-36, -21),
+            bg="white", cex=1.2, axes=F, ylab=NA, plt=c(0,1,0,1), colHoles=NA, projection = 1)
+  lines(gridln.elide, col="lightgrey")
+  addPolys(shape45[1:1000,], col="gray95", border="gray70", bg="white", xlim=c(149,156), ylim=c(-36, -20),
+           colHoles=NA)
+  points(grid45$x, grid45$y, pch=19, cex=0.5, col=addalpha(color, .5))
+  
+  
+  text(149.9,-22.5,i, cex=4, font=2)
+
+  text(155.3, -22.5, "150E", col="lightgrey", srt=40, cex=1)
+  text(155.3, -29.4, "155E", col="lightgrey", srt=40, cex=1)
+  text(155.3, -26, "15S", col="lightgrey", srt=-40, cex=1)
+  text(155.3, -33.2, "20S", col="lightgrey", srt=-40, cex=1)
+  
+  # pnts = cbind(x =c(149.3,150.2, 150.2,149.3), y =c(-35.6, -35.6,-34,-34))
+  pnts = cbind(x =c(153.2,154.2, 154.2,153.2), y =c(-28.8, -28.8,-27,-27))
+  # rect(149.2, -35.8, 151.1, -33.2, col="white", border = "black")
+  # rect(153, -29.1, 155.3, -26.2, col="white", border = "black")
+  color.grad = rgb(f(seq(0,1,0.01))/255)
+  legend.gradient(pnts,color.grad,
+                  c(0,60), title = "Coral Cover", cex=1.4)
+  
+  # Make GGPLOT FIGS
+  res.plot.i = data.manta.valid %>% 
+    filter(REP %in% BESTREP & 
+           Year %in% 1996:i & 
+           REEF_NAME %in% c("Linnet Reef (14-126)", "Wardle Reef (17-032)","Rib Reef (18-032)"))
+  
+  GG.CORAL = ggplot(res.plot.i, aes(x=Year, y=CC.mn, fill=as.factor(REEF_NAME))) + 
+    geom_point(aes(y=MEAN_LIVE.corr)) + geom_line(aes(x=REPORT_YEAR-1, y=MEAN_LIVE.corr)) +
+    geom_line(aes(colour=as.factor(REEF_NAME))) + geom_ribbon(aes(ymin = CC.25, ymax=CC.75,colour=as.factor(REEF_NAME)),alpha=0.4) +
+    facet_wrap(~REEF_NAME, scales = "free_y", ncol = 1) + ylim(c(0,50)) + ylab("Mean % Coral Cover") + 
+    theme_bw(base_size=11) + theme(legend.position = "none") + xlim(c(1996,2017))
+
+  GG.GBR = ggplot(res.fig.GBR %>% filter(Year %in% 1996:i), aes(x=Year, y=CC.md)) + 
+    geom_line(aes(x=Year, y=CC.md)) +
+    geom_ribbon(aes(ymin = CC.Q05, ymax=CC.Q95),alpha=0.2) +
+    geom_ribbon(aes(ymin = CC.Q25, ymax=CC.Q75),alpha=0.5) +
+    ylab("Mean % Coral Cover") + 
+    theme_bw(base_size=11) + theme(legend.position = "none") + xlim(c(1996,2017))
+  # GG.CORAL
+  ## PLot GGPLOTs using viewport
+  vp<-grid::viewport(x=0.7,y=0.6,width=0.6,height = 0.8)
+  print(GG.CORAL, vp = vp)
+  vp<-grid::viewport(x=0.4,y=0.1,width=0.72,height = 0.2)
+  print(GG.GBR, vp = vp)
+  vp<-grid::viewport(x=0.75,y=0.1,width=0.3,height = 0.2)
+  print(grid::grid.text(as.character(i), x=0.85, y=0.15, gp=gpar(size=70, fontface="bold")), vp = vp)
+  vp<-grid::viewport(x=0.75,y=0.1,width=0.3,height = 0.2)
+  print(grid::grid.text("MPE = 7.9%", x=0.85, y=0.1, gp=gpar(size=36, fontface="bold")), vp = vp)
+  
+  export::graph2tif(file = paste0("Results/Figures/YearlyPlots_",i), width =11, height=9, dpi=300)
+}
