@@ -5,6 +5,8 @@ ehthumbs.db
 # Results files
 *.csv
 *.Rdata
+**/Results
+**/Data
 
 # Folder config file
 Desktop.ini
