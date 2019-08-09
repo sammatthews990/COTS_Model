@@ -78,7 +78,15 @@ COTS_FecFromMass <- function(Mass){
 #           NOTE: larvae are not considered explicitly here. 
 ###################!
 
+# De'ath Calibration
+df1 = data.frame(MT = c(0,0.1,0.22,1), DENS = c(0,3500,4900,11000))
 
+MTCalib.gam = lm(DENS~sqrt(MT), data=df1)
+MTCalib.gaminv = lm(sqrt(MT)~DENS, data=df1)
+# plot( df1$DENS, sqrt(df1$MT))
+# predict(MTCalib.gam, newdata = data.frame(MT=1))
+# predict(MTCalib.gaminv, newdata = data.frame(DENS=4900))^2
+# ggplot(df1, aes(x=MT, y=DENS)) +geom_smooth(method = "gam", formula = y ~ s(x, bs = "cs", k=1))
 initializeCOTSabund <- function(data.grid, data.COTS, Year, stagenames, 
                                 COTS_StableStage, npops, j){
   # browser()
@@ -94,9 +102,11 @@ initializeCOTSabund <- function(data.grid, data.COTS, Year, stagenames,
   ### Set up reference for year
   colname <- paste('COTS_', Year, sep="")
   # browser()
+  preds = predict(MTCalib.gam, newdata=data.frame(MT=COTS.rsmpl[,1997-Year, j]))
+  COTSabund[,'A'] <- round(ifelse(preds<0.005,0,preds) * (data.grid$PercentReef/100),0)
   ### Update abundances based from interpolated manta tow data
-  COTSabund[,'A'] <- round(data.COTS[,colname] * (666/0.7) * (data.grid$PercentReef/100),0)   # 666 converts manta tow to 1kmx1km
-  COTSabund[,'A'] <- round(COTS.rsmpl[,1997-Year, j] * (666/0.7) * (data.grid$PercentReef/100),0) 
+  # COTSabund[,'A'] <- round(data.COTS[,colname] * (666/0.7) * (data.grid$PercentReef/100),0)   # 666 converts manta tow to 1kmx1km
+  # COTSabund[,'A'] <- round(COTS.rsmpl[,1997-Year, j] * (666/0.7) * (data.grid$PercentReef/100),0) 
   COTSabund[,'J_2'] <- round(COTSabund[,'A'] * as.numeric(COTS_StableStage[2]/COTS_StableStage[3]),0)
   COTSabund[,'J_1'] <- round(COTSabund[,'A'] * as.numeric(COTS_StableStage[1]/COTS_StableStage[3]),0)
   return(COTSabund)
@@ -339,7 +349,10 @@ doCOTSDispersal = function(season, COTSabund, CoralCover, SexRatio, ConnMat, PCF
   # browser()
   COTSabund = COTSabund
   b = (1-Fbase)/CCRatioThresh # Make Ratio a parameter for tuning
-  Ratio = (CoralCover*data.grid$PercentReef/100)/(COTSabund[,3]/667) # Do i need % Reef here?
+  
+  COTSMT = predict(MTCalib.gaminv, newdata=data.frame(DENS=COTSabund[,3]))^2
+  COTSMT = ifelse(COTSMT <0.00001, 0,COTSMT)
+  Ratio = (CoralCover*data.grid$PercentReef/100)/COTSMT # Do i need % Reef here?
   if (season=="summer"){
     # Per Capita Fecundity
     nEggs = COTSabund[,'A']*rnorm(1, PCFParams[1], PCFParams[2])*((10-SexRatio)/10)
@@ -447,8 +460,10 @@ doCoralConsumption = function(season, COTSabund, CoralCover, ConsRate, COTSfromC
     CRemaining = CoralCover
     CChange = rep(0, length(CoralCover))
   } else {
-  #browser()  
-  Ratio = (CoralCover*data.grid$PercentReef/100)/(COTSabund[,3]/667)
+  #browser() 
+  COTSMT = predict(MTCalib.gaminv, newdata=data.frame(DENS=COTSabund[,3]))^2
+  COTSMT = ifelse(COTSMT <0.00001, 0,COTSMT)
+  Ratio = (CoralCover*data.grid$PercentReef/100)/COTSMT
   b = (1-Cbase)/CCRatioThresh
   #######STARRT HERE!!!!!!!!!!!!!!!!
   ConsRate.D = rep(CMax, length(CoralCover))
