@@ -84,8 +84,8 @@ df1 = data.frame(MT = c(0,0.1,0.22,1), DENS = c(0,3500,4900,11000))
 MTCalib.gam = lm(DENS~sqrt(MT), data=df1)
 MTCalib.gaminv = lm(sqrt(MT)~DENS, data=df1)
 # plot( df1$DENS, sqrt(df1$MT))
-# predict(MTCalib.gam, newdata = data.frame(MT=1))
-# predict(MTCalib.gaminv, newdata = data.frame(DENS=4900))^2
+# predict(MTCalib.gam, newdata = data.frame(MT=0.06))
+# predict(MTCalib.gaminv, newdata = data.frame(DENS=2638))^2
 # ggplot(df1, aes(x=MT, y=DENS)) +geom_smooth(method = "gam", formula = y ~ s(x, bs = "cs", k=1))
 initializeCOTSabund <- function(data.grid, data.COTS, Year, stagenames, 
                                 COTS_StableStage, npops, j){
@@ -102,8 +102,8 @@ initializeCOTSabund <- function(data.grid, data.COTS, Year, stagenames,
   ### Set up reference for year
   colname <- paste('COTS_', Year, sep="")
   # browser()
-  preds = predict(MTCalib.gam, newdata=data.frame(MT=COTS.rsmpl[,1997-Year, j]))
-  COTSabund[,'A'] <- round(ifelse(preds<0.005,0,preds) * (data.grid$PercentReef/100),0)
+  preds = predict(MTCalib.gam, newdata=data.frame(MT=COTS.rsmpl[,Year-1995, j]))
+  COTSabund[,'A'] <- round(ifelse(preds<0.005,0,preds),0)
   ### Update abundances based from interpolated manta tow data
   # COTSabund[,'A'] <- round(data.COTS[,colname] * (666/0.7) * (data.grid$PercentReef/100),0)   # 666 converts manta tow to 1kmx1km
   # COTSabund[,'A'] <- round(COTS.rsmpl[,1997-Year, j] * (666/0.7) * (data.grid$PercentReef/100),0) 
@@ -539,35 +539,58 @@ return(list=c(as.data.frame(MinK.0.5), data.frame(MinK.10)))
 CoralCOTSMort = function(p,CoralCover) {
   (1 - (p*CoralCover/(10+CoralCover)))
 }
-
+logistic.mort = function(phi1, phi2,phi3, x) {
+y <-phi1/(1+exp(-(phi2+phi3*x)))
+return(y)
+}
+logistic.mort = function(phi1, phi2,phi3, x) {
+  y <-phi1/(1+exp(-(phi2+phi3*x)))
+  return(y)
+}
+# threshdf = data.frame(MT = c(0.22,1,3,6,10,20),
+#                       A=predict(MTCalib.gam, newdata=data.frame(MT=c(0.22,1,3,6,10,20))),
+#                       J2 = predict(MTCalib.gam, newdata=data.frame(MT=c(0.22,1,3,6,10,20)))*COTS_StableStage[2]/COTS_StableStage[3],
+#                       J1 = predict(MTCalib.gam, newdata=data.frame(MT=c(0.22,1,3,6,10,20)))*COTS_StableStage[1]/COTS_StableStage[3])
+# COTS_StableStage
+# plot(seq(0,20000000, by=10000), logistic.mort(1, 2, 0.00000015, seq(0,20000000, by=10000)))
+# points(seq(0,20000000, by=10000), logistic.mort(1, 2, 0.00000005, seq(0,20000000, by=10000)))
+# points(seq(0,20000000, by=10000), logistic.mort(1, 1.8, 0.0000001, seq(0,20000000, by=10000)))
+# plot(seq(0,200000, by=10000), logistic.mort(1, 0.5, 0.00003, seq(0,200000, by=10000)))
+# points(seq(0,200000, by=10000), logistic.mort(1, 0.4, 0.00001, seq(0,200000, by=10000)))
+# points(seq(0,200000, by=10000), logistic.mort(1, 0.4, 0.000005, seq(0,200000, by=10000)))
 # plot(CoralCOTSMort(0.2,seq(0,100, 1)))
 
-doPredPreyDynamics = function(COTSabund, CoralCover, Crash, CCRatioThresh, CCRatioThresh2, maxmort, WhichPopCrash) {
+doPredPreyDynamics = function(COTSabund, CoralCover, Crash, CCRatioThresh, CCRatioThresh2, maxmort, J2M, J1M, J2R, J1R) {
   # Implement ratio dependent mortality on Adults and J_2
   if (season=="winter") {
   # for (i in 1:(length(WhichPopCrash)-1)){
   #   WhichPopCrash[[i+1]] = WhichPopCrash[[i]]
   # }
+  # browser()
   b = (COTSmort[3]-1)/(CCRatioThresh-CCRatioThresh2) # Make Ratio a parameter for tuning
   b2 = (COTSmort[2]-1)/(CCRatioThresh-CCRatioThresh2)
   b3 = (COTSmort[1]-1)/(CCRatioThresh-CCRatioThresh2)
   COTSMT = predict(MTCalib.gaminv, newdata=data.frame(DENS=COTSabund[,3]))^2
   COTSMT = ifelse(COTSMT <0.001, 0,COTSMT)
   Ratio = (CoralCover*data.grid$PercentReef/100)/COTSMT
+  J2Mort = logistic.mort(1, J2M, J2R, COTSabund[,2])
+  J1Mort = logistic.mort(1, J1M, J1R, COTSabund[,1])
   # WhichPopCrash[[1]] = which(Ratio<CCRatioThresh2) # find pops to crash
   # COTSabund[WhichPopCrash[[1]],2:3] = COTSabund[WhichPopCrash[[1]],2:3]*(1-maxmort)
   COTSabund[,"A"][which(Ratio<CCRatioThresh2)] = round((COTSabund[,"A"]*(1-maxmort))[which(Ratio<CCRatioThresh2)],0)
   COTSabund[,"A"][which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)] = 
     round((COTSabund[,"A"]*(1 + (b*Ratio)))[which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)],0)
   COTSabund[,"A"][which(Ratio>=CCRatioThresh)] = round((COTSabund[,"A"]*(1-COTSmort[3]))[which(Ratio>=CCRatioThresh)],0)
+  COTSabund[,"J_2"] = COTSabund[,"J_2"]*(1-J2Mort)
+  COTSabund[,"J_1"] = COTSabund[,"J_1"]*(1-J1Mort)
   COTSabund[,"J_2"][which(Ratio<CCRatioThresh2)] = round((COTSabund[,"J_2"]*(1-maxmort))[which(Ratio<CCRatioThresh2)],0)
-  COTSabund[,"J_2"][which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)] = 
-    round((COTSabund[,"J_2"]*(1 + (b2*Ratio)))[which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)],0)
-  COTSabund[,"J_2"][which(Ratio>=CCRatioThresh)] = round((COTSabund[,"J_2"]*(1-COTSmort[2]))[which(Ratio>=CCRatioThresh)],0)
+  # COTSabund[,"J_2"][which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)] = 
+  #   round((COTSabund[,"J_2"]*(1 + (b2*Ratio)))[which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)],0)
+  # COTSabund[,"J_2"][which(Ratio>=CCRatioThresh)] = round((COTSabund[,"J_2"]*(1-COTSmort[2]))[which(Ratio>=CCRatioThresh)],0)
   COTSabund[,"J_1"][which(Ratio<CCRatioThresh2)] = round((COTSabund[,"J_1"]*(1-maxmort))[which(Ratio<CCRatioThresh2)],0)
-  COTSabund[,"J_1"][which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)] = 
-    round((COTSabund[,"J_1"]*(1 + (b3*Ratio)))[which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)],0)
-  COTSabund[,"J_1"][which(Ratio>=CCRatioThresh)] = round((COTSabund[,"J_1"]*(1-COTSmort[1]))[which(Ratio>=CCRatioThresh)],0)
+  # COTSabund[,"J_1"][which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)] =
+  #   round((COTSabund[,"J_1"]*(1 + (b3*Ratio)))[which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)],0)
+  # COTSabund[,"J_1"][which(Ratio>=CCRatioThresh)] = round((COTSabund[,"J_1"]*(1-COTSmort[1]))[which(Ratio>=CCRatioThresh)],0)
   }
   # COTS.m.CC = (1 - (p*CoralCover/(10+CoralCover)))
   # COTSabund[,"A"] = COTSabund[,"A"]*exp(-COTS.m.CC*COTSmort[3])
@@ -625,7 +648,7 @@ doCoralDisturbance = function (i, j, season, CoralCover, COTSfromCoralModel = F,
 }
 
 doCoralGrowth = function(season, CoralCover, b0, b1) {
-  if(season == "winter") {
+  if(season == "summer") {
     # b0.wq <- B0 + WQ * rnorm(length(WQ), mean=WQ.mn.sd[1], sd=WQ.mn.sd[2])
     # b1.wq <- b0.wq / log(HC.asym)
     CoralCover <- log(CoralCover)
@@ -635,6 +658,8 @@ doCoralGrowth = function(season, CoralCover, b0, b1) {
   }
   return(cbind(CoralCover=CoralCover, CoralGrowth=NA))
 }
+
+# doCoralGrowth("winter", 35,0.92,0.25)
 
 ####################
 ### COTS SANDBOX: for testing, etc.

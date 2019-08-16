@@ -11,13 +11,13 @@
 # SET PROJECT DIRECTORIES (this should be the only place where local directories should be referenced)
 #########################
 
-USER = "SAM_UNI"
+USER = "SAM"
 
 if(USER=="KEVIN") BASE_DIRECTORY <- "C:\\Users\\Kevin\\Dropbox\\CoTS_Model"             # NOTE: this should link to the Dropbox folder with shared project resources	                                                                        
 if(USER=="KEVIN") CODE_DIRECTORY <- "C:\\Users\\Kevin\\GIT\\COTS_Model"              # NOTE: code directory should be your local copy of the GitHub repository
 
 if(USER=="SAM") BASE_DIRECTORY <- "C:\\Users\\jc312264\\Dropbox\\CoTS_Model"
-if(USER=="SAM") CODE_DIRECTORY <- "C:\\Users\\jc312264\\OneDrive - James Cook University\\COTS_Model"
+if(USER=="SAM") CODE_DIRECTORY <- "C:\\Users\\jc312264\\OneDrive - James Cook University\\GitHub\\COTS_Model"
 
 if(USER=="SAM_UNI") BASE_DIRECTORY <- "C:\\Users\\jc312264\\Dropbox\\CoTS_Model"
 if(USER=="SAM_UNI") CODE_DIRECTORY <- "C:\\Users\\jc312264\\OneDrive - James Cook University\\GitHub\\COTS_Model"
@@ -128,8 +128,7 @@ data.storms =  read.csv("Disturbance/Cyclones_data.csv", header = TRUE) %>%
   dplyr::filter(REEF_NAME %in% ourreefs) %>% dplyr::mutate(REEF_NAME = factor(REEF_NAME))
 data.disease = read.table("CoralModel/Disturb_disease.txt", header = TRUE, sep = "\t")
 
-
-
+colnames(data.COTS)[4:5] = c("lon", "lat")
 
 # Observed Disturbance
 data.ltmp.bleaching <- dplyr::inner_join(data.COTS[1:5], 

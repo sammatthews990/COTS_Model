@@ -166,13 +166,13 @@ MakeLHSSamples <- function(NREPS){
   LHSParms <- specifyLHSParam(LHSParms,"sdPCF",type="CONT",lb=1e7,ub=1e7)     # was 1000 to 40000  
   
   ### % JUVENILE1 MORTALITY PER TIME STEP
-  LHSParms <- specifyLHSParam(LHSParms,"mortJ1",type="CONT",lb=0.98,ub=0.995)
+  LHSParms <- specifyLHSParam(LHSParms,"mortJ1",type="CONT",lb=0.98,ub=0.98)
   
   ### % JUVENILE2 MORTALITY PER TIME STEP
   LHSParms <- specifyLHSParam(LHSParms,"mortJ2",type="CONT",lb=0.7,ub=0.7) 
   
   ### % ADULT MORTALITY PER TIME STEP
-  LHSParms <- specifyLHSParam(LHSParms,"mortA",type="CONT",lb=0.1,ub=0.5)
+  LHSParms <- specifyLHSParam(LHSParms,"mortA",type="CONT",lb=0.2,ub=0.2)
   
   ### % JUVENILE1 TO REMIAIN during transition
   LHSParms <- specifyLHSParam(LHSParms,"remJ1",type="CONT",lb=0,ub=0)
@@ -193,7 +193,7 @@ MakeLHSSamples <- function(NREPS){
   LHSParms <- specifyLHSParam(LHSParms,"cssA",type="CONT",lb=0.0026,ub=0.0026)
   
   ### PROPORTIONAL Larval Mortality FIXED
-  LHSParms <- specifyLHSParam(LHSParms,"Pred",type="CONT",lb=0.98,ub=0.98)
+  LHSParms <- specifyLHSParam(LHSParms,"Pred",type="CONT",lb=0.95,ub=0.995)
   
   ### % Coral Cover at which to crash a COTS population entirely  
   LHSParms <- specifyLHSParam(LHSParms,"Crash",type="CONT",lb=0,ub=0)
@@ -205,10 +205,10 @@ MakeLHSSamples <- function(NREPS){
   LHSParms <- specifyLHSParam(LHSParms,"Fbase",type="CONT",lb=0,ub=0)
   
   ### Coral-COTS Ratio at which COral becomes lmiting resource ~25
-  LHSParms <- specifyLHSParam(LHSParms,"CCRatioThresh",type="CONT",lb=40,ub=40)
+  LHSParms <- specifyLHSParam(LHSParms,"CCRatioThresh",type="CONT",lb=35,ub=35)
   
   ### Coral-COTS Ratio below which COTS mortality reaches its maximum
-  LHSParms <- specifyLHSParam(LHSParms,"CCRatioThresh2",type="CONT",lb=8,ub=15)
+  LHSParms <- specifyLHSParam(LHSParms,"CCRatioThresh2",type="CONT",lb=2,ub=10)
   
   ### Maximum mortality experienced by adult COTS under severely resource limited conditions
   LHSParms <- specifyLHSParam(LHSParms,"maxmort",type="CONT",lb=1,ub=1)
@@ -220,10 +220,22 @@ MakeLHSSamples <- function(NREPS){
   LHSParms <- specifyLHSParam(LHSParms,"chl.int",type="CONT",lb=-0.4,ub=10)
   
   ### Proportion of CMax to be consumed at lowest Coral-COTS Ratio
-  LHSParms <- specifyLHSParam(LHSParms,"Cbase",type="CONT",lb=0.6,ub=0.6)
+  LHSParms <- specifyLHSParam(LHSParms,"Cbase",type="CONT",lb=0.1,ub=0.1)
   
   ### Max coral consumed (cm2) per day by COTS
-  LHSParms <- specifyLHSParam(LHSParms,"CMax",type="CONT",lb=350,ub=350)
+  LHSParms <- specifyLHSParam(LHSParms,"CMax",type="CONT",lb=300,ub=300)
+  
+  ### Logistic parameter for J2 mortality
+  LHSParms <- specifyLHSParam(LHSParms,"J2M",type="CONT",lb=0.3,ub=1.5)
+  
+  ### Logistic parameter for J1 mortality
+  LHSParms <- specifyLHSParam(LHSParms,"J1M",type="CONT",lb=1.8,ub=3)
+  
+  ### Logistic parameter for J2 mortality
+  LHSParms <- specifyLHSParam(LHSParms,"J2R",type="CONT",lb=0.000005,ub=0.00002)
+  
+  ### Logistic parameter for J1 mortality
+  LHSParms <- specifyLHSParam(LHSParms,"J1R",type="CONT",lb=0.00000005,ub=0.0000002)
   
   ### DENSITY DEPENDENCE ON HARVEST (y intercept of the harvest rate/abundance relationship)
   
@@ -376,3 +388,9 @@ r2_zeroinflated <- function(model, method = c("default", "correlation")) {
   attr(out, "model_type") <- "Zero-Inflated and Hurdle"
   structure(class = "r2_generic", out)
 }
+
+
+df1 = data.frame(MT = c(0,0.1,0.22,1), DENS = c(0,3500,4900,11000))
+
+MTCalib.gam = lm(DENS~sqrt(MT), data=df1)
+MTCalib.gaminv = lm(sqrt(MT)~DENS, data=df1)
