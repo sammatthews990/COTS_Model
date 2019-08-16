@@ -96,8 +96,13 @@ load("Connectivity/COTS.ConnMat.Rdata")
 # LOAD CHLOROPHYLL PARAMS ---
 
 setwd(CODE_DIRECTORY)
-load("Data/ChlorophyllModel/ChlModels.RData")
-
+# load("Data/ChlorophyllModel/ChlModels.RData")
+fab = read.csv("Data/ChlorophyllModel/Fabricius.csv")
+fab$weights = 100
+fab=fab[which(fab$keep),]
+car::logit(fab$surv/100)
+# chl.lm$coefficients = c(1,2.2)
+chl.lm = lm(car::logit(surv/100, adjust = 0.001)~log(chl,base = 2), data=fab)
 
 
 # LOAD DISTURBANCE DATA ----

@@ -19,6 +19,7 @@ PRELOAD = T
 LHSPARAMS = T
 SUBSET=F
 RESUBSET=F
+
 # DIRECTORY = "C:/Users/jc312264/OneDrive - James Cook University/GitHub/COTS_Model"
 
 if (PRELOAD == T) {
@@ -36,7 +37,7 @@ if (PRELOAD == T) {
   
   if (LHSPARAMS==T) {
     # nsimul=100
-    masterDF = MakeLHSSamples(10)
+    masterDF = MakeLHSSamples(100)
     masterDF$OutbreakCrash = Inf
     setwd(DIRECTORY)
   } else {
@@ -263,14 +264,14 @@ if (PRELOAD == T) {
   # Save Model Workspace for Prosperity ----
   setwd(DIRECTORY)
   nruns = length(list.files(path = "RData")[grep(Sys.Date(),list.files(path = "RData"))]) + 1
-  save.image(file = "RData/ModelWorkspace_FULL.RData")
+  save.image(file = "RData/ModelWorkspace_FULL.RData", version = 2)
   # if (SUBSET==T) {save.image(file = "RData/ModelWorkspace_TEST.RData")}else{save.image(file = "RData/ModelWorkspace_FULL.RData")}
-  save.image(file = paste0("RData/ModelWorkspace_", Sys.Date(),"_", nruns,".RData"))
+  save.image(file = paste0("RData/ModelWorkspace_", Sys.Date(),"_", nruns,".RData"),version = 2)
 }
 
 # browser()
 
-WHERE = list(c("CA", "SW"), c("M", "I", "O"))
+WHERE = list(c("CA", "CL", "IN","TO", "SW"), c("M", "I", "O"))
 RESUBSET = F
 
 if (RESUBSET == T) {
@@ -302,14 +303,14 @@ if (RESUBSET == T) {
 
 
 cl = parallel::makeCluster(1)
-doParallel::registerDoParallel(cores = 10)
+doParallel::registerDoParallel(cores = 3)
 
 foreach::foreach (reps = 1:NREPS) %dopar% {
   
   `%>%` <- magrittr::`%>%`
   DIRECTORY = getwd()
   # DIRECTORY = "C:/Users/jc312264/OneDrive - James Cook University/GitHub/COTS_Model"
-  nsimul=10
+  nsimul=100
   SexRatio = masterDF[reps, "SexRatio"]
   ConsRate = as.vector(masterDF[reps, 2:3])
   PCFParams = c(masterDF[reps, "avgPCF"], masterDF[reps,"sdPCF"])
@@ -364,9 +365,9 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
           browser()
         }
         # browser()
-        COTSabund = doPredPreyDynamics(COTSabund, CoralCover, Crash, CCRatioThresh, CCRatioThresh2, maxmort, J2M, J1M,J2R, J1R)
+        COTSabund = doPredPreyDynamics(COTSabund, CoralCover, Crash, CCRatioThresh, CCRatioThresh2, maxmort, J2M, J1M,J2R, J1R, season, COTSmort)
         COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
-        Consumption = doCoralConsumption(season, COTSabund, CoralCover, ConsRate, COTSfromCoralModel, Cbase,CMax)
+        Consumption = doCoralConsumption(season, COTSabund, CoralCover, ConsRate, COTSfromCoralModel, Cbase,CMax, CCRatioThresh)
         CoralCover = Consumption[,'CRemaining']
         CoralConsum = round(Consumption[,'CChange'],4)
         COTSabund = doCOTSDispersal(season,COTSabund,CoralCover,SexRatio,COTS.ConnMat, 

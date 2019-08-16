@@ -455,7 +455,7 @@ doCOTSDemography = function(season, COTSabund, COTSmort, COTSremain){
 ###################!
 
 
-doCoralConsumption = function(season, COTSabund, CoralCover, ConsRate, COTSfromCoralModel, Cbase, CMax) {
+doCoralConsumption = function(season, COTSabund, CoralCover, ConsRate, COTSfromCoralModel, Cbase, CMax, CCRatioThresh) {
   if (COTSfromCoralModel==T) {
     CRemaining = CoralCover
     CChange = rep(0, length(CoralCover))
@@ -539,12 +539,12 @@ return(list=c(as.data.frame(MinK.0.5), data.frame(MinK.10)))
 CoralCOTSMort = function(p,CoralCover) {
   (1 - (p*CoralCover/(10+CoralCover)))
 }
+# logistic.mort = function(phi1, phi2,phi3, x) {
+# y <-phi1/(1+exp(-(phi2+phi3*x)))
+# return(y)
+# }
 logistic.mort = function(phi1, phi2,phi3, x) {
-y <-phi1/(1+exp(-(phi2+phi3*x)))
-return(y)
-}
-logistic.mort = function(phi1, phi2,phi3, x) {
-  y <-phi1/(1+exp(-(phi2+phi3*x)))
+  y <-phi1/(1+exp(-phi3*(x-phi2)))
   return(y)
 }
 # threshdf = data.frame(MT = c(0.22,1,3,6,10,20),
@@ -552,15 +552,15 @@ logistic.mort = function(phi1, phi2,phi3, x) {
 #                       J2 = predict(MTCalib.gam, newdata=data.frame(MT=c(0.22,1,3,6,10,20)))*COTS_StableStage[2]/COTS_StableStage[3],
 #                       J1 = predict(MTCalib.gam, newdata=data.frame(MT=c(0.22,1,3,6,10,20)))*COTS_StableStage[1]/COTS_StableStage[3])
 # COTS_StableStage
-# plot(seq(0,20000000, by=10000), logistic.mort(1, 2, 0.00000015, seq(0,20000000, by=10000)))
-# points(seq(0,20000000, by=10000), logistic.mort(1, 2, 0.00000005, seq(0,20000000, by=10000)))
-# points(seq(0,20000000, by=10000), logistic.mort(1, 1.8, 0.0000001, seq(0,20000000, by=10000)))
-# plot(seq(0,200000, by=10000), logistic.mort(1, 0.5, 0.00003, seq(0,200000, by=10000)))
-# points(seq(0,200000, by=10000), logistic.mort(1, 0.4, 0.00001, seq(0,200000, by=10000)))
+plot(seq(0,20000000, by=10000), logistic.mort(1, -2e7, 0.00000015, seq(0,20000000, by=10000)))
+points(seq(0,20000000, by=10000), logistic.mort(1, -2e7, 0.00000013, seq(0,20000000, by=10000)))
+plot(seq(0,200000, by=10000), logistic.mort(1, -0.7e5, 0.00001, seq(0,200000, by=10000)), ylim=c(0.5,1))
+points(seq(0,200000, by=10000), logistic.mort(1, -0.7e5, 0.000015, seq(0,200000, by=10000)))
 # points(seq(0,200000, by=10000), logistic.mort(1, 0.4, 0.000005, seq(0,200000, by=10000)))
 # plot(CoralCOTSMort(0.2,seq(0,100, 1)))
 
-doPredPreyDynamics = function(COTSabund, CoralCover, Crash, CCRatioThresh, CCRatioThresh2, maxmort, J2M, J1M, J2R, J1R) {
+
+doPredPreyDynamics = function(COTSabund, CoralCover, Crash, CCRatioThresh, CCRatioThresh2, maxmort, J2M, J1M, J2R, J1R, season, COTSmort) {
   # Implement ratio dependent mortality on Adults and J_2
   if (season=="winter") {
   # for (i in 1:(length(WhichPopCrash)-1)){

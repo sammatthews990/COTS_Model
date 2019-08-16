@@ -193,7 +193,7 @@ MakeLHSSamples <- function(NREPS){
   LHSParms <- specifyLHSParam(LHSParms,"cssA",type="CONT",lb=0.0026,ub=0.0026)
   
   ### PROPORTIONAL Larval Mortality FIXED
-  LHSParms <- specifyLHSParam(LHSParms,"Pred",type="CONT",lb=0.95,ub=0.995)
+  LHSParms <- specifyLHSParam(LHSParms,"Pred",type="CONT",lb=0.985,ub=0.985)
   
   ### % Coral Cover at which to crash a COTS population entirely  
   LHSParms <- specifyLHSParam(LHSParms,"Crash",type="CONT",lb=0,ub=0)
@@ -208,7 +208,7 @@ MakeLHSSamples <- function(NREPS){
   LHSParms <- specifyLHSParam(LHSParms,"CCRatioThresh",type="CONT",lb=35,ub=35)
   
   ### Coral-COTS Ratio below which COTS mortality reaches its maximum
-  LHSParms <- specifyLHSParam(LHSParms,"CCRatioThresh2",type="CONT",lb=2,ub=10)
+  LHSParms <- specifyLHSParam(LHSParms,"CCRatioThresh2",type="CONT",lb=10,ub=10)
   
   ### Maximum mortality experienced by adult COTS under severely resource limited conditions
   LHSParms <- specifyLHSParam(LHSParms,"maxmort",type="CONT",lb=1,ub=1)
@@ -217,7 +217,7 @@ MakeLHSSamples <- function(NREPS){
   LHSParms <- specifyLHSParam(LHSParms,"selfseed",type="CONT",lb=1,ub=1)
   
   ### Intercept for the chlorophyll model, increasing it allows more larve to survive in oligotrophic cond's
-  LHSParms <- specifyLHSParam(LHSParms,"chl.int",type="CONT",lb=-0.4,ub=10)
+  LHSParms <- specifyLHSParam(LHSParms,"chl.int",type="CONT",lb=2,ub=2)
   
   ### Proportion of CMax to be consumed at lowest Coral-COTS Ratio
   LHSParms <- specifyLHSParam(LHSParms,"Cbase",type="CONT",lb=0.1,ub=0.1)
@@ -226,16 +226,16 @@ MakeLHSSamples <- function(NREPS){
   LHSParms <- specifyLHSParam(LHSParms,"CMax",type="CONT",lb=300,ub=300)
   
   ### Logistic parameter for J2 mortality
-  LHSParms <- specifyLHSParam(LHSParms,"J2M",type="CONT",lb=0.3,ub=1.5)
+  LHSParms <- specifyLHSParam(LHSParms,"J2M",type="CONT",lb=-0.7e5,ub=-0.7e5)
   
   ### Logistic parameter for J1 mortality
-  LHSParms <- specifyLHSParam(LHSParms,"J1M",type="CONT",lb=1.8,ub=3)
+  LHSParms <- specifyLHSParam(LHSParms,"J1M",type="CONT",lb=-2e7,ub=-2e7)
   
   ### Logistic parameter for J2 mortality
-  LHSParms <- specifyLHSParam(LHSParms,"J2R",type="CONT",lb=0.000005,ub=0.00002)
+  LHSParms <- specifyLHSParam(LHSParms,"J2R",type="CONT",lb=0.00001,ub=0.000015)
   
   ### Logistic parameter for J1 mortality
-  LHSParms <- specifyLHSParam(LHSParms,"J1R",type="CONT",lb=0.00000005,ub=0.0000002)
+  LHSParms <- specifyLHSParam(LHSParms,"J1R",type="CONT",lb=0.00000014,ub=0.00000017)
   
   ### DENSITY DEPENDENCE ON HARVEST (y intercept of the harvest rate/abundance relationship)
   
