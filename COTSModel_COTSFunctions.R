@@ -84,7 +84,7 @@ df1 = data.frame(MT = c(0,0.1,0.22,1), DENS = c(0,3500,4900,11000))
 MTCalib.gam = lm(DENS~sqrt(MT), data=df1)
 MTCalib.gaminv = lm(sqrt(MT)~DENS, data=df1)
 # plot( df1$DENS, sqrt(df1$MT))
-# predict(MTCalib.gam, newdata = data.frame(MT=0.06))
+# predict(MTCalib.gam, newdata = data.frame(MT=0.0))
 # predict(MTCalib.gaminv, newdata = data.frame(DENS=2638))^2
 # ggplot(df1, aes(x=MT, y=DENS)) +geom_smooth(method = "gam", formula = y ~ s(x, bs = "cs", k=1))
 initializeCOTSabund <- function(data.grid, data.COTS, Year, stagenames, 
@@ -102,8 +102,9 @@ initializeCOTSabund <- function(data.grid, data.COTS, Year, stagenames,
   ### Set up reference for year
   colname <- paste('COTS_', Year, sep="")
   # browser()
-  preds = predict(MTCalib.gam, newdata=data.frame(MT=COTS.rsmpl[,Year-1995, j]))
-  COTSabund[,'A'] <- round(ifelse(preds<0.005,0,preds),0)
+  preds = predict(MTCalib.gam, newdata=data.frame(MT=COTS.rsmpl[,Year-1995, j]*1.5))
+  data.COTSPredSub = data.grid %>% dplyr::select(PIXEL_ID, REEF_NAME) %>% dplyr::left_join(data.COTSPred)
+  COTSabund[,'A'] <- round(ifelse(preds<0.005,0,preds),0)*data.COTSPredSub$PA_stack
   ### Update abundances based from interpolated manta tow data
   # COTSabund[,'A'] <- round(data.COTS[,colname] * (666/0.7) * (data.grid$PercentReef/100),0)   # 666 converts manta tow to 1kmx1km
   # COTSabund[,'A'] <- round(COTS.rsmpl[,1997-Year, j] * (666/0.7) * (data.grid$PercentReef/100),0) 
@@ -342,6 +343,7 @@ CoTS_Dispersal_Conn <- function(COTSConnMat, COTSabund, nLarvae, CoralCover, Los
 # doCOTSDispersal ----
 #############! 
 
+# plot(seq(1,10000, 200), (0.7 * (1 - exp(-4e-4 * (seq(1,10000, 200) - 0)))))
 # This is the master fucntion that incorporates the above functions
 
 doCOTSDispersal = function(season, COTSabund, CoralCover, SexRatio, ConnMat, PCFParams, Pred, 
@@ -359,7 +361,7 @@ doCOTSDispersal = function(season, COTSabund, CoralCover, SexRatio, ConnMat, PCF
     # Add in density dependent fecundity
     nEggs[which(Ratio<CCRatioThresh)] = (nEggs*(Fbase + (b*Ratio)))[which(Ratio<CCRatioThresh)]
     # Fertilisation by Density
-    fEggs = FvDParams["Linf"] * (1 - exp(-FvDParams["K"] * (COTSabund[,'A'] - FvDParams["t0"])))
+    fEggs = FvDParams[1] * (1 - exp(-FvDParams[2] * (COTSabund[,'A'] - FvDParams[3])))
     nLarvae = round(nEggs * fEggs,0)
     # Do Dispersal ----
     nLarvae = ifelse(nLarvae < 0 , 0, nLarvae) ### FIx this
@@ -384,12 +386,13 @@ doCOTSDispersal = function(season, COTSabund, CoralCover, SexRatio, ConnMat, PCF
     # browser()
     diag(nArriving_Reef) = diag(nArriving_Reef)*selfseed
     nArriving_Reef = base::colSums(nArriving_Reef, na.rm = T) # create total juveniles arriving at a reef
+    data.COTSPred = data.COTSPred[match(Pixels$REEF_NAME, data.COTSPred$REEF_NAME),]
+    nArriving_Reef = nArriving_Reef*data.COTSPred$PA_stack
     nArriving_Reef_PerPix = round(nArriving_Reef/Pixels$Pixels,0)
     names(nArriving_Reef_PerPix) = colnames(ConnMat)
     # match(data.grid$REEF_NAME, colnames(ConnMat))
     nArriving = nArriving_Reef_PerPix[match(data.grid$REEF_NAME, colnames(ConnMat))]
     # Add in Larval Nurtrition at destination reef
-    
     COTSabund[,'J_1'] = COTSabund[,'J_1'] + nArriving # add these to our abundance
    
   }
@@ -552,15 +555,26 @@ logistic.mort = function(phi1, phi2,phi3, x) {
 #                       J2 = predict(MTCalib.gam, newdata=data.frame(MT=c(0.22,1,3,6,10,20)))*COTS_StableStage[2]/COTS_StableStage[3],
 #                       J1 = predict(MTCalib.gam, newdata=data.frame(MT=c(0.22,1,3,6,10,20)))*COTS_StableStage[1]/COTS_StableStage[3])
 # COTS_StableStage
-plot(seq(0,20000000, by=10000), logistic.mort(1, -2e7, 0.00000015, seq(0,20000000, by=10000)))
-points(seq(0,20000000, by=10000), logistic.mort(1, -2e7, 0.00000013, seq(0,20000000, by=10000)))
-plot(seq(0,200000, by=10000), logistic.mort(1, -0.7e5, 0.00001, seq(0,200000, by=10000)), ylim=c(0.5,1))
-points(seq(0,200000, by=10000), logistic.mort(1, -0.7e5, 0.000015, seq(0,200000, by=10000)))
-# points(seq(0,200000, by=10000), logistic.mort(1, 0.4, 0.000005, seq(0,200000, by=10000)))
+plot(seq(0,20000000, by=10000), logistic.mort(1, -0.8e7, 0.00000021, seq(0,20000000, by=10000)))
+points(seq(0,20000000, by=10000), logistic.mort(1, -2e7, 0.0000003, seq(0,20000000, by=10000)))
+
+# # CC Ratio
+# x=100
+
+plot(seq(0,200, by=1), (1-logistic.mort(0.8, 30, 0.005, seq(0,200, by=1))), ylim=c(0,1))
+points(seq(0,100, by=1), (1-logistic.mort(0.8, 100, 0.04, seq(0,100, by=1))), ylim=c(0,1))
+# points(seq(0,200, by=1), logistic.mort(1, -2e7, 0.00000023, seq(0,20000000, by=10000)))
+# # #
+plot(seq(0,400000, by=10000), logistic.mort(1, -0.2e5, 0.000005, seq(0,400000, by=10000)),ylim=c(0.5,1))
+# points(seq(0,200000, by=10000), logistic.mort(1, -0.4e5, 0.000013, seq(0,200000, by=10000)))
+# plot(seq(0,50000, by=1000), logistic.mort(1, 5e3, 0.0005, seq(0,50000, by=1000)), ylim=c(0,1))
+# points(seq(0,50000, by=1000), logistic.mort(1, 5e3, 0.00015, seq(0,50000, by=1000)))
+# # points(seq(0,200000, by=10000), logistic.mort(1, 0.4, 0.000005, seq(0,200000, by=10000)))
 # plot(CoralCOTSMort(0.2,seq(0,100, 1)))
 
 
-doPredPreyDynamics = function(COTSabund, CoralCover, Crash, CCRatioThresh, CCRatioThresh2, maxmort, J2M, J1M, J2R, J1R, season, COTSmort) {
+doPredPreyDynamics = function(COTSabund, CoralCover, Crash, CCRatioThresh, CCRatioThresh2, maxmort, 
+                              J2M, J1M, J2R, J1R, AM, AR, season, COTSmort, DensDepend) {
   # Implement ratio dependent mortality on Adults and J_2
   if (season=="winter") {
   # for (i in 1:(length(WhichPopCrash)-1)){
@@ -575,27 +589,27 @@ doPredPreyDynamics = function(COTSabund, CoralCover, Crash, CCRatioThresh, CCRat
   Ratio = (CoralCover*data.grid$PercentReef/100)/COTSMT
   J2Mort = logistic.mort(1, J2M, J2R, COTSabund[,2])
   J1Mort = logistic.mort(1, J1M, J1R, COTSabund[,1])
-  # WhichPopCrash[[1]] = which(Ratio<CCRatioThresh2) # find pops to crash
-  # COTSabund[WhichPopCrash[[1]],2:3] = COTSabund[WhichPopCrash[[1]],2:3]*(1-maxmort)
+  AMort = (1-logistic.mort((1-COTSmort[3]), AM, AR, Ratio))
+  
+
   COTSabund[,"A"][which(Ratio<CCRatioThresh2)] = round((COTSabund[,"A"]*(1-maxmort))[which(Ratio<CCRatioThresh2)],0)
-  COTSabund[,"A"][which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)] = 
-    round((COTSabund[,"A"]*(1 + (b*Ratio)))[which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)],0)
-  COTSabund[,"A"][which(Ratio>=CCRatioThresh)] = round((COTSabund[,"A"]*(1-COTSmort[3]))[which(Ratio>=CCRatioThresh)],0)
-  COTSabund[,"J_2"] = COTSabund[,"J_2"]*(1-J2Mort)
-  COTSabund[,"J_1"] = COTSabund[,"J_1"]*(1-J1Mort)
-  COTSabund[,"J_2"][which(Ratio<CCRatioThresh2)] = round((COTSabund[,"J_2"]*(1-maxmort))[which(Ratio<CCRatioThresh2)],0)
-  # COTSabund[,"J_2"][which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)] = 
-  #   round((COTSabund[,"J_2"]*(1 + (b2*Ratio)))[which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)],0)
-  # COTSabund[,"J_2"][which(Ratio>=CCRatioThresh)] = round((COTSabund[,"J_2"]*(1-COTSmort[2]))[which(Ratio>=CCRatioThresh)],0)
   COTSabund[,"J_1"][which(Ratio<CCRatioThresh2)] = round((COTSabund[,"J_1"]*(1-maxmort))[which(Ratio<CCRatioThresh2)],0)
-  # COTSabund[,"J_1"][which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)] =
-  #   round((COTSabund[,"J_1"]*(1 + (b3*Ratio)))[which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)],0)
-  # COTSabund[,"J_1"][which(Ratio>=CCRatioThresh)] = round((COTSabund[,"J_1"]*(1-COTSmort[1]))[which(Ratio>=CCRatioThresh)],0)
+  COTSabund[,"J_2"][which(Ratio<CCRatioThresh2)] = round((COTSabund[,"J_2"]*(1-maxmort))[which(Ratio<CCRatioThresh2)],0)
+  if(DensDepend == T){COTSabund[,"A"] = COTSabund[,"A"]*(1-AMort)
+      COTSabund[,"J_2"] = COTSabund[,"J_2"]*(1-J2Mort)
+      COTSabund[,"J_1"] = COTSabund[,"J_1"]*(1-J1Mort)} else {
+    COTSabund[,"A"][which(Ratio<CCRatioThresh2)] = round((COTSabund[,"A"]*(1-maxmort))[which(Ratio<CCRatioThresh2)],0)
+    COTSabund[,"A"][which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)] =
+      round((COTSabund[,"A"]*(1 + (b*Ratio)))[which(Ratio<CCRatioThresh & Ratio >= CCRatioThresh2)],0)
+    COTSabund[,"A"][which(Ratio>=CCRatioThresh)] = round((COTSabund[,"A"]*(1-COTSmort[3]))[which(Ratio>=CCRatioThresh)],0)
   }
-  # COTS.m.CC = (1 - (p*CoralCover/(10+CoralCover)))
-  # COTSabund[,"A"] = COTSabund[,"A"]*exp(-COTS.m.CC*COTSmort[3])
-  # COTSabund[,"J_2"] = COTSabund[,"J_2"]*exp(-COTS.m.CC*COTSmort[2])
-  # COTSabund[,"J_1"] = COTSabund[,"J_1"]*exp(-COTS.m.CC*COTSmort[1])
+  
+  # COTSabund[,"J_2"][which(Ratio<CCRatioThresh2)] = round((COTSabund[,"J_2"]*(1-maxmort))[which(Ratio<CCRatioThresh2)],0)
+  # COTSabund[,"J_2"][which(Ratio>=CCRatioThresh)] = round((COTSabund[,"J_2"]*(1-COTSmort[2]))[which(Ratio>=CCRatioThresh)],0)
+  # COTSabund[,"J_1"][which(Ratio<CCRatioThresh2)] = round((COTSabund[,"J_1"]*(1-maxmort))[which(Ratio<CCRatioThresh2)],0)
+  #  COTSabund[,"J_1"][which(Ratio>=CCRatioThresh)] = round((COTSabund[,"J_1"]*(1-COTSmort[1]))[which(Ratio>=CCRatioThresh)],0)
+  }
+
   return(COTSabund)
 } 
 

@@ -234,13 +234,18 @@ data.storms.bckp <- data.storms
 
 # ----
 
+# Load PRedictions
+setwd(DATA_DIRECTORY)
+data.COTSPred = read.csv("XYZpreds.csv", header = T)[19:24]
 
 # Load Fertilisation vs Density Models Estimates
 # setwd(BASE_DIRECTORY)
 # load("R_Objects/FvDParams.Rdata")
-FvDParams = c(0.8, 7e-04, 0)
-names(FvDParams) = c("Linf", "K", "t0")
-
+# FvDParams = c(0.7, 7e-04, 0)
+# names(FvDParams) = c("Linf", "K", "t0")
+# COTS = predict(MTCalib.gam, newdata=data.frame(MT=seq(0,3,0.01)))
+# FPREDS = FvDParams["Linf"] * (1 - exp(-FvDParams["K"] * (COTS- FvDParams["t0"])))
+# plot(FPREDS~COTS)
 # Add percent Reef
 setwd(ENVDATA_DIRECTORY)
 PercentReef = read.csv("data.grid.csv", header=T)[,c(2,3,5)] %>% dplyr::inner_join(PopData[,2:3], by = c("lon", "lat"))

@@ -37,8 +37,7 @@ if (PRELOAD == T) {
   
   if (LHSPARAMS==T) {
     # nsimul=100
-    masterDF = MakeLHSSamples(100)
-    masterDF$OutbreakCrash = Inf
+    masterDF = MakeLHSSamples(80)
     setwd(DIRECTORY)
   } else {
     # nsimul=100
@@ -63,18 +62,25 @@ if (PRELOAD == T) {
                           "CCRatioThresh" = 30,
                           "CCRatioThresh2" = 10,
                           "maxmort" = 1, #and this
-                          "selfseed" = 1, # and this
-                          "chl.int" = -0.04, #and this
+                          "selfseed" = 0.5, # and this
+                          "chl.int" = 10, #and this
                           "Cbase" = 0.1,
-                          "CMax" = 350,
+                          "CMax" = 200,
                           "RUNNOCOTS"=F,
-                          "J2M" = 1,
-                          "J1M" = 2.5,
-                          "J2R" = 0.00002,
-                          "J1R" = 0.0000002)
+                          "J2M" = -0.1e5,
+                          "J1M" = -1e7,
+                          "J2R" = 0.000013,
+                          "J1R" = 0.00000018, 
+                          "AM" = c(15,15,20,20),
+                          "AR" = 0.8,
+                          "Linf" = 0.7,
+                          "K" = 4e-04,
+                          "t0" = 0)
   }
   NREPS = length(masterDF$OutbreakCrash)
   masterDF$RUNNOCOTS = c(T, rep(F, NREPS-1))
+  masterDF$OutbreakCrash = rep(c(3,Inf))
+  masterDF$DensDepend = TRUE
   
   
 } else {
@@ -244,11 +250,16 @@ if (PRELOAD == T) {
                           "J2M" = 1,
                           "J1M" = 2.5,
                           "J2R" = 0.00002,
-                          "J1R" = 0.0000002)
+                          "J1R" = 0.0000002,
+                          "Linf" = 0.7,
+                          "K" = 7e-04,
+                          "t0" = 0)
   }
   
   NREPS = length(masterDF$OutbreakCrash)
   masterDF$RUNNOCOTS = c(T, rep(F, NREPS-1))
+  masterDF$OutbreakCrash = Inf
+  masterDF$DensDepend = TRUE
   # Results storage arrays (Pixel, Year/Season, Simulation)
   res.cc = array(NA, dim=c(dim(data.grid)[1], nyears*2, nsimul))
   res.cots = array(NA, dim=c(dim(data.grid)[1], nyears*2, nsimul))
@@ -271,17 +282,17 @@ if (PRELOAD == T) {
 
 # browser()
 
-WHERE = list(c("CA", "CL", "IN","TO", "SW"), c("M", "I", "O"))
+WHERE = list(c("CA", "CL", "IN","TO"), c("M"))
 RESUBSET = F
 
 if (RESUBSET == T) {
   load("RData/ModelWorkspace_FULL.RData")
   REEFSUB = data.grid %>% dplyr::select(1:7) %>% 
-    dplyr::filter(SECTOR %in% WHERE[[1]] & CROSS_SHELF %in% WHERE[[2]]) %>% arrange(PIXEL_ID)
+    dplyr::filter(SECTOR %in% WHERE[[1]] & CROSS_SHELF %in% WHERE[[2]]) %>% dplyr::arrange(PIXEL_ID)
   # List of objects to reduce in size
   reduce = c("A", "B0", "bleaching.mn", "COTS.mn", "disease.mn", "HCINI", "HCMAX", "PercentReef", "PopData", "storms.mn", "unknown.mn",
              "bleaching.rsmpl", "COTS.rsmpl", "data.chl.resid", "disease.rsmpl", "storms.rsmpl", "unknown.rsmpl", "WQ", "res.cc", "res.cots", ls(pattern = "data."))
-  reduce = reduce[-which(reduce %in% c("data.manta","data.manta.env","data.rap", "data.reef", "data.WQ"))]
+  reduce = reduce[-which(reduce %in% c("data.manta","data.manta.env","data.rap", "data.reef", "data.WQ", "data.COTSPred"))]
   dfs = mget(list(reduce)[[1]])
   for (i in 1:length(dfs)) {
     ndim = length(dim(dfs[[i]]))
@@ -292,6 +303,7 @@ if (RESUBSET == T) {
   }
   list2env(dfs, .GlobalEnv)
   REEFSUB.index = which(Pixels$REEF_NAME %in% REEFSUB$REEF_NAME)
+  data.COTSPred = data.COTSPred %>% dplyr::filter(REEF_NAME %in% REEFSUB$REEF_NAME)
   Pixels = Pixels[REEFSUB.index,]
   COTS.ConnMat = COTS.ConnMat[REEFSUB.index, REEFSUB.index]
   npops = length(REEFSUB$PIXEL_ID)
@@ -302,19 +314,21 @@ if (RESUBSET == T) {
 # Parallel Loop ----
 
 
-cl = parallel::makeCluster(1)
-doParallel::registerDoParallel(cores = 3)
+cl = parallel::makeCluster(2)
+doParallel::registerDoParallel(cores = 20)
 
 foreach::foreach (reps = 1:NREPS) %dopar% {
   
   `%>%` <- magrittr::`%>%`
   DIRECTORY = getwd()
+  rm(FvDParams)
   # DIRECTORY = "C:/Users/jc312264/OneDrive - James Cook University/GitHub/COTS_Model"
-  nsimul=100
+  nsimul=10
   SexRatio = masterDF[reps, "SexRatio"]
   ConsRate = as.vector(masterDF[reps, 2:3])
   PCFParams = c(masterDF[reps, "avgPCF"], masterDF[reps,"sdPCF"])
   COTSmort = as.numeric(masterDF[reps, c("mortJ1", "mortJ2", "mortA")])
+  FvDParams = as.numeric(masterDF[reps, c("Linf", "K", "t0")])
   COTSremain = as.numeric(masterDF[reps, c("remJ1", "remJ2", "remA")])
   COTS_StableStage = as.numeric(masterDF[reps, c("cssJ1", "cssJ2", "cssA")])
   Pred = masterDF[reps,"Pred"]
@@ -332,7 +346,11 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
   J1M = masterDF[reps, "J1M"]
   J2R = masterDF[reps, "J2R"]
   J1R = masterDF[reps, "J1R"]
+  AM = masterDF[reps, "AM"]
+  AR = masterDF[reps, "AR"]
+  DensDepend = masterDF[reps, "DensDepend"]
   RUNNOCOTS = masterDF[reps, "RUNNOCOTS"]
+  
   # Initialize Model ----
   chl.lm$coefficients[1] = chl.int
   seasons <- c("summer","winter")
@@ -365,7 +383,8 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
           browser()
         }
         # browser()
-        COTSabund = doPredPreyDynamics(COTSabund, CoralCover, Crash, CCRatioThresh, CCRatioThresh2, maxmort, J2M, J1M,J2R, J1R, season, COTSmort)
+        COTSabund = doPredPreyDynamics(COTSabund, CoralCover, Crash, CCRatioThresh, CCRatioThresh2, maxmort, 
+                                       J2M, J1M,J2R, J1R,AM, AR, season, COTSmort, DensDepend)
         COTSabund = doCOTSDemography(season, COTSabund, COTSmort, COTSremain)
         Consumption = doCoralConsumption(season, COTSabund, CoralCover, ConsRate, COTSfromCoralModel, Cbase,CMax, CCRatioThresh)
         CoralCover = Consumption[,'CRemaining']
@@ -387,24 +406,24 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
         Growth = doCoralGrowth(season, CoralCover, b0, b1)
         CoralCover = Growth[,'CoralCover']
         CoralGrowth = round(Growth[,'CoralGrowth'],4)
-        # Results[(Results$Year==i+1995) & (Results$Season==season),
-        #         c("COTSJ1", "COTSJ2", "COTSA", "CoralCover", "CoralCover.DistLoss", "CoralCover.Consum", 'CoralCover.Growth')] =
-        #   cbind(COTSabund, CoralCover, Disturbance, CoralConsum, CoralGrowth)
-        # # Convert to manta tow abundance
-        # Results$COTSA = predict(MTCalib.gaminv,newdata=data.frame(DENS=Results$COTSA))
-        # if(i>OutbreakCrash & season =="winter") {
-        #   # browser()
-        #   OutbreakCrasher = Results %>%
-        #     dplyr::filter(Year > (i+1995-OutbreakCrash) & Year <= i+1995) %>%
-        #     dplyr::group_by(REEF_NAME, Year) %>% # need to allow for detection
-        #     dplyr::summarise(Mean.COTS = mean(COTSA)) %>%
-        #     dplyr::mutate(is.outbreak = ifelse(Mean.COTS > 0.1, 1,0)) %>%
-        #     dplyr::group_by(REEF_NAME) %>%
-        #     dplyr::summarise(Crash = ifelse(sum(is.outbreak)==OutbreakCrash,1,0)) %>%
-        #     dplyr::filter(Crash==1)
-        #   matchit = match(data.grid$REEF_NAME,OutbreakCrasher$REEF_NAME)
-        #   COTSabund[which(!is.na(matchit)),] = c(0,0,0)
-        #} # Close outbreak crasher
+        Results[(Results$Year==i+1995) & (Results$Season==season),
+                c("COTSJ1", "COTSJ2", "COTSA", "CoralCover", "CoralCover.DistLoss", "CoralCover.Consum", 'CoralCover.Growth')] =
+          cbind(COTSabund, CoralCover, Disturbance, CoralConsum, CoralGrowth)
+        # Convert to manta tow abundance
+        Results$COTSA = predict(MTCalib.gaminv,newdata=data.frame(DENS=Results$COTSA))
+        if(i>OutbreakCrash & season =="winter") {
+          # browser()
+          OutbreakCrasher = Results %>%
+            dplyr::filter(Year > (i+1995-OutbreakCrash) & Year <= i+1995) %>%
+            dplyr::group_by(REEF_NAME, Year) %>% # need to allow for detection
+            dplyr::summarise(Mean.COTS = mean(COTSA)) %>%
+            dplyr::mutate(is.outbreak = ifelse(Mean.COTS > 0.2, 1,0)) %>%
+            dplyr::group_by(REEF_NAME) %>%
+            dplyr::summarise(Crash = ifelse(sum(is.outbreak)==OutbreakCrash,1,0)) %>%
+            dplyr::filter(Crash==1)
+          matchit = match(data.grid$REEF_NAME,OutbreakCrasher$REEF_NAME)
+          COTSabund[which(!is.na(matchit)),] = c(0,0,0)
+        } # Close outbreak crasher
         if (season=="summer") {
           res.cc[,2*i-1,j] = CoralCover
           res.cots[,2*i-1,j] = COTSabund[,3]
@@ -576,8 +595,12 @@ MPE = data.frame(SECTOR= rep(SECTORS, each=NREPS),
                  ACC.Pres.ALL = vector(mode = "numeric", NREPS*length(SECTORS)),
                  KAP.Pres = vector(mode = "numeric", NREPS*length(SECTORS)),
                  KAP.Pres.ALL = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 P.Pres = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 P.Pres.ALL = vector(mode = "numeric", NREPS*length(SECTORS)),
                  KAP.Out = vector(mode = "numeric", NREPS*length(SECTORS)),
                  KAP.Out.ALL = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 P.Out = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 P.Out.ALL = vector(mode = "numeric", NREPS*length(SECTORS)),
                  ACC.Out = vector(mode = "numeric", NREPS*length(SECTORS)),
                  ACC.Out.ALL = vector(mode = "numeric", NREPS*length(SECTORS)),
                  pR2.COTS = vector(mode = "numeric", NREPS*length(SECTORS)),
@@ -600,21 +623,19 @@ for (i in 1:NREPS) {
   summary(lm)$r.squared  ## R2 = 0.637
   MPE[MPE$REP==i,"MPE.COTS.ALL"] = mean(abs(summary(lm)$residuals))
   # make confusion matrix --> get KAPPA and Accuracy
-  obs.bin = factor(ifelse(manta.i$MEAN_COTS>0,1,0),levels = c(0,1)) ; pred.bin = factor(ifelse(manta.i$COTS.mn > 0.01, 1,0),levels = c(0,1))
+  obs.bin = factor(ifelse(manta.i$MEAN_COTS>0.01,1,0),levels = c(0,1)) ; pred.bin = factor(ifelse(manta.i$COTS.mn > 0.01, 1,0),levels = c(0,1))
   obs.binOUT = factor(ifelse(manta.i$MEAN_COTS >0.22,1,0), levels = c(0,1)) ; pred.binOUT = factor(ifelse(manta.i$COTS.mn > 0.22, 1,0),levels = c(0,1))
   pres.conf = caret::confusionMatrix(pred.bin, obs.bin)
   out.conf = caret::confusionMatrix(pred.binOUT, obs.binOUT) #### Confusion Matrix
-  MPE[MPE$REP==i,c("ACC.Pres.ALL", "KAP.Pres.ALL")] = round(rep(pres.conf$overall[1:2], each=length(SECTORS)),3)
-  MPE[MPE$REP==i,c("ACC.Out.ALL", "KAP.Out.ALL")] = round(rep(out.conf$overall[1:2], each=length(SECTORS)),3)
+  MPE[MPE$REP==i,c("ACC.Pres.ALL", "KAP.Pres.ALL", "P.Pres.ALL")] = round(rep(pres.conf$overall[c(1:2, 6)], each=length(SECTORS)),3)
+  MPE[MPE$REP==i,c("ACC.Out.ALL", "KAP.Out.ALL", "P.Out.ALL")] = round(rep(out.conf$overall[c(1:2, 6)], each=length(SECTORS)),3)
   df = manta.i %>%  
     dplyr::select(REEF_NAME, Year, REP, COTS.mn, MEAN_COTS) %>% 
     mutate(COTS.mn = predict(MTCalib.gam, newdata=data.frame(MT=COTS.mn)),
-           COTS.mn = ifelse(COTS.mn <=0.01, 0, COTS.mn),
-           COTS.mn = predict(MTCalib.gam, newdata=data.frame(MT=COTS.mn)),
-           COTS.mn = round(ifelse(COTS.mn <0, 0, COTS.mn),0),
            MEAN_COTS = predict(MTCalib.gam, newdata=data.frame(MT=MEAN_COTS)),
-           MEAN_COTS = round(ifelse(MEAN_COTS <0, 0, MEAN_COTS),0),
-           pred.bin = pred.bin) 
+           pred.bin = pred.bin) %>%
+    mutate(COTS.mn = ifelse(COTS.mn <=0.01, 0, COTS.mn),
+           MEAN_COTS = round(ifelse(MEAN_COTS <0, 0, MEAN_COTS),0))
   # run Zeron-infl neg bin on results using pscl to get pseudo R2 --> convert to integer value
   try({
     m1 = pscl::zeroinfl(MEAN_COTS ~ COTS.mn | pred.bin,
@@ -638,21 +659,20 @@ for (i in 1:NREPS) {
     summary(lm)$r.squared  ## R2 = 0.637
     MPE[MPE$SECTOR==SECTORS[j] & MPE$REP==i,"MPE.COTS"] = mean(abs(summary(lm)$residuals)) ##
     # make confusion matrix --> get KAPPA and Accuracy
-    obs.bin = factor(ifelse(manta.i$MEAN_COTS>0,1,0),levels = c(0,1)) ; pred.bin = factor(ifelse(manta.i$COTS.mn > 0.01, 1,0),levels = c(0,1))
+    obs.bin = factor(ifelse(manta.i$MEAN_COTS>0.01,1,0),levels = c(0,1)) ; pred.bin = factor(ifelse(manta.i$COTS.mn > 0.01, 1,0),levels = c(0,1))
     obs.binOUT = factor(ifelse(manta.i$MEAN_COTS >0.22,1,0), levels = c(0,1)) ; pred.binOUT = factor(ifelse(manta.i$COTS.mn > 0.22, 1,0),levels = c(0,1))
     pres.conf = caret::confusionMatrix(pred.bin, obs.bin)
     out.conf = caret::confusionMatrix(pred.binOUT, obs.binOUT)#### Confusion Matrix
-    MPE[MPE$SECTOR==SECTORS[j] & MPE$REP==i,c("ACC.Pres", "KAP.Pres")] = pres.conf$overall[1:2]
-    MPE[MPE$SECTOR==SECTORS[j] & MPE$REP==i,c("ACC.Out", "KAP.Out")] = out.conf$overall[1:2]
+    MPE[MPE$SECTOR==SECTORS[j] & MPE$REP==i,c("ACC.Pres", "KAP.Pres", "P.Pres")] = pres.conf$overall[c(1:2, 6)]
+    MPE[MPE$SECTOR==SECTORS[j] & MPE$REP==i,c("ACC.Out", "KAP.Out", "P.Out")] = out.conf$overall[c(1:2, 6)]
     df = manta.i %>%  
       dplyr::select(REEF_NAME, Year, REP, COTS.mn, MEAN_COTS) %>% 
       mutate(COTS.mn = predict(MTCalib.gam, newdata=data.frame(MT=COTS.mn)),
-             COTS.mn = ifelse(COTS.mn <=0.01, 0, COTS.mn),
-             COTS.mn = predict(MTCalib.gam, newdata=data.frame(MT=COTS.mn)),
-             COTS.mn = round(ifelse(COTS.mn <0, 0, COTS.mn),0),
              MEAN_COTS = predict(MTCalib.gam, newdata=data.frame(MT=MEAN_COTS)),
-             MEAN_COTS = round(ifelse(MEAN_COTS <0, 0, MEAN_COTS),0),
-             pred.bin = pred.bin) 
+             pred.bin = pred.bin) %>%
+      mutate(COTS.mn = ifelse(COTS.mn <=0.01, 0, COTS.mn),
+             MEAN_COTS = round(ifelse(MEAN_COTS <0, 0, MEAN_COTS),0))
+    
     # run Zeron-infl neg bin on results using pscl to get pseudo R2 --> convert to integer value
     try({
       m1 = pscl::zeroinfl(MEAN_COTS ~ COTS.mn | pred.bin,
@@ -666,42 +686,64 @@ for (i in 1:NREPS) {
   }
 }  
 
+range01 <- function(x, ...){(x - min(x, ...)) / (max(x, ...) - min(x, ...))}
+MPE.overall = MPE %>% group_by(REP) %>% 
+  dplyr::select(contains("ALL")) %>%
+  # dplyr::select(MPE.CC.ALL, MPE.COTS.ALL, ACC.Pres.ALL, KAP.Pres.ALL, KAP.Out.ALL, 
+  #               ACC.Out.ALL, pR2sqrt.COTS.ALL,P.Pres.ALL, P.Out.ALL) %>%
+  summarise_all(mean) %>%
+  mutate(Overall = (range01(ACC.Pres.ALL) + range01(KAP.Pres.ALL) +range01(ACC.Out.ALL) +range01(KAP.Out.ALL) + (1-range01(MPE.CC.ALL)))/5)
 
-BESTREPS = unique(MPE[order(MPE$ACC.Out.ALL),"REP"])[1:5]
-MPE.BEST = MPE %>% filter(REP %in% BESTREPS)
-BESTREPS.CC = unique(MPE[order(MPE$MPE.CC.ALL,decreasing = T),"REP"])[1:5]
-BESTPARAMS = masterDF[BESTREPS,]
-BESTPARAMS.CC = masterDF[BESTREPS.CC,]
-MPE.T = MPE[MPE$SECTOR=="TO",]
-BESTREPS.T = MPE.T[order(MPE.T$ACC.Out)[1:5],"REP"]
-BESTPARAMS.T = masterDF[BESTREPS.T,]
+
+BESTREPS = unique(MPE.overall[order(MPE.overall$ACC.Out.ALL, decreasing = T),"REP"])[1:10,1] %>% pull(REP)
+# MPE.BEST = MPE %>% filter(REP %in% BESTREPS)
+# BESTREPS.CC = unique(MPE[order(MPE$MPE.CC.ALL,decreasing = T),"REP"])[1:5]
+# BESTPARAMS = masterDF[BESTREPS,]
+# BESTPARAMS.CC = masterDF[BESTREPS.CC,]
+# MPE.T = MPE[MPE$SECTOR=="TO",]
+# BESTREPS.T = MPE.T[order(MPE.T$ACC.Out)[1:5],"REP"]
+# BESTPARAMS.T = masterDF[BESTREPS.T,]
 
 
 # Plot Validation Reefs----
-# GG.COTS = ggplot(data.manta.valid %>% filter(REP %in% 1:5 & REEF_NAME %in% manta.reefs), aes(x=Year, y=COTS.mn)) + 
-#   geom_point(aes(y=MEAN_COTS)) + geom_line(aes(x=Year, y=MEAN_COTS)) +
-#   geom_line(aes(colour=as.factor(REP))) +  geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75, fill=factor(REP)),alpha=0.2) +
-#   facet_wrap(~SECTOR+REEF_NAME, scales = "free_y", ncol=3 ) 
-# GG.COTS
-dir.create("Results/Figures/Replicates")
-for (i in 1:NREPS) {
-  # browser()
-  gg=ggplot(data.manta.valid %>% filter(REP == i & REEF_NAME %in% manta.reefs), aes(x=Year, y=COTS.mn)) + 
-    geom_point(aes(y=MEAN_COTS)) + geom_line(aes(x=Year, y=MEAN_COTS)) +
-    geom_line(aes(colour=as.factor(REP))) +  geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75, fill=factor(REP)),alpha=0.2) +
-    facet_wrap(~SECTOR+REEF_NAME, scales = "free_y") 
-  ggsave(paste0("Results/Figures/Replicates/COTS_",i,".png"),gg, device="png", width=14, height=8, dpi = 300)
-  
-}
-
-for (i in 1:NREPS) {
-  gg = ggplot(data.manta.valid  %>% filter(REP ==i & REEF_NAME %in% manta.reefs), aes(x=Year, y=CC.mn)) + 
+GG.COTS = ggplot(data.manta.valid %>% filter(REP %in% 2:4 & REEF_NAME %in% manta.reefs), aes(x=Year, y=COTS.mn)) +
+  geom_point(aes(y=MEAN_COTS)) + geom_line(aes(x=Year, y=MEAN_COTS)) +
+  geom_line(aes(colour=as.factor(REP))) +  geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75, fill=factor(REP)),alpha=0.2) +
+  facet_wrap(~REEF_NAME, scales = "free_y", ncol=3 )
+GG.COTS
+GG.CORAL = ggplot(data.manta.valid  %>% filter(REP %in% 2:4 & REEF_NAME %in% manta.reefs), aes(x=Year, y=CC.mn)) +
     geom_point(aes(y=MEAN_LIVE.corr)) + geom_line(aes(x=REPORT_YEAR-1, y=MEAN_LIVE.corr)) +
     geom_line(aes(colour=as.factor(REP))) + geom_ribbon(aes(ymin = CC.25, ymax=CC.75, fill=factor(REP)),alpha=0.2) +
     facet_wrap(~SECTOR+REEF_NAME, scales = "free_y") + ylim(c(0,50))
-  ggsave(paste0("Results/Figures/Replicates/Coral_",i,".png"),gg, device="png", width=14, height=8, dpi = 300)
-}
+GG.CORAL
 
+
+cl = parallel::makeCluster(2)
+doParallel::registerDoParallel(cores = 20)
+
+foreach::foreach (i = 1:NREPS) %dopar% {
+# # dir.create("Results/Figures/Replicates")
+# for (i in 1:NREPS) {
+  # browser()
+  `%>%` <- magrittr::`%>%`
+  library(ggplot2)
+  library(dplyr)
+  gg=ggplot(data.manta.valid %>% filter(REP == i & REEF_NAME %in% manta.reefs), aes(x=Year, y=COTS.mn)) +
+    geom_point(aes(y=MEAN_COTS)) + geom_line(aes(x=Year, y=MEAN_COTS)) +
+    geom_line(aes(colour=as.factor(REP))) +  geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75, fill=factor(REP)),alpha=0.2) +
+    facet_wrap(~SECTOR+REEF_NAME, scales = "free_y")
+  ggsave(paste0("Results/Figures/Replicates/COTS_",i,"_",Sys.Date(),".png"),gg, device="png", width=14, height=8, dpi = 300)
+
+# }
+#
+# for (i in 1:NREPS) {
+  gg = ggplot(data.manta.valid  %>% filter(REP ==i & REEF_NAME %in% manta.reefs), aes(x=Year, y=CC.mn)) +
+    geom_point(aes(y=MEAN_LIVE.corr)) + geom_line(aes(x=REPORT_YEAR-1, y=MEAN_LIVE.corr)) +
+    geom_line(aes(colour=as.factor(REP))) + geom_ribbon(aes(ymin = CC.25, ymax=CC.75, fill=factor(REP)),alpha=0.2) +
+    facet_wrap(~SECTOR+REEF_NAME, scales = "free_y") + ylim(c(0,50))
+  ggsave(paste0("Results/Figures/Replicates/Coral_",i,"_",Sys.Date(),".png"),gg, device="png", width=14, height=8, dpi = 300)
+}
+parallel::stopCluster(cl)
 # GG.COTS.T = ggplot(data.manta.valid %>% filter(REP %in% BESTREPS.T & REEF_NAME %in% manta.reefs), aes(x=Year, y=COTS.mn)) + 
 #   geom_point(aes(y=MEAN_COTS)) + geom_line(aes(x=Year, y=MEAN_COTS)) +
 #   geom_line(aes(colour=as.factor(REP))) +  geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75, fill=factor(REP)),alpha=0.2) +
@@ -733,7 +775,7 @@ for (i in 1:NREPS) {
 # ggsave("Results/Figures/COTS.tiff",GG.COTS, device="tiff", width=14, height=8, dpi = 300)
 # ggsave("Results/Figures/COTS.png",GG.COTS, device="png", width=14, height=8, dpi = 300)
 # 
-# GG.CORAL = ggplot(data.manta.valid  %>% filter(REP %in% 3:4 & REEF_NAME %in% manta.reefs), aes(x=Year, y=CC.mn)) + 
+# GG.CORAL = ggplot(data.manta.valid  %>% filter(REP %in% 7:10 & REEF_NAME %in% manta.reefs), aes(x=Year, y=CC.mn)) +
 #   geom_point(aes(y=MEAN_LIVE.corr)) + geom_line(aes(x=REPORT_YEAR-1, y=MEAN_LIVE.corr)) +
 #   geom_line(aes(colour=as.factor(REP))) + geom_ribbon(aes(ymin = CC.25, ymax=CC.75, fill=factor(REP)),alpha=0.2) +
 #   facet_wrap(~SECTOR+REEF_NAME, scales = "free_y") + ylim(c(0,50))
@@ -778,95 +820,208 @@ for (i in 1:NREPS) {
 # ggsave("Results/Figures/Coral.tiff", GG.CORAL.AV, device="tiff", width=14, height=8, dpi = 300)
 # ggsave("Results/Figures/Coral.png", GG.CORAL.AV, device="png", width=14, height=8, dpi = 300)
 
-nruns = length(list.files(path = "Results/Archive")[grep(paste0("ForDashboard_",Sys.Date()),list.files(path = "Archive"))]) + 1
+nruns = length(list.files(path = "Results/Archive")[grep(paste0("Validation_",Sys.Date()),list.files(path = "Archive"))]) + 1
 # write.csv(ForDashboard, paste0("Results/Archive/ForDashboard_", Sys.Date(),"_", nruns, ".csv"))
 # write.csv(ForDashboard, "Results/ResultsDashboard/ForDashboard.csv")
 write.csv(masterDF, paste0("Results/Archive/masterDF_", Sys.Date(),"_", nruns, ".csv"))
 write.csv(masterDF, "Results/Archive/masterDF.csv")
 
-save(res.plot, MPE, data.manta.valid, data.manta.valid.all, masterDF, 
+save(res.plot, MPE, MPE.overall,  data.manta.valid, data.manta.valid.all, masterDF,
      file = paste0("Results/Archive/Validation_", Sys.Date(),"_", nruns, ".RData"))
 
 
-# # Make Yearly COTS-Coral Graphs ---- 
-# source("COTSMod_PlotSpatial.R")
-# dir.create("Results/Figures/YearlyPlots")
-# 
-# # Set Up plotting Window ---
-# BESTREP=14
-# res.fig = res.plot %>% filter(REP %in% BESTREP)
-# res.fig.GBR = res.plot %>% filter(REP %in% BESTREP) %>% group_by(Year) %>%
-#   summarise(CC.md = median(CC.mn),
-#             CC.Q05 = quantile(CC.mn, probs=0.05),
-#             CC.Q25 = quantile(CC.mn, probs=0.25),
-#             CC.Q75 = quantile(CC.mn, probs=0.75),
-#             CC.Q95 = quantile(CC.mn, probs=0.95))
-# # Plot map (left panel)
-# for(i in 1996:2017){
-#   #i=2017
-#   res.fig.i = select(data.grid, REEF_NAME, SECTOR, CROSS_SHELF, lat, lon) %>% inner_join(res.fig %>% filter(Year %in% i))
-#   
-#   dev.off()
-#   f = colorRamp(c("yellow", "red"))
-#   layout(rbind(c(1,1,2,2),
-#                       c(1,1,2,2),
-#                       c(1,1,2,2),
-#                       c(3,3,3,4)))
-#   
-#   # PLOT CORAL COVER
-#   color = rgb(f(res.fig.i$CC.mn/60)/255)
-#   par(mai=c(0,0,0,0))
-#   plotPolys(shape45[1:30,], col="gray95", border="gray70", xlim=c(148,157), ylim=c(-36, -21),
-#             bg="white", cex=1.2, axes=F, ylab=NA, plt=c(0,1,0,1), colHoles=NA, projection = 1)
-#   lines(gridln.elide, col="lightgrey")
-#   addPolys(shape45[1:1000,], col="gray95", border="gray70", bg="white", xlim=c(149,156), ylim=c(-36, -20),
-#            colHoles=NA)
-#   points(grid45$x, grid45$y, pch=19, cex=0.5, col=addalpha(color, .5))
-#   
-#   
-#   text(149.9,-22.5,i, cex=4, font=2)
-# 
-#   text(155.3, -22.5, "150E", col="lightgrey", srt=40, cex=1)
-#   text(155.3, -29.4, "155E", col="lightgrey", srt=40, cex=1)
-#   text(155.3, -26, "15S", col="lightgrey", srt=-40, cex=1)
-#   text(155.3, -33.2, "20S", col="lightgrey", srt=-40, cex=1)
-#   
-#   # pnts = cbind(x =c(149.3,150.2, 150.2,149.3), y =c(-35.6, -35.6,-34,-34))
-#   pnts = cbind(x =c(153.2,154.2, 154.2,153.2), y =c(-28.8, -28.8,-27,-27))
-#   # rect(149.2, -35.8, 151.1, -33.2, col="white", border = "black")
-#   # rect(153, -29.1, 155.3, -26.2, col="white", border = "black")
-#   color.grad = rgb(f(seq(0,1,0.01))/255)
-#   legend.gradient(pnts,color.grad,
-#                   c(0,60), title = "Coral Cover", cex=1.4)
-#   
-#   # Make GGPLOT FIGS
-#   res.plot.i = data.manta.valid %>% 
-#     filter(REP %in% BESTREP & 
-#            Year %in% 1996:i & 
-#            REEF_NAME %in% c("Linnet Reef (14-126)", "Wardle Reef (17-032)","Rib Reef (18-032)"))
-#   
-#   GG.CORAL = ggplot(res.plot.i, aes(x=Year, y=CC.mn, fill=as.factor(REEF_NAME))) + 
-#     geom_point(aes(y=MEAN_LIVE.corr)) + geom_line(aes(x=REPORT_YEAR-1, y=MEAN_LIVE.corr)) +
-#     geom_line(aes(colour=as.factor(REEF_NAME))) + geom_ribbon(aes(ymin = CC.25, ymax=CC.75,colour=as.factor(REEF_NAME)),alpha=0.4) +
-#     facet_wrap(~REEF_NAME, scales = "free_y", ncol = 1) + ylim(c(0,50)) + ylab("Mean % Coral Cover") + 
-#     theme_bw(base_size=11) + theme(legend.position = "none") + xlim(c(1996,2017))
-# 
-#   GG.GBR = ggplot(res.fig.GBR %>% filter(Year %in% 1996:i), aes(x=Year, y=CC.md)) + 
-#     geom_line(aes(x=Year, y=CC.md)) +
-#     geom_ribbon(aes(ymin = CC.Q05, ymax=CC.Q95),alpha=0.2) +
-#     geom_ribbon(aes(ymin = CC.Q25, ymax=CC.Q75),alpha=0.5) +
-#     ylab("Mean % Coral Cover") + 
-#     theme_bw(base_size=11) + theme(legend.position = "none") + xlim(c(1996,2017))
-#   # GG.CORAL
-#   ## PLot GGPLOTs using viewport
-#   vp<-grid::viewport(x=0.7,y=0.6,width=0.6,height = 0.8)
-#   print(GG.CORAL, vp = vp)
-#   vp<-grid::viewport(x=0.4,y=0.1,width=0.72,height = 0.2)
-#   print(GG.GBR, vp = vp)
-#   vp<-grid::viewport(x=0.75,y=0.1,width=0.3,height = 0.2)
-#   print(grid::grid.text(as.character(i), x=0.85, y=0.15, gp=gpar(size=70, fontface="bold")), vp = vp)
-#   vp<-grid::viewport(x=0.75,y=0.1,width=0.3,height = 0.2)
-#   print(grid::grid.text("MPE = 7.9%", x=0.85, y=0.1, gp=gpar(size=36, fontface="bold")), vp = vp)
-#   
-#   export::graph2tif(file = paste0("Results/Figures/YearlyPlots_",i), width =11, height=9, dpi=300)
-# }
+# Make Yearly COTS-Coral Graphs ----
+source("COTSMod_PlotSpatial.R")
+dir.create("Results/Figures/YearlyPlots")
+
+# Set Up plotting Window ---
+BESTREP=53
+res.fig = res.plot %>% dplyr::filter(REP %in% BESTREP)
+res.fig.GBR = res.fig %>% group_by(Year) %>%
+  dplyr::summarise(CC.md = median(CC.mn),
+            CC.Q05 = quantile(CC.mn, probs=0.05),
+            CC.Q25 = quantile(CC.mn, probs=0.25),
+            CC.Q75 = quantile(CC.mn, probs=0.75),
+            CC.Q95 = quantile(CC.mn, probs=0.95),
+            COTS.md = median(COTS.mn),
+            COTS.Q05 = quantile(COTS.mn, probs=0.05),
+            COTS.Q25 = quantile(COTS.mn, probs=0.25),
+            COTS.Q75 = quantile(COTS.mn, probs=0.75),
+            COTS.Q95 = quantile(COTS.mn, probs=0.95))
+
+# cl = parallel::makeCluster(1)
+# doParallel::registerDoParallel(cores = 3)
+
+# foreach::foreach (i = 1996:2017) %dopar% {# Plot map (left panel)
+for(i in 1996:2017){
+  library(dplyr)
+  library(ggplot2)
+  library(PBSmapping)
+  library(grid)
+  # i=2017
+  res.fig.i = dplyr::select(data.grid, REEF_NAME, SECTOR, CROSS_SHELF, lat, lon) %>% inner_join(res.fig %>% filter(Year %in% i))
+
+  # dev.off()
+  f = colorRamp(c("yellow", "red"))
+  layout(rbind(c(1,1,2,2),
+                      c(1,1,2,2),
+                      c(1,1,2,2),
+                      c(3,3,3,4)))
+
+  # PLOT CORAL COVER
+  color = rgb(f(res.fig.i$CC.mn/60)/255)
+  par(mai=c(0,0,0,0))
+  plotPolys(shape45[1:1000,], col="gray95", border="gray70", xlim=c(148,157), ylim=c(-36, -21),
+            bg="white", cex=1.2, axes=F, ylab=NA, plt=c(0,1,0,1), colHoles=NA, projection = 1)
+  lines(gridln.elide, col="lightgrey")
+  addPolys(shape45, col="gray95", border="gray70", bg="white", xlim=c(149,156), ylim=c(-36, -20),
+           colHoles=NA)
+  points(grid45$x, grid45$y, pch=19, cex=0.5, col=addalpha(color, .5))
+
+
+  text(149.9,-22.5,i, cex=4, font=2)
+
+  text(155.3, -22.5, "150E", col="lightgrey", srt=40, cex=1)
+  text(155.3, -29.4, "155E", col="lightgrey", srt=40, cex=1)
+  text(155.3, -26, "15S", col="lightgrey", srt=-40, cex=1)
+  text(155.3, -33.2, "20S", col="lightgrey", srt=-40, cex=1)
+
+  # pnts = cbind(x =c(149.3,150.2, 150.2,149.3), y =c(-35.6, -35.6,-34,-34))
+  pnts = cbind(x =c(153.2,154.2, 154.2,153.2), y =c(-28.8, -28.8,-27,-27))
+  # rect(149.2, -35.8, 151.1, -33.2, col="white", border = "black")
+  # rect(153, -29.1, 155.3, -26.2, col="white", border = "black")
+  color.grad = rgb(f(seq(0,1,0.01))/255)
+  SDMTools::legend.gradient(pnts,color.grad,
+                  c(0,60), title = "Coral Cover", cex=1.4)
+
+  # Make GGPLOT FIGS
+  res.plot.i = data.manta.valid %>%
+    filter(REP %in% BESTREP &
+           Year %in% 1996:i &
+           REEF_NAME %in% c("MacGillivray Reef (14-114)", "Lady Musgrave Reef (23-082a)",
+                            "Wardle Reef (17-032)"))
+
+  GG.CORAL = ggplot(res.plot.i, aes(x=Year, y=CC.mn, fill=as.factor(REEF_NAME))) +
+    geom_point(aes(y=MEAN_LIVE.corr)) + geom_line(aes(x=REPORT_YEAR-1, y=MEAN_LIVE.corr)) +
+    geom_line(aes(colour=as.factor(REEF_NAME))) + geom_ribbon(aes(ymin = CC.25, ymax=CC.75,colour=as.factor(REEF_NAME)),alpha=0.4) +
+    facet_wrap(~REEF_NAME, scales = "free_y", ncol = 1) + ylim(c(0,60)) + ylab("Mean % Coral Cover") +
+    theme_bw(base_size=11) + theme(legend.position = "none") + xlim(c(1996,2017))
+
+  GG.GBR = ggplot(res.fig.GBR %>% filter(Year %in% 1996:i), aes(x=Year, y=CC.md)) +
+    geom_line(aes(x=Year, y=CC.md)) +
+    geom_ribbon(aes(ymin = CC.Q05, ymax=CC.Q95),alpha=0.2) +
+    geom_ribbon(aes(ymin = CC.Q25, ymax=CC.Q75),alpha=0.5) +
+    ylab("Mean % Coral Cover") +
+    theme_bw(base_size=11) + theme(legend.position = "none") + xlim(c(1996,2017))
+
+
+  # GG.CORAL
+  ## PLot GGPLOTs using viewport
+  vp<-grid::viewport(x=0.7,y=0.6,width=0.6,height = 0.8)
+  print(GG.CORAL, vp = vp)
+  vp<-grid::viewport(x=0.4,y=0.1,width=0.72,height = 0.2)
+  print(GG.GBR, vp = vp)
+  vp<-grid::viewport(x=0.75,y=0.1,width=0.3,height = 0.2)
+  print(grid::grid.text(as.character(i), x=0.85, y=0.15, gp=gpar(size=70, fontface="bold")), vp = vp)
+  vp<-grid::viewport(x=0.75,y=0.1,width=0.3,height = 0.2)
+  print(grid::grid.text("", x=0.85, y=0.1, gp=gpar(size=36, fontface="bold")), vp = vp)
+
+  export::graph2tif(file = paste0("Results/Figures/YearlyPlots_",i), width =11, height=9, dpi=300)
+}
+
+# cl = parallel::makeCluster(1)
+# doParallel::registerDoParallel(cores = 3)
+
+# foreach::foreach (i = 1996:2017) %dopar% {
+  library(dplyr)
+  library(ggplot2)
+  library(PBSmapping)
+  library(grid)
+# COTS Figs
+for(i in 1996:2017){
+  # i=2017
+  res.fig.i = dplyr::select(data.grid, REEF_NAME, SECTOR, CROSS_SHELF, lat, lon) %>% inner_join(res.fig %>% filter(Year %in% i))
+
+  # dev.off()
+  f = colorRamp(c("green","yellow", "red"))
+  layout(rbind(c(1,1,2,2),
+               c(1,1,2,2),
+               c(1,1,2,2),
+               c(3,3,3,4)))
+
+  # PLOT CORAL COVER
+  # res.fig.i$COTS.mn2 = ifelse(res.fig.i$COTS.mn >1,1,res.fig.i$COTS.mn)
+  # color = rgb(f(res.fig.i$COTS.mn/max(round(res.fig$COTS.mn,1)))/255)
+  color = ifelse(res.fig.i$COTS.mn<0.01,"grey",
+                 ifelse(res.fig.i$COTS.mn <0.11,"green",
+                        ifelse(res.fig.i$COTS.mn <0.22, "yellow",
+                               ifelse(res.fig.i$COTS.mn <0.5, "orange", "red"))))
+  par(mai=c(0,0,0,0))
+  plotPolys(shape45[1:1000,], col="gray95", border="gray70", xlim=c(148,157), ylim=c(-36, -21),
+            bg="white", cex=1.2, axes=F, ylab=NA, plt=c(0,1,0,1), colHoles=NA, projection = 1)
+  lines(gridln.elide, col="lightgrey")
+  addPolys(shape45, col="gray95", border="gray70", bg="white", xlim=c(149,156), ylim=c(-36, -20),
+           colHoles=NA)
+  points(grid45$x, grid45$y, pch=19, cex=0.5, col=addalpha(color, .5))
+
+
+  text(149.9,-22.5,i, cex=4, font=2)
+
+  text(155.3, -22.5, "150E", col="lightgrey", srt=40, cex=1)
+  text(155.3, -29.4, "155E", col="lightgrey", srt=40, cex=1)
+  text(155.3, -26, "15S", col="lightgrey", srt=-40, cex=1)
+  text(155.3, -33.2, "20S", col="lightgrey", srt=-40, cex=1)
+
+  # pnts = cbind(x =c(149.3,150.2, 150.2,149.3), y =c(-35.6, -35.6,-34,-34))
+  pnts = cbind(x =c(153.2,154.2, 154.2,153.2), y =c(-28.8, -28.8,-27,-27))
+  # rect(149.2, -35.8, 151.1, -33.2, col="white", border = "black")
+  # rect(153, -29.1, 155.3, -26.2, col="white", border = "black")
+  # color.grad = rgb(f(seq(0,1,0.01))/255)
+  # SDMTools::legend.gradient(pnts,color.grad,
+  #                 c(0,max(round(res.fig$COTS.mn,1))), title = "COTS", cex=1.4)
+  legend(x='bottomleft', legend = c("NC", "NO", "PO", "EO", "SO"), 
+         fill = c("grey", "green", "yellow", "orange", "red"))
+
+  # Make GGPLOT FIGS
+  res.plot.i = data.manta.valid %>%
+    filter(REP %in% BESTREP &
+             Year %in% 1996:i &
+             REEF_NAME %in% c("MacGillivray Reef (14-114)", "Lady Musgrave Reef (23-082a)",
+                              "Wardle Reef (17-032)"))
+
+  GG.COTS = ggplot(res.plot.i, aes(x=Year, y=COTS.mn, fill=as.factor(REEF_NAME))) +
+    geom_point(aes(y=MEAN_COTS)) + geom_line(aes(x=REPORT_YEAR-1, y=MEAN_COTS)) +
+    geom_line(aes(colour=as.factor(REEF_NAME))) + geom_ribbon(aes(ymin = COTS.25, ymax=COTS.75,colour=as.factor(REEF_NAME)),alpha=0.4) +
+    facet_wrap(~REEF_NAME, scales = "free_y", ncol = 1)  + ylab("Mean COTS/Manta Tow") +
+    theme_bw(base_size=11) + theme(legend.position = "none") + xlim(c(1996,2017))
+
+  GG.GBR.COTS = ggplot(res.fig.GBR %>% filter(Year %in% 1996:i), aes(x=Year, y=COTS.md)) +
+    geom_line(aes(x=Year, y=COTS.md)) +
+    geom_ribbon(aes(ymin = COTS.Q05, ymax=COTS.Q95),alpha=0.2) +
+    geom_ribbon(aes(ymin = COTS.Q25, ymax=COTS.Q75),alpha=0.5) +
+    ylab("Mean COTS/Manta Tow") +
+    theme_bw(base_size=11) + theme(legend.position = "none") + xlim(c(1996,2017))
+
+
+  # GG.CORAL
+  ## PLot GGPLOTs using viewport
+  vp<-grid::viewport(x=0.7,y=0.6,width=0.6,height = 0.8)
+  print(GG.COTS, vp = vp)
+  vp<-grid::viewport(x=0.4,y=0.1,width=0.72,height = 0.2)
+  print(GG.GBR.COTS, vp = vp)
+  vp<-grid::viewport(x=0.75,y=0.1,width=0.3,height = 0.2)
+  print(grid::grid.text(as.character(i), x=0.85, y=0.15, gp=gpar(size=70, fontface="bold")), vp = vp)
+  vp<-grid::viewport(x=0.75,y=0.1,width=0.3,height = 0.2)
+  print(grid::grid.text("", x=0.85, y=0.1, gp=gpar(size=36, fontface="bold")), vp = vp) # Put pred error here
+
+  export::graph2tif(file = paste0("Results/Figures/YearlyPlotsCOTS_",i), width =11, height=9, dpi=300)
+}
+
+library(animation)
+imgs <- list.files(pattern="*.png")
+saveVideo({
+  for(img in imgs){
+    im <- magick::image_read(img)
+    plot(as.raster(im))
+  }
+})
