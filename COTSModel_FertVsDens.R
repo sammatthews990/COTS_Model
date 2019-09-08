@@ -253,4 +253,7 @@ ggarrange(VBGPlots[[1]], VBGPlots[[2]],VBGPlots[[3]], VBGPlots[[4]],
           VBGPlots[[5]], VBGPlots[[6]], VBGPlots[[7]], VBGPlots[[8]],
           VBGPlots[[9]], ncol=3, nrow=3)
 
+VBG = function (Linf, K, dens, t0) {Linf * (1 - exp(-K * (dens - t0)))}
 
+plot(1:10000,VBG(0.7,2e-4, 1:10000, 0))
+points(1:10000,VBG(0.7,6e-4, 1:10000, 0))

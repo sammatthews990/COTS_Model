@@ -411,16 +411,19 @@ foreach::foreach (reps = 1:NREPS) %dopar% {
           cbind(COTSabund, CoralCover, Disturbance, CoralConsum, CoralGrowth)
         # Convert to manta tow abundance
         Results$COTSA = predict(MTCalib.gaminv,newdata=data.frame(DENS=Results$COTSA))
-        if(i>OutbreakCrash & season =="winter") {
+        if(i>=OutbreakCrash & season =="winter") {
           # browser()
           OutbreakCrasher = Results %>%
-            dplyr::filter(Year > (i+1995-OutbreakCrash) & Year <= i+1995) %>%
+            dplyr::filter(Year >= (i+1995-OutbreakCrash) & Year <= i+1995) %>%
             dplyr::group_by(REEF_NAME, Year) %>% # need to allow for detection
             dplyr::summarise(Mean.COTS = mean(COTSA)) %>%
-            dplyr::mutate(is.outbreak = ifelse(Mean.COTS > 0.2, 1,0)) %>%
+            dplyr::mutate(is.outbreak = ifelse(Mean.COTS > 0.2, 1,0)) #%>%
             dplyr::group_by(REEF_NAME) %>%
-            dplyr::summarise(Crash = ifelse(sum(is.outbreak)==OutbreakCrash,1,0)) %>%
-            dplyr::filter(Crash==1)
+            dplyr::summarise(sumcrash = sum(is.outbreak),
+              Crash = ifelse(sum(is.outbreak)>=OutbreakCrash,1,0)) #%>%
+            dplyr::filter(Crash>0)
+            # browser()
+          # if (nrow(OutbreakCrasher) >0) {browser()}  
           matchit = match(data.grid$REEF_NAME,OutbreakCrasher$REEF_NAME)
           COTSabund[which(!is.na(matchit)),] = c(0,0,0)
         } # Close outbreak crasher
@@ -550,14 +553,22 @@ manta.reefs = data.manta %>%
   dplyr::filter(REEF_NAME.y %in% unique(data.grid$REEF_NAME) & REPORT_YEAR > 1995) %>% 
   mutate(REEF_NAME = as.factor(REEF_NAME.y)) %>%
   group_by(A_SECTOR, REEF_NAME) %>% 
-  dplyr::summarise(n=length(REPORT_YEAR)) %>% filter(n>8) %>% top_n(3, n) %>%
+  dplyr::summarise(n=length(REPORT_YEAR)) %>% filter(n>10) %>% 
   pull(REEF_NAME) %>% as.character()
 
 manta.reefs.all = data.manta %>% 
   dplyr::filter(REEF_NAME.y %in% unique(data.grid$REEF_NAME) & REPORT_YEAR > 1995) %>% 
   mutate(REEF_NAME = as.factor(REEF_NAME.y)) %>%
   group_by(A_SECTOR, REEF_NAME) %>% 
-  dplyr::summarise(n=length(REPORT_YEAR)) %>% filter(n>3) %>%
+  dplyr::summarise(n=length(REPORT_YEAR)) %>% filter(n>4) %>%
+  pull(REEF_NAME) %>% as.character()
+
+manta.reefs.valid = data.manta %>% 
+  dplyr::filter(REEF_NAME.y %in% unique(data.grid$REEF_NAME) & REPORT_YEAR > 1995) %>% 
+  mutate(REEF_NAME = as.factor(REEF_NAME.y)) %>%
+  group_by(A_SECTOR, REEF_NAME) %>% 
+  dplyr::summarise(n=length(REPORT_YEAR)) %>% filter(n>4) %>%
+  dplyr::filter(!REEF_NAME %in% manta.reefs) %>%
   pull(REEF_NAME) %>% as.character()
 
 res.plot = ForGraph %>% filter(REEF_NAME %in% data.grid$REEF_NAME) %>% 
@@ -570,6 +581,7 @@ res.plot = ForGraph %>% filter(REEF_NAME %in% data.grid$REEF_NAME) %>%
                    CC.75 = mean(CC.Q75))
 res.plot.manta = res.plot[which(res.plot$REEF_NAME %in% manta.reefs),]
 res.plot.manta.all = res.plot[which(res.plot$REEF_NAME %in% manta.reefs.all),]
+res.plot.manta.valid = res.plot[which(res.plot$REEF_NAME %in% manta.reefs.valid),]
 
 data.manta.valid = data.manta %>% filter(REEF_NAME.y %in% manta.reefs & REPORT_YEAR > 1995) %>% 
   mutate(REEF_NAME = REEF_NAME.y,
@@ -581,14 +593,21 @@ data.manta.valid.all = data.manta %>% filter(REEF_NAME.y %in% manta.reefs.all & 
          Year = REPORT_YEAR - 1) %>% 
   right_join(res.plot.manta.all, by=c("REEF_NAME", "Year"))
 
+data.manta.valid.valid = data.manta %>% filter(REEF_NAME.y %in% manta.reefs.all & REPORT_YEAR > 1995) %>% 
+  mutate(REEF_NAME = REEF_NAME.y,
+         Year = REPORT_YEAR - 1) %>% 
+  right_join(res.plot.manta.valid, by=c("REEF_NAME", "Year"))
+
 
 SECTORS = unique(as.character(data.manta.valid$SECTOR))
-MPE = data.frame(SECTOR= rep(SECTORS, each=NREPS), 
+MPE = MPE.valid = data.frame(SECTOR= rep(SECTORS, each=NREPS), 
                  REP = 1:NREPS,
                  MPE.CC = vector(mode = "numeric", NREPS*length(SECTORS)),
                  MPE.CC.c = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 MPE.CC.R2 = vector(mode = "numeric", NREPS*length(SECTORS)),
                  MPE.CC.ALL = vector(mode = "numeric", NREPS*length(SECTORS)),
                  MPE.CC.ALL.c = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 MPE.CC.ALL.R2 = vector(mode = "numeric", NREPS*length(SECTORS)),
                  MPE.COTS = vector(mode = "numeric", NREPS*length(SECTORS)),
                  MPE.COTS.ALL = vector(mode = "numeric", NREPS*length(SECTORS)),
                  ACC.Pres = vector(mode = "numeric", NREPS*length(SECTORS)),
@@ -606,27 +625,47 @@ MPE = data.frame(SECTOR= rep(SECTORS, each=NREPS),
                  pR2.COTS = vector(mode = "numeric", NREPS*length(SECTORS)),
                  pR2.COTS.ALL = vector(mode = "numeric", NREPS*length(SECTORS)),
                  pR2sqrt.COTS = vector(mode = "numeric", NREPS*length(SECTORS)),
-                 pR2sqrt.COTS.ALL = vector(mode = "numeric", NREPS*length(SECTORS)))
+                 pR2sqrt.COTS.ALL = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 OUT.R2 = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 OUT.C = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 ACC.CLASS = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 KAP.CLASS = vector(mode = "numeric", NREPS*length(SECTORS)),
+                 P.CLASS = vector(mode = "numeric", NREPS*length(SECTORS)))
                  
 
-
-#Compute validation table at sector level
+# Calculate Calibration Metrics ----
+#Compute validation table at sector level ----
 for (i in 1:NREPS) {
   # browser()
   print(i)
   manta.i = dplyr::filter(data.manta.valid, REP==i)
   lm = lm(CC.mn~MEAN_LIVE.corr, data=manta.i)
-  summary(lm)$r.squared  ## R2 = 0.637
   MPE[MPE$REP==i,"MPE.CC.ALL"] = mean(abs(summary(lm)$residuals)) ## Mean prediction error = 7.7 %
   MPE[MPE$REP==i,"MPE.CC.ALL.c"] = lm$coefficients[2]
+  MPE[MPE$REP==i,"MPE.CC.ALL.R2"] = summary(lm)$r.squared
   lm = lm(COTS.mn~MEAN_COTS, data=manta.i)
   summary(lm)$r.squared  ## R2 = 0.637
   MPE[MPE$REP==i,"MPE.COTS.ALL"] = mean(abs(summary(lm)$residuals))
   # make confusion matrix --> get KAPPA and Accuracy
   obs.bin = factor(ifelse(manta.i$MEAN_COTS>0.01,1,0),levels = c(0,1)) ; pred.bin = factor(ifelse(manta.i$COTS.mn > 0.01, 1,0),levels = c(0,1))
-  obs.binOUT = factor(ifelse(manta.i$MEAN_COTS >0.22,1,0), levels = c(0,1)) ; pred.binOUT = factor(ifelse(manta.i$COTS.mn > 0.22, 1,0),levels = c(0,1))
+  obs.binOUT = factor(ifelse(manta.i$MEAN_COTS >0.11,1,0), levels = c(0,1)) ; pred.binOUT = factor(ifelse(manta.i$COTS.mn > 0.22, 1,0),levels = c(0,1))
   pres.conf = caret::confusionMatrix(pred.bin, obs.bin)
   out.conf = caret::confusionMatrix(pred.binOUT, obs.binOUT) #### Confusion Matrix
+  # Multi-Class confusion matrix
+  obs.clas = factor(ifelse(manta.i$MEAN_COTS<0.01,"NC",
+                        ifelse(manta.i$MEAN_COTS<0.11,"NO",
+                                  ifelse(manta.i$MEAN_COTS<0.22,"PO",
+                                         ifelse(manta.i$MEAN_COTS<1,"EO", "SO")))),
+                                         levels = c("NC", "PO", "EO", "SO")) 
+  pred.clas = factor(ifelse(manta.i$COTS.mn<0.01,"NC",
+                        ifelse(manta.i$COTS.mn<0.11,"NO",
+                                  ifelse(manta.i$COTS.mn<0.22,"PO",
+                                         ifelse(manta.i$COTS.mn<1,"EO", "SO")))),
+                    levels = c("NC", "PO", "EO", "SO")) 
+  clas.conf = caret::confusionMatrix(pred.clas, obs.clas)
+  MPE[MPE$REP==i,"ACC.CLASS"] = clas.conf$overall[1]
+  MPE[MPE$REP==i,"KAP.CLASS"] = clas.conf$overall[2]
+  MPE[MPE$REP==i,"P.CLASS"] = clas.conf$overall[6]
   MPE[MPE$REP==i,c("ACC.Pres.ALL", "KAP.Pres.ALL", "P.Pres.ALL")] = round(rep(pres.conf$overall[c(1:2, 6)], each=length(SECTORS)),3)
   MPE[MPE$REP==i,c("ACC.Out.ALL", "KAP.Out.ALL", "P.Out.ALL")] = round(rep(out.conf$overall[c(1:2, 6)], each=length(SECTORS)),3)
   df = manta.i %>%  
@@ -636,6 +675,19 @@ for (i in 1:NREPS) {
            pred.bin = pred.bin) %>%
     mutate(COTS.mn = ifelse(COTS.mn <=0.01, 0, COTS.mn),
            MEAN_COTS = round(ifelse(MEAN_COTS <0, 0, MEAN_COTS),0))
+  df.out = manta.i %>%  
+    dplyr::select(REEF_NAME, SECTOR, Year, REP, COTS.mn, MEAN_COTS) %>% 
+    dplyr::group_by(SECTOR,REEF_NAME, REP) %>% dplyr::filter(MEAN_COTS > 0.11) %>%
+      dplyr::summarise(MaxMEAN = mean(MEAN_COTS))
+  df.out.mod = manta.i %>%  
+    dplyr::select(REEF_NAME, Year, REP, COTS.mn, MEAN_COTS) %>% 
+    dplyr::group_by(REEF_NAME, REP) %>% dplyr::filter(REEF_NAME %in% df.out$REEF_NAME) %>%
+    dplyr::filter(COTS.mn > 0.11) %>%
+    dplyr::summarise(MaxMEAN.mod = mean(COTS.mn)) %>% dplyr::right_join(df.out)
+  lm = lm(MaxMEAN~MaxMEAN.mod, data=df.out.mod)
+  summary(lm)$r.squared  ## R2 = 0.637
+  MPE[MPE$REP==i,"OUT.R2"] = summary(lm)$r.squared
+  MPE[MPE$REP==i,"OUT.C"] = lm$coefficients[2]
   # run Zeron-infl neg bin on results using pscl to get pseudo R2 --> convert to integer value
   try({
     m1 = pscl::zeroinfl(MEAN_COTS ~ COTS.mn | pred.bin,
@@ -655,12 +707,13 @@ for (i in 1:NREPS) {
     summary(lm)$r.squared  ## R2 = 0.637
     MPE[MPE$SECTOR==SECTORS[j] & MPE$REP==i,"MPE.CC"] = mean(abs(summary(lm)$residuals)) ## Mean prediction error = 7.7 %
     MPE[MPE$SECTOR==SECTORS[j] & MPE$REP==i,"MPE.CC.c"] = lm$coefficients[2]
+    MPE[MPE$SECTOR==SECTORS[j] & MPE$REP==i,"MPE.CC.R2"] = summary(lm)$r.squared
     lm = lm(COTS.mn~MEAN_COTS, data=manta.i)
     summary(lm)$r.squared  ## R2 = 0.637
     MPE[MPE$SECTOR==SECTORS[j] & MPE$REP==i,"MPE.COTS"] = mean(abs(summary(lm)$residuals)) ##
     # make confusion matrix --> get KAPPA and Accuracy
     obs.bin = factor(ifelse(manta.i$MEAN_COTS>0.01,1,0),levels = c(0,1)) ; pred.bin = factor(ifelse(manta.i$COTS.mn > 0.01, 1,0),levels = c(0,1))
-    obs.binOUT = factor(ifelse(manta.i$MEAN_COTS >0.22,1,0), levels = c(0,1)) ; pred.binOUT = factor(ifelse(manta.i$COTS.mn > 0.22, 1,0),levels = c(0,1))
+    obs.binOUT = factor(ifelse(manta.i$MEAN_COTS >0.11,1,0), levels = c(0,1)) ; pred.binOUT = factor(ifelse(manta.i$COTS.mn > 0.22, 1,0),levels = c(0,1))
     pres.conf = caret::confusionMatrix(pred.bin, obs.bin)
     out.conf = caret::confusionMatrix(pred.binOUT, obs.binOUT)#### Confusion Matrix
     MPE[MPE$SECTOR==SECTORS[j] & MPE$REP==i,c("ACC.Pres", "KAP.Pres", "P.Pres")] = pres.conf$overall[c(1:2, 6)]
@@ -686,14 +739,134 @@ for (i in 1:NREPS) {
   }
 }  
 
+# Calculate Validation Metrics ----
+#Compute validation table at sector level ----
+for (i in 1:NREPS) {
+  # browser()
+  print(i)
+  manta.i = dplyr::filter(data.manta.valid.valid, REP==i)
+  lm = lm(CC.mn~MEAN_LIVE.corr, data=manta.i)
+  MPE.valid[MPE.valid$REP==i,"MPE.CC.ALL"] = mean(abs(summary(lm)$residuals)) ## Mean prediction error = 7.7 %
+  MPE.valid[MPE.valid$REP==i,"MPE.CC.ALL.c"] = lm$coefficients[2]
+  MPE.valid[MPE.valid$REP==i,"MPE.CC.ALL.R2"] = summary(lm)$r.squared
+  lm = lm(COTS.mn~MEAN_COTS, data=manta.i)
+  summary(lm)$r.squared  ## R2 = 0.637
+  MPE.valid[MPE.valid$REP==i,"MPE.COTS.ALL"] = mean(abs(summary(lm)$residuals))
+  # make confusion matrix --> get KAPPA and Accuracy
+  obs.bin = factor(ifelse(manta.i$MEAN_COTS>0.01,1,0),levels = c(0,1)) ; pred.bin = factor(ifelse(manta.i$COTS.mn > 0.01, 1,0),levels = c(0,1))
+  obs.binOUT = factor(ifelse(manta.i$MEAN_COTS >0.11,1,0), levels = c(0,1)) ; pred.binOUT = factor(ifelse(manta.i$COTS.mn > 0.22, 1,0),levels = c(0,1))
+  pres.conf = caret::confusionMatrix(pred.bin, obs.bin)
+  out.conf = caret::confusionMatrix(pred.binOUT, obs.binOUT) #### Confusion Matrix
+  # Multi-Class confusion matrix
+  obs.clas = factor(ifelse(manta.i$MEAN_COTS<0.01,"NC",
+                         ifelse(manta.i$MEAN_COTS<0.11,"NO",
+                           ifelse(manta.i$MEAN_COTS<0.22,"PO",
+                                  ifelse(manta.i$MEAN_COTS<1,"EO", "SO")))),
+                    levels = c("NC", "PO", "EO", "SO")) 
+  pred.clas = factor(ifelse(manta.i$COTS.mn<0.01,"NC",
+                        ifelse(manta.i$COTS.mn<0.11,"NO",
+                            ifelse(manta.i$COTS.mn<0.22,"PO",
+                                   ifelse(manta.i$COTS.mn<1,"EO", "SO")))),
+                     levels = c("NC", "PO", "EO", "SO")) 
+  clas.conf = caret::confusionMatrix(pred.clas, obs.clas)
+  MPE.valid[MPE.valid$REP==i,"ACC.CLASS"] = clas.conf$overall[1]
+  MPE.valid[MPE.valid$REP==i,"KAP.CLASS"] = clas.conf$overall[2]
+  MPE.valid[MPE.valid$REP==i,"P.CLASS"] = clas.conf$overall[6]
+  MPE.valid[MPE.valid$REP==i,c("ACC.Pres.ALL", "KAP.Pres.ALL", "P.Pres.ALL")] = round(rep(pres.conf$overall[c(1:2, 6)], each=length(SECTORS)),3)
+  MPE.valid[MPE.valid$REP==i,c("ACC.Out.ALL", "KAP.Out.ALL", "P.Out.ALL")] = round(rep(out.conf$overall[c(1:2, 6)], each=length(SECTORS)),3)
+  df = manta.i %>%  
+    dplyr::select(REEF_NAME, Year, REP, COTS.mn, MEAN_COTS) %>% 
+    mutate(COTS.mn = predict(MTCalib.gam, newdata=data.frame(MT=COTS.mn)),
+           MEAN_COTS = predict(MTCalib.gam, newdata=data.frame(MT=MEAN_COTS)),
+           pred.bin = pred.bin) %>%
+    mutate(COTS.mn = ifelse(COTS.mn <=0.01, 0, COTS.mn),
+           MEAN_COTS = round(ifelse(MEAN_COTS <0, 0, MEAN_COTS),0))
+  df.out = manta.i %>%  
+    dplyr::select(REEF_NAME, SECTOR, Year, REP, COTS.mn, MEAN_COTS) %>% 
+    dplyr::group_by(SECTOR,REEF_NAME, REP) %>% dplyr::filter(MEAN_COTS > 0.11) %>%
+    dplyr::summarise(MaxMEAN = mean(MEAN_COTS))
+  df.out.mod = manta.i %>%  
+    dplyr::select(REEF_NAME, Year, REP, COTS.mn, MEAN_COTS) %>% 
+    dplyr::group_by(REEF_NAME, REP) %>% dplyr::filter(REEF_NAME %in% df.out$REEF_NAME) %>%
+    dplyr::filter(COTS.mn > 0.11) %>%
+    dplyr::summarise(MaxMEAN.mod = mean(COTS.mn)) %>% dplyr::right_join(df.out)
+  lm = lm(MaxMEAN~MaxMEAN.mod, data=df.out.mod)
+  summary(lm)$r.squared  ## R2 = 0.637
+  MPE.valid[MPE.valid$REP==i,"OUT.R2"] = summary(lm)$r.squared
+  MPE.valid[MPE.valid$REP==i,"OUT.C"] = lm$coefficients[2]
+  # run Zeron-infl neg bin on results using pscl to get pseudo R2 --> convert to integer value
+  try({
+    m1 = pscl::zeroinfl(MEAN_COTS ~ COTS.mn | pred.bin,
+                        data = df, dist = "negbin", EM = TRUE)
+    m2 = pscl::zeroinfl(round(sqrt(MEAN_COTS),0) ~ round(sqrt(COTS.mn),0) | pred.bin,
+                        data = df, dist = "negbin", EM = TRUE)
+    MPE.valid[MPE.valid$REP==i,"pR2.COTS.ALL"] = round(r2_zeroinflated(m1)$R2,3)
+    MPE.valid[MPE.valid$REP==i,"pR2sqrt.COTS.ALL"] = round(r2_zeroinflated(m2)$R2,3)
+  }, silent=T)
+  
+  
+  for (j in 1:length(SECTORS)) {
+    # browser()
+    print(j)
+    manta.i = dplyr::filter(data.manta.valid.valid, REP==i & SECTOR == SECTORS[j])
+    lm = lm(CC.mn~MEAN_LIVE.corr, data=manta.i)
+    summary(lm)$r.squared  ## R2 = 0.637
+    MPE.valid[MPE.valid$SECTOR==SECTORS[j] & MPE.valid$REP==i,"MPE.CC"] = mean(abs(summary(lm)$residuals)) ## Mean prediction error = 7.7 %
+    MPE.valid[MPE.valid$SECTOR==SECTORS[j] & MPE.valid$REP==i,"MPE.CC.c"] = lm$coefficients[2]
+    MPE.valid[MPE.valid$SECTOR==SECTORS[j] & MPE.valid$REP==i,"MPE.CC.R2"] = summary(lm)$r.squared
+    lm = lm(COTS.mn~MEAN_COTS, data=manta.i)
+    summary(lm)$r.squared  ## R2 = 0.637
+    MPE.valid[MPE.valid$SECTOR==SECTORS[j] & MPE.valid$REP==i,"MPE.COTS"] = mean(abs(summary(lm)$residuals)) ##
+    # make confusion matrix --> get KAPPA and Accuracy
+    obs.bin = factor(ifelse(manta.i$MEAN_COTS>0.01,1,0),levels = c(0,1)) ; pred.bin = factor(ifelse(manta.i$COTS.mn > 0.01, 1,0),levels = c(0,1))
+    obs.binOUT = factor(ifelse(manta.i$MEAN_COTS >0.11,1,0), levels = c(0,1)) ; pred.binOUT = factor(ifelse(manta.i$COTS.mn > 0.22, 1,0),levels = c(0,1))
+    pres.conf = caret::confusionMatrix(pred.bin, obs.bin)
+    out.conf = caret::confusionMatrix(pred.binOUT, obs.binOUT)#### Confusion Matrix
+    MPE.valid[MPE.valid$SECTOR==SECTORS[j] & MPE.valid$REP==i,c("ACC.Pres", "KAP.Pres", "P.Pres")] = pres.conf$overall[c(1:2, 6)]
+    MPE.valid[MPE.valid$SECTOR==SECTORS[j] & MPE.valid$REP==i,c("ACC.Out", "KAP.Out", "P.Out")] = out.conf$overall[c(1:2, 6)]
+    df = manta.i %>%  
+      dplyr::select(REEF_NAME, Year, REP, COTS.mn, MEAN_COTS) %>% 
+      mutate(COTS.mn = predict(MTCalib.gam, newdata=data.frame(MT=COTS.mn)),
+             MEAN_COTS = predict(MTCalib.gam, newdata=data.frame(MT=MEAN_COTS)),
+             pred.bin = pred.bin) %>%
+      mutate(COTS.mn = ifelse(COTS.mn <=0.01, 0, COTS.mn),
+             MEAN_COTS = round(ifelse(MEAN_COTS <0, 0, MEAN_COTS),0))
+    
+    # run Zeron-infl neg bin on results using pscl to get pseudo R2 --> convert to integer value
+    try({
+      m1 = pscl::zeroinfl(MEAN_COTS ~ COTS.mn | pred.bin,
+                          data = df, dist = "negbin", EM = TRUE)
+      m2 = pscl::zeroinfl(round(sqrt(MEAN_COTS),0) ~ round(sqrt(COTS.mn),0) | pred.bin,
+                          data = df, dist = "negbin", EM = TRUE)
+      MPE.valid[MPE.valid$SECTOR==SECTORS[j] & MPE.valid$REP==i,"pR2.COTS"] = round(r2_zeroinflated(m1)$R2,3)
+      MPE.valid[MPE.valid$SECTOR==SECTORS[j] & MPE.valid$REP==i,"pR2sqrt.COTS"] = round(r2_zeroinflated(m2)$R2,3)
+    }, silent = T)
+    
+  }
+}  
+
+
+
 range01 <- function(x, ...){(x - min(x, ...)) / (max(x, ...) - min(x, ...))}
 MPE.overall = MPE %>% group_by(REP) %>% 
-  dplyr::select(contains("ALL")) %>%
+  dplyr::select(contains("ALL"), 27:31 ) %>%
   # dplyr::select(MPE.CC.ALL, MPE.COTS.ALL, ACC.Pres.ALL, KAP.Pres.ALL, KAP.Out.ALL, 
   #               ACC.Out.ALL, pR2sqrt.COTS.ALL,P.Pres.ALL, P.Out.ALL) %>%
   summarise_all(mean) %>%
-  mutate(Overall = (range01(ACC.Pres.ALL) + range01(KAP.Pres.ALL) +range01(ACC.Out.ALL) +range01(KAP.Out.ALL) + (1-range01(MPE.CC.ALL)))/5)
+  mutate(Overall = (range01(ACC.Pres.ALL) + range01(KAP.Pres.ALL) + range01(ACC.CLASS) +
+                      range01(OUT.R2) +
+                      range01(ACC.Out.ALL) +range01(KAP.Out.ALL) + (1-range01(MPE.CC.ALL)))/7)
 
+MPE.valid.overall = MPE.valid %>% group_by(REP) %>% 
+  dplyr::select(contains("ALL"), 27:31) %>%
+  # dplyr::select(MPE.CC.ALL, MPE.COTS.ALL, ACC.Pres.ALL, KAP.Pres.ALL, KAP.Out.ALL, 
+  #               ACC.Out.ALL, pR2sqrt.COTS.ALL,P.Pres.ALL, P.Out.ALL) %>%
+  summarise_all(mean) %>%
+  mutate(Overall = (range01(ACC.Pres.ALL) + range01(KAP.Pres.ALL) + range01(ACC.CLASS) +
+                      range01(OUT.R2) +
+                      range01(ACC.Out.ALL) +range01(KAP.Out.ALL) + (1-range01(MPE.CC.ALL)))/7)
+write.csv(MPE.overall, file = "Results/Archive/MPECalib_2019-08-29_5.csv", row.names = F)
+write.csv(MPE.valid.overall, file = "Results/Archive/MPEValid_2019-08-29_5.csv", row.names = F)
 
 BESTREPS = unique(MPE.overall[order(MPE.overall$ACC.Out.ALL, decreasing = T),"REP"])[1:10,1] %>% pull(REP)
 # MPE.BEST = MPE %>% filter(REP %in% BESTREPS)
@@ -858,7 +1031,7 @@ for(i in 1996:2017){
   library(ggplot2)
   library(PBSmapping)
   library(grid)
-  # i=2017
+  i=2017
   res.fig.i = dplyr::select(data.grid, REEF_NAME, SECTOR, CROSS_SHELF, lat, lon) %>% inner_join(res.fig %>% filter(Year %in% i))
 
   # dev.off()
@@ -1017,11 +1190,4 @@ for(i in 1996:2017){
   export::graph2tif(file = paste0("Results/Figures/YearlyPlotsCOTS_",i), width =11, height=9, dpi=300)
 }
 
-library(animation)
-imgs <- list.files(pattern="*.png")
-saveVideo({
-  for(img in imgs){
-    im <- magick::image_read(img)
-    plot(as.raster(im))
-  }
-})
+

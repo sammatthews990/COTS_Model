@@ -160,10 +160,10 @@ MakeLHSSamples <- function(NREPS){
   LHSParms <- specifyLHSParam(LHSParms,"ConsRateS",type="CONT",lb=0,ub=0)
   
   ### AVERAGE PER CAPITA FECUNDITY 
-  LHSParms <- specifyLHSParam(LHSParms,"avgPCF",type="CONT",lb=2e7,ub=2e7)       # KTS: changed to 500
+  LHSParms <- specifyLHSParam(LHSParms,"avgPCF",type="CONT",lb=2.82e7,ub=3.81e7)       # KTS: changed to 500
   
   ### STD DEV PER CAPITA FECUNDITY
-  LHSParms <- specifyLHSParam(LHSParms,"sdPCF",type="CONT",lb=1e7,ub=1e7)     # was 1000 to 40000  
+  LHSParms <- specifyLHSParam(LHSParms,"sdPCF",type="CONT",lb=1.15e7,ub=0.85e7)     # was 1000 to 40000  
   
   ### % JUVENILE1 MORTALITY PER TIME STEP
   LHSParms <- specifyLHSParam(LHSParms,"mortJ1",type="CONT",lb=0.98,ub=0.98)
@@ -172,7 +172,7 @@ MakeLHSSamples <- function(NREPS){
   LHSParms <- specifyLHSParam(LHSParms,"mortJ2",type="CONT",lb=0.7,ub=0.7) 
   
   ### % ADULT MORTALITY PER TIME STEP
-  LHSParms <- specifyLHSParam(LHSParms,"mortA",type="CONT",lb=0.2,ub=0.6)
+  LHSParms <- specifyLHSParam(LHSParms,"mortA",type="CONT",lb=0.43,ub=0.58)
   
   ### % JUVENILE1 TO REMIAIN during transition
   LHSParms <- specifyLHSParam(LHSParms,"remJ1",type="CONT",lb=0,ub=0)
@@ -193,7 +193,7 @@ MakeLHSSamples <- function(NREPS){
   LHSParms <- specifyLHSParam(LHSParms,"cssA",type="CONT",lb=0.0026,ub=0.0026)
   
   ### PROPORTIONAL Larval Mortality FIXED
-  LHSParms <- specifyLHSParam(LHSParms,"Pred",type="CONT",lb=0.98,ub=0.98)
+  LHSParms <- specifyLHSParam(LHSParms,"Pred",type="CONT",lb=0.995,ub=0.95)
   
   ### % Coral Cover at which to crash a COTS population entirely  
   LHSParms <- specifyLHSParam(LHSParms,"Crash",type="CONT",lb=0,ub=0)
@@ -205,49 +205,49 @@ MakeLHSSamples <- function(NREPS){
   LHSParms <- specifyLHSParam(LHSParms,"Fbase",type="CONT",lb=0,ub=0)
   
   ### Coral-COTS Ratio at which COral becomes lmiting resource ~25
-  LHSParms <- specifyLHSParam(LHSParms,"CCRatioThresh",type="CONT",lb=35,ub=35)
+  LHSParms <- specifyLHSParam(LHSParms,"CCRatioThresh",type="CONT",lb=40,ub=30)
   
   ### Coral-COTS Ratio below which COTS mortality reaches its maximum
-  LHSParms <- specifyLHSParam(LHSParms,"CCRatioThresh2",type="CONT",lb=1,ub=7)
+  LHSParms <- specifyLHSParam(LHSParms,"CCRatioThresh2",type="CONT",lb=4.13,ub=5.58)
   
   ### Maximum mortality experienced by adult COTS under severely resource limited conditions
   LHSParms <- specifyLHSParam(LHSParms,"maxmort",type="CONT",lb=1,ub=1)
   
   ### Proportion of estimated selfseeding larvae to remiain (assuming that KArlo's model overestimates)
-  LHSParms <- specifyLHSParam(LHSParms,"selfseed",type="CONT",lb=0.5,ub=0.5)
+  LHSParms <- specifyLHSParam(LHSParms,"selfseed",type="CONT",lb=0.85,ub=1)
   
   ### Intercept for the chlorophyll model, increasing it allows more larve to survive in oligotrophic cond's
-  LHSParms <- specifyLHSParam(LHSParms,"chl.int",type="CONT",lb=3,ub=12)
+  LHSParms <- specifyLHSParam(LHSParms,"chl.int",type="CONT",lb=1.7,ub=2.4)
   
   ### Proportion of CMax to be consumed at lowest Coral-COTS Ratio
-  LHSParms <- specifyLHSParam(LHSParms,"Cbase",type="CONT",lb=0.1,ub=0.1)
+  LHSParms <- specifyLHSParam(LHSParms,"Cbase",type="CONT",lb=0.115,ub=0.085)
   
   ### Max coral consumed (cm2) per day by COTS
-  LHSParms <- specifyLHSParam(LHSParms,"CMax",type="CONT",lb=200,ub=200)
+  LHSParms <- specifyLHSParam(LHSParms,"CMax",type="CONT",lb=170,ub=230)
   
   ### Logistic parameter for J2 mortality
-  LHSParms <- specifyLHSParam(LHSParms,"J2M",type="CONT",lb=-0.2e5,ub=-0.6e5)
+  LHSParms <- specifyLHSParam(LHSParms,"J2M",type="CONT",lb=-0.24e5,ub=-0.33e5)
   
   ### Logistic parameter for J1 mortality
-  LHSParms <- specifyLHSParam(LHSParms,"J1M",type="CONT",lb=-0.8e7,ub=-2.2e7)
+  LHSParms <- specifyLHSParam(LHSParms,"J1M",type="CONT",lb=-1.7e7,ub=-2.3e7)
   
   ### Logistic parameter for J2 mortality
-  LHSParms <- specifyLHSParam(LHSParms,"J2R",type="CONT",lb=0.000011,ub=0.000025)
+  LHSParms <- specifyLHSParam(LHSParms,"J2R",type="CONT",lb=0.0000081,ub=0.000011)
   
   ### Logistic parameter for J1 mortality
-  LHSParms <- specifyLHSParam(LHSParms,"J1R",type="CONT",lb=0.00000013,ub=0.00000025)
+  LHSParms <- specifyLHSParam(LHSParms,"J1R",type="CONT",lb=1.69e-07,ub=2.29e-07)
   
   ### Logistic parameter for A mortality
-  LHSParms <- specifyLHSParam(LHSParms,"AM",type="CONT",lb=100,ub=100)
+  LHSParms <- specifyLHSParam(LHSParms,"AM",type="CONT",lb=115,ub=85)
   
   ### Logistic parameter for A mortality
-  LHSParms <- specifyLHSParam(LHSParms,"AR",type="CONT",lb=0.01,ub=0.05)
+  LHSParms <- specifyLHSParam(LHSParms,"AR",type="CONT",lb=0.039,ub=0.052)
   
   ### Von Bertanlanffy Growth of Fertilisation by density - MAX
-  LHSParms <- specifyLHSParam(LHSParms,"Linf",type="CONT",lb=0.7,ub=0.7)
+  LHSParms <- specifyLHSParam(LHSParms,"Linf",type="CONT",lb=0.805,ub=0.595)
   
   ### on Bertanlanffy Growth of Fertilisation by density - Growth Rate
-  LHSParms <- specifyLHSParam(LHSParms,"K",type="CONT",lb=4e-04,ub=4e-04)
+  LHSParms <- specifyLHSParam(LHSParms,"K",type="CONT",lb=3.7e-04,ub=5e-04)
   
   ### on Bertanlanffy Growth of Fertilisation by density - Value at 0
   LHSParms <- specifyLHSParam(LHSParms,"t0",type="CONT",lb=0,ub=0)

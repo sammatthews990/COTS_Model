@@ -387,11 +387,14 @@ doCOTSDispersal = function(season, COTSabund, CoralCover, SexRatio, ConnMat, PCF
     diag(nArriving_Reef) = diag(nArriving_Reef)*selfseed
     nArriving_Reef = base::colSums(nArriving_Reef, na.rm = T) # create total juveniles arriving at a reef
     data.COTSPred = data.COTSPred[match(Pixels$REEF_NAME, data.COTSPred$REEF_NAME),]
+    data.COTSPred$PA_stack = ifelse(data.COTSPred$PA_stack < 0.15,0,data.COTSPred$PA_stack)
     nArriving_Reef = nArriving_Reef*data.COTSPred$PA_stack
     nArriving_Reef_PerPix = round(nArriving_Reef/Pixels$Pixels,0)
     names(nArriving_Reef_PerPix) = colnames(ConnMat)
     # match(data.grid$REEF_NAME, colnames(ConnMat))
     nArriving = nArriving_Reef_PerPix[match(data.grid$REEF_NAME, colnames(ConnMat))]
+    #Nutrition at arrival reef
+    # nArriving = nArriving*surv.pred
     # Add in Larval Nurtrition at destination reef
     COTSabund[,'J_1'] = COTSabund[,'J_1'] + nArriving # add these to our abundance
    
@@ -550,10 +553,10 @@ logistic.mort = function(phi1, phi2,phi3, x) {
   y <-phi1/(1+exp(-phi3*(x-phi2)))
   return(y)
 }
-# threshdf = data.frame(MT = c(0.22,1,3,6,10,20),
-#                       A=predict(MTCalib.gam, newdata=data.frame(MT=c(0.22,1,3,6,10,20))),
-#                       J2 = predict(MTCalib.gam, newdata=data.frame(MT=c(0.22,1,3,6,10,20)))*COTS_StableStage[2]/COTS_StableStage[3],
-#                       J1 = predict(MTCalib.gam, newdata=data.frame(MT=c(0.22,1,3,6,10,20)))*COTS_StableStage[1]/COTS_StableStage[3])
+threshdf = data.frame(MT = c(0.005,0.01,0.05, 0.11, 0.22,1,3,6,10,20),
+                      A=predict(MTCalib.gam, newdata=data.frame(MT=c(0.005,0.01,0.05, 0.11, 0.22,1,3,6,10,20))),
+                      J2 = predict(MTCalib.gam, newdata=data.frame(MT=c(0.005,0.01,0.05, 0.11, 0.22,1,3,6,10,20)))*COTS_StableStage[2]/COTS_StableStage[3],
+                      J1 = predict(MTCalib.gam, newdata=data.frame(MT=c(0.005,0.01,0.05, 0.11, 0.22,1,3,6,10,20)))*COTS_StableStage[1]/COTS_StableStage[3])
 # COTS_StableStage
 plot(seq(0,20000000, by=10000), logistic.mort(1, -0.8e7, 0.00000021, seq(0,20000000, by=10000)))
 points(seq(0,20000000, by=10000), logistic.mort(1, -2e7, 0.0000003, seq(0,20000000, by=10000)))
@@ -561,8 +564,8 @@ points(seq(0,20000000, by=10000), logistic.mort(1, -2e7, 0.0000003, seq(0,200000
 # # CC Ratio
 # x=100
 
-plot(seq(0,200, by=1), (1-logistic.mort(0.8, 30, 0.005, seq(0,200, by=1))), ylim=c(0,1))
-points(seq(0,100, by=1), (1-logistic.mort(0.8, 100, 0.04, seq(0,100, by=1))), ylim=c(0,1))
+plot(seq(0,200, by=1), (1-logistic.mort(0.8, 100, 0.05, seq(0,200, by=1))), ylim=c(0,1))
+points(seq(0,200, by=1), (1-logistic.mort(0.8, 30, 0.3, seq(0,200, by=1))), ylim=c(0,1))
 # points(seq(0,200, by=1), logistic.mort(1, -2e7, 0.00000023, seq(0,20000000, by=10000)))
 # # #
 plot(seq(0,400000, by=10000), logistic.mort(1, -0.2e5, 0.000005, seq(0,400000, by=10000)),ylim=c(0.5,1))
@@ -590,7 +593,13 @@ doPredPreyDynamics = function(COTSabund, CoralCover, Crash, CCRatioThresh, CCRat
   J2Mort = logistic.mort(1, J2M, J2R, COTSabund[,2])
   J1Mort = logistic.mort(1, J1M, J1R, COTSabund[,1])
   AMort = (1-logistic.mort((1-COTSmort[3]), AM, AR, Ratio))
+
+  #Whole reef crash  
+  data.crashreef = cbind(data.grid[1:7], Ratio) %>% dplyr::group_by(REEF_NAME) %>%
+    dplyr::summarise(minRat = min(Ratio), Crash = ifelse(min(Ratio) < CCRatioThresh2, T, F)) %>% 
+    dplyr::filter (Crash==T)
   
+  Ratio[which(data.grid$REEF_NAME %in% data.crashreef$REEF_NAME)] = CCRatioThresh2-0.01
 
   COTSabund[,"A"][which(Ratio<CCRatioThresh2)] = round((COTSabund[,"A"]*(1-maxmort))[which(Ratio<CCRatioThresh2)],0)
   COTSabund[,"J_1"][which(Ratio<CCRatioThresh2)] = round((COTSabund[,"J_1"]*(1-maxmort))[which(Ratio<CCRatioThresh2)],0)

@@ -1,8 +1,8 @@
 {
-    "path" : "C:/Users/jc312264/OneDrive - James Cook University/GitHub/COTS_Model/RData",
+    "path" : "C:/Users/jc312264/OneDrive - James Cook University/GitHub/COTS_Model/Results/Archive",
     "sortOrder" : [
         {
-            "ascending" : true,
+            "ascending" : false,
             "columnIndex" : 2
         }
     ]

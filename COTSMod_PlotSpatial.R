@@ -67,7 +67,7 @@ library(rgdal)
 # Import and rotate spatial layers
 # shape <- importShapefile("Data/SDE_OWNER_crcgis_land250/SDE_OWNER_crcgis_land250", readDBF=FALSE)
 # shape2 <- importShapefile("Data/ManagementAreas/Management_Areas_of_the_GBRMP__Poly_", readDBF=FALSE)
-
+data.grid = read.csv("Data/Environmental_data.csv", header=T)[1:7]
 shape.poly <- rgdal::readOGR("Data/SDE_OWNER_crcgis_land250/SDE_OWNER_crcgis_land250.shp", p4s = "+proj=longlat +datum=WGS84")
 shape.elide <- elide(shape.poly, rotate=45)
 shape45 <- SpatialPolygons2PolySet(shape.elide)
